@@ -407,7 +407,10 @@ class Fixture(unittest.TestCase):
         id_factory: Any = None,
         pricing_data: dict | None = None,
     ) -> Path:
-        with mock.patch("basecamp_bench.runner.run_managed", side_effect=self.side_effect):
+        with (
+            mock.patch("basecamp_bench.runner.run_managed", side_effect=self.side_effect),
+            mock.patch("basecamp_bench.execution.run_managed", side_effect=self.side_effect),
+        ):
             return run_benchmark(
                 config or self.config(),
                 options=options or self.options(),
@@ -476,7 +479,7 @@ class ExecuteTests(Fixture):
             )
             return _proc()
 
-        with mock.patch("basecamp_bench.runner.run_managed", side_effect=se):
+        with mock.patch("basecamp_bench.execution.run_managed", side_effect=se):
             result = execute_agent(
                 self.config(),
                 job,
@@ -1066,7 +1069,42 @@ class PublicationTests(Fixture):
 
 
 class UnsafeTests(Fixture):
-    def test_pi_requires_external_isolation_or_host_ack(self) -> None:
+    def test_full_access_requires_acknowledgement_or_isolated_boundary(self) -> None:
+        cfg = self.config(full_access=True)
+        with self.assertRaisesRegex(ValueError, "full_access"):
+            self.run_bench(
+                config=cfg,
+                options=RunOptions(
+                    allow_unsafe_host_execution=False,
+                    confirmed_isolated_environment=False,
+                    allow_network_pricing=False,
+                ),
+                id_factory=_Ids("full-access-blocked"),
+            )
+
+        for prefix, options in (
+            (
+                "full-access-ack",
+                RunOptions(
+                    allow_unsafe_host_execution=True,
+                    confirmed_isolated_environment=False,
+                    allow_network_pricing=False,
+                ),
+            ),
+            (
+                "full-access-isolated",
+                RunOptions(
+                    allow_unsafe_host_execution=False,
+                    confirmed_isolated_environment=True,
+                    allow_network_pricing=False,
+                ),
+            ),
+        ):
+            with self.subTest(prefix=prefix):
+                run_dir = self.run_bench(config=cfg, options=options, id_factory=_Ids(prefix))
+                self.assertEqual(self.read_run_manifest(run_dir)["status"], "complete")
+
+    def test_pi_runs_locally_without_external_isolation_or_host_ack(self) -> None:
         @register_harness(replace=True)
         class PiLike(Harness):
             name = "pi"
@@ -1079,16 +1117,16 @@ class UnsafeTests(Fixture):
                 harnesses={"pi-glm": self.harness(hid="pi-glm", adapter="pi", model="glm-5.2")},
                 evaluators=(self.evaluator("e1", "judge-model-a", harness="pi-glm"),),
             )
-            with self.assertRaisesRegex(ValueError, "non-OS-sandboxed"):
-                self.run_bench(
-                    config=cfg,
-                    options=RunOptions(
-                        allow_unsafe_host_execution=False,
-                        confirmed_isolated_environment=False,
-                        allow_network_pricing=False,
-                    ),
-                    id_factory=_Ids("pi-unsafe"),
-                )
+            run_dir = self.run_bench(
+                config=cfg,
+                options=RunOptions(
+                    allow_unsafe_host_execution=False,
+                    confirmed_isolated_environment=False,
+                    allow_network_pricing=False,
+                ),
+                id_factory=_Ids("pi-local"),
+            )
+            self.assertEqual(self.read_run_manifest(run_dir)["status"], "complete")
         finally:
             from basecamp_bench.adapters import PiHarness
 
@@ -1271,7 +1309,10 @@ class ReevaluateTests(Fixture):
         options: RunOptions | None = None,
         pricing_data: dict | None = None,
     ) -> Path:
-        with mock.patch("basecamp_bench.runner.run_managed", side_effect=self.side_effect):
+        with (
+            mock.patch("basecamp_bench.runner.run_managed", side_effect=self.side_effect),
+            mock.patch("basecamp_bench.execution.run_managed", side_effect=self.side_effect),
+        ):
             return reevaluate_run(
                 config or self.config(),
                 prior,

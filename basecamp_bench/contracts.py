@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import re
 import statistics
 from collections.abc import Mapping, Sequence
@@ -17,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, TypeGuard
+
+from basecamp_bench.validation import is_finite_number, is_sha256_hex
 
 __all__ = [
     "Dimension",
@@ -31,7 +32,6 @@ __all__ = [
 ]
 
 _IDENTIFIER_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
-_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 _WEIGHT_SUM_TOLERANCE = 1e-9
 _ANCHOR_KEYS = ("0", "5", "10")
 _TRACKS = frozenset({"fe", "be"})
@@ -78,13 +78,6 @@ class EvaluationContract:
     description: str
     dimensions: tuple[Dimension, ...]
     overall_policy: Mapping[str, Any]
-
-
-def _is_finite_number(value: Any) -> TypeGuard[int | float]:
-    """True for finite int/float values; false for bool and non-numerics."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return False
-    return math.isfinite(float(value))
 
 
 def _is_safe_identifier(value: Any) -> TypeGuard[str]:
@@ -198,7 +191,7 @@ def validate_contract_data(data: Any) -> list[str]:
                         errors.append(f"{dpath}.label: expected nonempty string")
 
                     weight = dim.get("weight")
-                    if not _is_finite_number(weight) or float(weight) <= 0:
+                    if not is_finite_number(weight) or float(weight) <= 0:
                         errors.append(f"{dpath}.weight: expected finite number > 0 (bool excluded)")
                         weights_ok = False
                     else:
@@ -293,7 +286,7 @@ def _dimension_weights(contract: EvaluationContract) -> dict[str, float]:
 
 
 def _validate_score_value(value: Any, path: str, errors: list[str]) -> None:
-    if not _is_finite_number(value):
+    if not is_finite_number(value):
         errors.append(f"{path}: expected finite number 0..10 (bool excluded)")
         return
     number = float(value)
@@ -359,7 +352,7 @@ def validate_judge_result(
 
     contract_hash = data.get("contract_sha256")
     if "contract_sha256" in data:
-        if not isinstance(contract_hash, str) or not _SHA256_HEX_RE.fullmatch(contract_hash):
+        if not is_sha256_hex(contract_hash):
             errors.append("judge_result.contract_sha256: expected lowercase 64-char hex SHA-256")
         if contract_hash != expected_contract_sha256:
             errors.append(
@@ -437,7 +430,7 @@ def compute_weighted_score(
     weights = _dimension_weights(contract)
     for dim_id in expected:
         value = scores[dim_id]
-        if not _is_finite_number(value):
+        if not is_finite_number(value):
             raise ValueError(f"scores[{dim_id!r}]: expected finite number 0..10 (bool excluded)")
         number = float(value)
         if number < 0.0 or number > 10.0:
@@ -489,7 +482,7 @@ def _extract_judge_scores(
             raw = entry["score"]
         else:
             raw = entry
-        if not _is_finite_number(raw):
+        if not is_finite_number(raw):
             raise ValueError(
                 f"results[{index}].dimensions[{dim_id!r}].score: "
                 "expected finite number 0..10 (bool excluded)"
@@ -632,7 +625,7 @@ def aggregate_repetitions(rows: Sequence[Any]) -> dict[str, Any]:
                 parts.append(f"unknown keys {extra}")
             raise ValueError(f"rows[{index}]: " + "; ".join(parts))
         score = row["score"]
-        if not _is_finite_number(score):
+        if not is_finite_number(score):
             raise ValueError(f"rows[{index}].score: expected finite number (bool excluded)")
         success = row["success"]
         if not isinstance(success, bool):

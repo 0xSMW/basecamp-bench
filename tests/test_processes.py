@@ -56,6 +56,15 @@ class RunManagedTests(unittest.TestCase):
         self.stdout_path = self.root / "logs" / "out.log"
         self.stderr_path = self.root / "logs" / "err.log"
 
+    def test_not_started_constructor_uses_canonical_empty_stream_state(self) -> None:
+        result = ProcessResult.not_started("setup failed", interrupted=True)
+        self.assertIsNone(result.returncode)
+        self.assertEqual(result.duration_s, 0.0)
+        self.assertTrue(result.interrupted)
+        self.assertEqual(result.stdout_bytes, 0)
+        self.assertEqual(result.stderr_bytes, 0)
+        self.assertEqual(result.error, "setup failed")
+
     def _run(self, command, **kwargs) -> ProcessResult:
         defaults = dict(
             cwd=self.root,

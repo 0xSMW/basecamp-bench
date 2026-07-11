@@ -32,6 +32,27 @@ class ProcessResult:
     stderr_truncated: bool
     error: str | None
 
+    @classmethod
+    def not_started(
+        cls,
+        error: str | None,
+        *,
+        interrupted: bool = False,
+        duration_s: float = 0.0,
+    ) -> ProcessResult:
+        """Build the canonical result for a process that never started."""
+        return cls(
+            returncode=None,
+            duration_s=duration_s,
+            timed_out=False,
+            interrupted=interrupted,
+            stdout_bytes=0,
+            stderr_bytes=0,
+            stdout_truncated=False,
+            stderr_truncated=False,
+            error=error,
+        )
+
 
 class _StreamDrainState:
     __slots__ = ("bytes_written", "truncated", "error")
@@ -186,30 +207,17 @@ def _terminate_and_reap(proc: subprocess.Popen[bytes], grace_s: float) -> None:
 
 
 def _spawn_failure_result(started: float, error: str) -> ProcessResult:
-    return ProcessResult(
-        returncode=None,
+    return ProcessResult.not_started(
+        error,
         duration_s=time.perf_counter() - started,
-        timed_out=False,
-        interrupted=False,
-        stdout_bytes=0,
-        stderr_bytes=0,
-        stdout_truncated=False,
-        stderr_truncated=False,
-        error=error,
     )
 
 
 def _cancelled_result(started: float) -> ProcessResult:
-    return ProcessResult(
-        returncode=None,
-        duration_s=time.perf_counter() - started,
-        timed_out=False,
+    return ProcessResult.not_started(
+        None,
         interrupted=True,
-        stdout_bytes=0,
-        stderr_bytes=0,
-        stdout_truncated=False,
-        stderr_truncated=False,
-        error=None,
+        duration_s=time.perf_counter() - started,
     )
 
 

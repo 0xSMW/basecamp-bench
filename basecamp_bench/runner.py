@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import os
 import re
 import secrets
-import shlex
 import signal
 import statistics
 import threading
@@ -29,14 +27,25 @@ from basecamp_bench.contracts import (
     load_contract,
     validate_judge_result,
 )
+from basecamp_bench.execution import (
+    AgentExecution,
+    execute_agent,
+)
+from basecamp_bench.execution import (
+    process_ok as _process_ok,
+)
+from basecamp_bench.execution import (
+    read_text as _read_text,
+)
+from basecamp_bench.execution import (
+    safe_error as _safe_error,
+)
+from basecamp_bench.execution import (
+    secret_env_values as _secret_env_values,
+)
 from basecamp_bench.leaderboard import Attempt, aggregate_attempts, write_leaderboards
 from basecamp_bench.manifest import build_manifest, hash_inputs, verify_run, write_manifest
-from basecamp_bench.pricing import (
-    compute_cost,
-    find_exact_rates,
-    load_pricing_snapshot,
-    normalize_model_id,
-)
+from basecamp_bench.pricing import find_exact_rates, load_pricing_snapshot, normalize_model_id
 from basecamp_bench.processes import ProcessResult, run_managed
 from basecamp_bench.prompts import build_evaluator_prompt, implementation_prompt_bytes
 from basecamp_bench.reference_pack import load_reference_pack
@@ -52,6 +61,8 @@ from basecamp_bench.safety import (
     validate_identifier,
     verify_tree_manifest,
 )
+from basecamp_bench.scheduling import collect_indexed, executor_pool, worker_count
+from basecamp_bench.validation import is_finite_number
 
 __all__ = [
     "RunOptions",
@@ -86,7 +97,6 @@ _SEED_IGNORE = (
     "__pycache__/**",
     "*.pyc",
 )
-_NO_OS_SANDBOX: frozenset[str] = frozenset({"pi"})
 _PRICING_URL = "https://models.dev/api.json"
 _PRICING_MAX_AGE_S = 7 * 24 * 3600
 _MIN_PUB_REPS, _MIN_PUB_EVALS, _MIN_LOCAL_EVALS = 3, 2, 1
@@ -122,30 +132,37 @@ class RunOptions:
 
 
 @dataclass(frozen=True)
-class AgentExecution:
-    """Normalized outcome of one harness invocation.
-
-    ``cost_usd`` is the runner-resolved cost and may be unknown; the vendor's
-    independently reported value is retained in ``reported_cost_usd``.
-    ``command_preview`` and ``error`` are sanitized for durable run metadata.
-    """
-
-    process: ProcessResult
-    usage: Usage | None
-    cost_usd: float | None
-    reported_cost_usd: float | None
-    last_message: str | None
-    command_preview: str
-    error: str | None
-
-
-@dataclass(frozen=True)
 class _RunTask:
     harness: Any
     track: Any
     repetition: int
     submission_id: str
     evaluator_attempts: tuple[tuple[Any, str], ...]
+
+
+@dataclass(slots=True)
+class _RunContext:
+    """Typed state shared across one run's lifecycle and checkpoint writes.
+
+    Mutable collections are intentional: reevaluation adds lineage hashes and
+    the runner accumulates eligibility reasons before finalization.
+    """
+
+    run_dir: Path
+    run_id: str
+    make_id: Callable[[], str]
+    started: str
+    pricing_payload: Mapping[str, Any] | None
+    pricing_prov: dict[str, Any]
+    pricing_retrieved_at: str | None
+    pricing_ok: bool
+    pricing_reasons: list[str]
+    ineligible: list[str]
+    contracts: dict[str, EvaluationContract]
+    contract_hashes: dict[str, str]
+    input_hashes: dict[str, str]
+    comparison_provenance: dict[str, dict[str, str]]
+    tooling: list[dict[str, Any]]
 
 
 def _emit_progress(options: RunOptions, event: str, **fields: object) -> None:
@@ -213,131 +230,6 @@ def materialize_seed(config: BenchConfig, destination: Path) -> dict:
     return tree_manifest(dest)
 
 
-def execute_agent(
-    config: BenchConfig,
-    job: AgentJob,
-    *,
-    pricing_data: Mapping[str, Any] | None,
-    pricing_retrieved_at: str | None,
-    options: RunOptions,
-    cancel_event: threading.Event | None = None,
-) -> AgentExecution:
-    """Run *job* via adapter + run_managed; parse usage/cost/message."""
-    adapter = get_harness(job.harness, binary=_binary_for_job(config, job))
-    roots, secrets = (config.root, config.run_root, job.workdir), _secret_env_values(adapter)
-    context = adapter.execution_context(job)
-    try:
-        context.__enter__()
-    except Exception as exc:  # noqa: BLE001
-        empty = ProcessResult(
-            returncode=None,
-            duration_s=0.0,
-            timed_out=False,
-            interrupted=False,
-            stdout_bytes=0,
-            stderr_bytes=0,
-            stdout_truncated=False,
-            stderr_truncated=False,
-            error=str(exc),
-        )
-        return AgentExecution(
-            process=empty,
-            usage=None,
-            cost_usd=None,
-            reported_cost_usd=None,
-            last_message=None,
-            command_preview="<execution-setup-failed>",
-            error=_safe_error(str(exc), roots=roots, secret_values=secrets),
-        )
-    try:
-        return _execute_agent_prepared(
-            config,
-            job,
-            adapter=adapter,
-            roots=roots,
-            secrets=secrets,
-            pricing_data=pricing_data,
-            pricing_retrieved_at=pricing_retrieved_at,
-            options=options,
-            cancel_event=cancel_event,
-        )
-    finally:
-        context.__exit__(None, None, None)
-
-
-def _execute_agent_prepared(
-    config: BenchConfig,
-    job: AgentJob,
-    *,
-    adapter: Harness,
-    roots: tuple[Path, Path, Path],
-    secrets: Sequence[str],
-    pricing_data: Mapping[str, Any] | None,
-    pricing_retrieved_at: str | None,
-    options: RunOptions,
-    cancel_event: threading.Event | None,
-) -> AgentExecution:
-    try:
-        command = list(adapter.build_command(job))
-    except Exception as exc:  # noqa: BLE001
-        empty = ProcessResult(
-            returncode=None,
-            duration_s=0.0,
-            timed_out=False,
-            interrupted=False,
-            stdout_bytes=0,
-            stderr_bytes=0,
-            stdout_truncated=False,
-            stderr_truncated=False,
-            error=str(exc),
-        )
-        return AgentExecution(
-            process=empty,
-            usage=None,
-            cost_usd=None,
-            reported_cost_usd=None,
-            last_message=None,
-            command_preview="<command-build-failed>",
-            error=_safe_error(str(exc), roots=roots, secret_values=secrets),
-        )
-    preview = _command_preview(command, roots=roots, secret_values=secrets)
-    stdout_path = job.log_path
-    stderr_path = job.log_path.with_name(job.log_path.name + ".stderr")
-    stdout_path.parent.mkdir(parents=True, exist_ok=True)
-    timeout_s: float | None = float(config.timeout_s) if config.timeout_s > 0 else None
-    process = run_managed(
-        command,
-        cwd=adapter.working_directory(job),
-        env=adapter.prepare_env(),
-        stdout_path=stdout_path,
-        stderr_path=stderr_path,
-        timeout_s=timeout_s,
-        max_stream_bytes=options.max_log_bytes,
-        stdin=adapter.stdin_for(job),
-        cancel_event=cancel_event,
-    )
-    parsed = adapter.parse_output(job, _read_text(stdout_path))
-    last = parsed.last_message
-    if last is None and job.last_message_path.is_file():
-        last = _read_text(job.last_message_path).strip() or None
-    return AgentExecution(
-        process=process,
-        usage=parsed.usage,
-        cost_usd=_resolve_cost(
-            job.model.model,
-            parsed.usage,
-            parsed.reported_cost_usd,
-            pricing_data,
-            pricing_retrieved_at,
-            config.pricing_overrides,
-        ),
-        reported_cost_usd=parsed.reported_cost_usd,
-        last_message=last,
-        command_preview=preview,
-        error=_safe_error(_execution_error(process), roots=roots, secret_values=secrets),
-    )
-
-
 def run_benchmark(
     config: BenchConfig,
     *,
@@ -370,17 +262,17 @@ def run_benchmark(
         evaluators = [e for e in config.evaluators if e.enabled]
         tracks = [config.tracks[t] for t in sorted(config.tracks)]
         tasks: list[_RunTask] = []
-        allocated_ids = {ctx["run_id"]}
+        allocated_ids = {ctx.run_id}
         for harness in harnesses:
             for track in tracks:
                 for rep in range(1, config.repetitions + 1):
                     submission_id = _allocate_planned_id(
-                        ctx["make_id"], "submission_id", allocated_ids
+                        ctx.make_id, "submission_id", allocated_ids
                     )
                     evaluator_attempts = tuple(
                         (
                             evaluator,
-                            _allocate_planned_id(ctx["make_id"], "eval_attempt_id", allocated_ids),
+                            _allocate_planned_id(ctx.make_id, "eval_attempt_id", allocated_ids),
                         )
                         for evaluator in evaluators
                     )
@@ -399,71 +291,53 @@ def run_benchmark(
             implementations=len(tasks),
             evaluators=sum(len(task.evaluator_attempts) for task in tasks),
         )
-        results: list[tuple[Attempt, list[dict[str, Any]], dict[str, str]] | None] = [None] * len(
-            tasks
-        )
-        implementation_executor = ThreadPoolExecutor(
-            max_workers=max(1, min(len(tasks), options.max_parallel_agents)),
-            thread_name_prefix="basecamp-bench-implement",
-        )
-        evaluator_executor = ThreadPoolExecutor(
-            max_workers=max(
-                1,
-                min(
-                    sum(len(task.evaluator_attempts) for task in tasks),
-                    options.max_parallel_agents,
+        evaluator_count = sum(len(task.evaluator_attempts) for task in tasks)
+        with (
+            executor_pool(
+                workers=worker_count(evaluator_count, options.max_parallel_agents),
+                thread_name_prefix="basecamp-bench-evaluate",
+            ) as evaluator_executor,
+            executor_pool(
+                workers=worker_count(len(tasks), options.max_parallel_agents),
+                thread_name_prefix="basecamp-bench-implement",
+            ) as implementation_executor,
+        ):
+            results = collect_indexed(
+                tasks,
+                executor=implementation_executor,
+                cancel_event=cancel_event,
+                submit=lambda executor, task: executor.submit(
+                    _run_repetition,
+                    config,
+                    options,
+                    ctx.run_dir,
+                    ctx.run_id,
+                    task.harness,
+                    task.track,
+                    task.repetition,
+                    task.submission_id,
+                    ctx.contracts,
+                    ctx.contract_hashes,
+                    task.evaluator_attempts,
+                    ctx.pricing_payload,
+                    ctx.pricing_retrieved_at,
+                    ctx.pricing_ok,
+                    ctx.pricing_reasons,
+                    ctx.ineligible,
+                    checkpoint,
+                    cancel_event,
+                    agent_slots,
+                    evaluator_executor,
                 ),
-            ),
-            thread_name_prefix="basecamp-bench-evaluate",
-        )
-        futures: dict[Future[Any], int] = {}
-        try:
-            for index, task in enumerate(tasks):
-                futures[
-                    implementation_executor.submit(
-                        _run_repetition,
-                        config,
-                        options,
-                        ctx["run_dir"],
-                        ctx["run_id"],
-                        task.harness,
-                        task.track,
-                        task.repetition,
-                        task.submission_id,
-                        ctx["contracts"],
-                        ctx["contract_hashes"],
-                        task.evaluator_attempts,
-                        ctx["pricing_payload"],
-                        ctx["pricing_retrieved_at"],
-                        ctx["pricing_ok"],
-                        ctx["pricing_reasons"],
-                        ctx["ineligible"],
-                        checkpoint,
-                        cancel_event,
-                        agent_slots,
-                        evaluator_executor,
-                    )
-                ] = index
-            for future in as_completed(futures):
-                results[futures[future]] = future.result()
-        except BaseException:
-            cancel_event.set()
-            for future in futures:
-                future.cancel()
-            raise
-        finally:
-            implementation_executor.shutdown(wait=True, cancel_futures=True)
-            evaluator_executor.shutdown(wait=True, cancel_futures=True)
+            )
         for result in results:
-            if result is None:
-                raise RuntimeError("implementation scheduler returned an incomplete result set")
             attempt, j, a = result
             attempts.append(attempt)
             checkpoint(j, a)
         return _finalize_run(config, ctx, jobs, attempts, arts, now, options)
     except (Exception, KeyboardInterrupt) as exc:
         _emit_progress(options, "run.failed", error=type(exc).__name__)
-        _fail_run_without_masking(config, ctx["run_dir"], checkpoint, exc)
+        _fail_run_without_masking(config, ctx.run_dir, checkpoint, exc)
         raise
     finally:
         restore_signal()
@@ -504,28 +378,28 @@ def reevaluate_run(
     try:
         _require_reevaluation_inputs_match(
             prior_man,
-            ctx["input_hashes"],
+            ctx.input_hashes,
             tracks={item["attempt"]["track"] for item in reusable},
             prior_attempts=[item["attempt"] for item in reusable],
             publication=config.mode == "publication",
         )
-        if ctx["run_id"] == prior_man["run_id"]:
+        if ctx.run_id == prior_man["run_id"]:
             raise ValueError("re-evaluation run_id collides with prior run_id")
         for item in reusable:
-            ctx["input_hashes"][f"reuse_snapshot_tree:{item['submission_id']}"] = item["tree_hash"]
-        ctx["input_hashes"][f"prior_run:{prior_man['run_id']}"] = sha256_file(
+            ctx.input_hashes[f"reuse_snapshot_tree:{item['submission_id']}"] = item["tree_hash"]
+        ctx.input_hashes[f"prior_run:{prior_man['run_id']}"] = sha256_file(
             prior / "run-manifest.json"
         )
         checkpoint(status="running")
         evaluators = [e for e in config.evaluators if e.enabled]
-        allocated_ids = {ctx["run_id"], *(str(item["submission_id"]) for item in reusable)}
+        allocated_ids = {ctx.run_id, *(str(item["submission_id"]) for item in reusable)}
         planned = [
             (
                 item,
                 tuple(
                     (
                         evaluator,
-                        _allocate_planned_id(ctx["make_id"], "eval_attempt_id", allocated_ids),
+                        _allocate_planned_id(ctx.make_id, "eval_attempt_id", allocated_ids),
                     )
                     for evaluator in evaluators
                 ),
@@ -538,54 +412,36 @@ def reevaluate_run(
             submissions=len(planned),
             evaluators=sum(len(evaluator_attempts) for _, evaluator_attempts in planned),
         )
-        results: list[tuple[Attempt, list[dict[str, Any]], dict[str, str]] | None] = [None] * len(
-            planned
-        )
-        reevaluation_executor = ThreadPoolExecutor(
-            max_workers=max(1, min(len(planned), options.max_parallel_agents)),
-            thread_name_prefix="basecamp-bench-reevaluate",
-        )
-        evaluator_executor = ThreadPoolExecutor(
-            max_workers=max(
-                1,
-                min(
-                    sum(len(evaluator_attempts) for _, evaluator_attempts in planned),
-                    options.max_parallel_agents,
+        evaluator_count = sum(len(attempts) for _, attempts in planned)
+        with (
+            executor_pool(
+                workers=worker_count(evaluator_count, options.max_parallel_agents),
+                thread_name_prefix="basecamp-bench-evaluate",
+            ) as evaluator_executor,
+            executor_pool(
+                workers=worker_count(len(planned), options.max_parallel_agents),
+                thread_name_prefix="basecamp-bench-reevaluate",
+            ) as reevaluation_executor,
+        ):
+            results = collect_indexed(
+                planned,
+                executor=reevaluation_executor,
+                cancel_event=cancel_event,
+                submit=lambda executor, planned_item: executor.submit(
+                    _reeval_submission,
+                    config,
+                    options,
+                    ctx,
+                    prior_man["run_id"],
+                    planned_item[0],
+                    planned_item[1],
+                    checkpoint,
+                    cancel_event,
+                    agent_slots,
+                    evaluator_executor,
                 ),
-            ),
-            thread_name_prefix="basecamp-bench-evaluate",
-        )
-        futures: dict[Future[Any], int] = {}
-        try:
-            for index, (item, evaluator_attempts) in enumerate(planned):
-                futures[
-                    reevaluation_executor.submit(
-                        _reeval_submission,
-                        config,
-                        options,
-                        ctx,
-                        prior_man["run_id"],
-                        item,
-                        evaluator_attempts,
-                        checkpoint,
-                        cancel_event,
-                        agent_slots,
-                        evaluator_executor,
-                    )
-                ] = index
-            for future in as_completed(futures):
-                results[futures[future]] = future.result()
-        except BaseException:
-            cancel_event.set()
-            for future in futures:
-                future.cancel()
-            raise
-        finally:
-            reevaluation_executor.shutdown(wait=True, cancel_futures=True)
-            evaluator_executor.shutdown(wait=True, cancel_futures=True)
+            )
         for (item, _), result in zip(planned, results, strict=True):
-            if result is None:
-                raise RuntimeError("reevaluation scheduler returned an incomplete result set")
             attempt, j, a = result
             attempts.append(attempt)
             checkpoint(j, a)
@@ -593,7 +449,7 @@ def reevaluate_run(
         return _finalize_run(config, ctx, jobs, attempts, arts, now, options)
     except (Exception, KeyboardInterrupt) as exc:
         _emit_progress(options, "run.failed", error=type(exc).__name__)
-        _fail_run_without_masking(config, ctx["run_dir"], checkpoint, exc)
+        _fail_run_without_masking(config, ctx.run_dir, checkpoint, exc)
         raise
     finally:
         restore_signal()
@@ -605,13 +461,13 @@ def _open_run(
     id_factory: Callable[[], str] | None,
     pricing_data: Mapping[str, Any] | None,
     now: datetime | None,
-) -> dict[str, Any]:
+) -> _RunContext:
     """Create and validate the initial run state used by later phases.
 
     This allocates the run directory, records tooling, applies startup gates,
     resolves pricing and contracts, hashes inputs, and writes the initial
-    ``planned`` checkpoint. The returned mapping is internal shared context;
-    callers must treat its values as authoritative for the rest of the run.
+    ``planned`` checkpoint. The typed context remains authoritative for the
+    rest of the run while exposing the few collections that evolve in place.
     """
 
     started = _utc_now(now)
@@ -685,30 +541,30 @@ def _open_run(
     input_hashes = _input_hashes(config, pack)
     if pricing_payload is not None:
         input_hashes["pricing_snapshot"] = _pricing_digest(pricing_payload)
-    ctx = {
-        "run_dir": run_dir,
-        "run_id": run_id,
-        "make_id": make_id,
-        "started": started,
-        "pricing_payload": pricing_payload,
-        "pricing_prov": pricing_prov,
-        "pricing_retrieved_at": pricing_retrieved_at,
-        "pricing_ok": pricing_ok,
-        "pricing_reasons": pricing_reasons,
-        "ineligible": ineligible,
-        "contracts": contracts,
-        "contract_hashes": contract_hashes,
-        "input_hashes": input_hashes,
-        "comparison_provenance": _comparison_provenance(config, input_hashes),
-        "tooling": tooling,
-    }
+    ctx = _RunContext(
+        run_dir=run_dir,
+        run_id=run_id,
+        make_id=make_id,
+        started=started,
+        pricing_payload=pricing_payload,
+        pricing_prov=pricing_prov,
+        pricing_retrieved_at=pricing_retrieved_at,
+        pricing_ok=pricing_ok,
+        pricing_reasons=pricing_reasons,
+        ineligible=ineligible,
+        contracts=contracts,
+        contract_hashes=contract_hashes,
+        input_hashes=input_hashes,
+        comparison_provenance=_comparison_provenance(config, input_hashes),
+        tooling=tooling,
+    )
     _checkpoint_run(config, ctx, "planned", [], {}, finished=None)
     return ctx
 
 
 def _finalize_run(
     config: BenchConfig,
-    ctx: Mapping[str, Any],
+    ctx: _RunContext,
     job_records: list[dict[str, Any]],
     attempts: list[Attempt],
     artifact_hashes: dict[str, str],
@@ -717,19 +573,19 @@ def _finalize_run(
 ) -> Path:
     """Write aggregate artifacts and the terminal manifest, then return the run path."""
 
-    run_dir: Path = ctx["run_dir"]
+    run_dir: Path = ctx.run_dir
     _emit_progress(options, "aggregate.started", attempts=len(attempts))
     roots = aggregate_attempts(
         attempts,
         mode=config.mode,
         generated_at=_utc_now(now),
-        comparison_provenance=ctx["comparison_provenance"],
+        comparison_provenance=ctx.comparison_provenance,
         dimension_profiles={
             tid: [
                 {"id": dim.id, "label": dim.label, "weight": dim.weight}
                 for dim in contract.dimensions
             ]
-            for tid, contract in ctx["contracts"].items()
+            for tid, contract in ctx.contracts.items()
         },
     )
     written = write_leaderboards(run_dir / "leaderboards", roots)
@@ -756,22 +612,22 @@ def _finalize_run(
             for root in roots
             for e in cast(Sequence[Mapping[str, Any]], root.get("entries", []))
         )
-        else _final_status(config, ctx["ineligible"], attempts)
+        else _final_status(config, ctx.ineligible, attempts)
     )
     _write_manifest(
         config,
         run_dir,
-        ctx["run_id"],
-        ctx["started"],
+        ctx.run_id,
+        ctx.started,
         final_status,
-        _public_pricing(ctx["pricing_prov"], ctx["pricing_ok"], ctx["pricing_reasons"]),
+        _public_pricing(ctx.pricing_prov, ctx.pricing_ok, ctx.pricing_reasons),
         job_records,
         artifact_hashes,
-        dict(ctx["input_hashes"]),
-        list(ctx["tooling"]),
+        dict(ctx.input_hashes),
+        list(ctx.tooling),
         finished=_utc_now(now),
     )
-    _emit_progress(options, "run.finished", run_id=ctx["run_id"], status=final_status)
+    _emit_progress(options, "run.finished", run_id=ctx.run_id, status=final_status)
     return run_dir
 
 
@@ -992,11 +848,12 @@ def _prior_reusable_submissions(prior: Path, prior_man: Mapping[str, Any]) -> li
             or impl.get("timed_out")
             or impl.get("interrupted")
             or impl.get("error")
-            or not _nonneg(impl.get("duration_s"))
+            or not is_finite_number(impl.get("duration_s"))
+            or float(impl["duration_s"]) < 0.0
         ):
             raise ValueError("prior implementation job provenance is incoherent")
         job_cost, att_cost = impl.get("cost_usd"), attempt.get("implementation_cost_usd")
-        if job_cost is not None and not _nonneg(job_cost):
+        if job_cost is not None and (not is_finite_number(job_cost) or float(job_cost) < 0.0):
             raise ValueError("prior implementation job cost is invalid")
         if (att_cost is None) != (job_cost is None):
             raise ValueError("incoherent implementation cost provenance")
@@ -1152,7 +1009,7 @@ def _score_results(
 def _reeval_submission(
     config: BenchConfig,
     options: RunOptions,
-    ctx: Mapping[str, Any],
+    ctx: _RunContext,
     prior_run_id: str,
     item: Mapping[str, Any],
     evaluator_attempts: Sequence[tuple[Any, str]],
@@ -1170,8 +1027,8 @@ def _reeval_submission(
 
     jobs: list[dict[str, Any]] = []
     artifacts: dict[str, str] = {}
-    run_dir, run_id = ctx["run_dir"], ctx["run_id"]
-    contracts, contract_hashes = ctx["contracts"], ctx["contract_hashes"]
+    run_dir, run_id = ctx.run_dir, ctx.run_id
+    contracts, contract_hashes = ctx.contracts, ctx.contract_hashes
     sid, prior_att, impl_job = item["submission_id"], item["attempt"], item["impl_job"]
     track_id = prior_att["track"]
     if track_id not in config.tracks or track_id not in contracts:
@@ -1227,8 +1084,8 @@ def _reeval_submission(
             contract,
             contract_hash,
             evaluator_attempts,
-            ctx["pricing_payload"],
-            ctx["pricing_retrieved_at"],
+            ctx.pricing_payload,
+            ctx.pricing_retrieved_at,
             int(prior_att["repetition"]),
             checkpoint,
             cancel_event,
@@ -1243,7 +1100,7 @@ def _reeval_submission(
     score, dimensions, judge_spread = (
         _score_results(valid_results, contract) if evaluation_success else (None, {}, None)
     )
-    reasons: list[str] = list(ctx["ineligible"])
+    reasons: list[str] = list(ctx.ineligible)
     if not evaluation_success:
         reasons.append("insufficient_valid_evaluators")
     attempt = Attempt(
@@ -1285,139 +1142,18 @@ def _utc_now(now: datetime | None = None) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _binary_for_job(config: BenchConfig, job: AgentJob) -> str | None:
-    for spec in config.harnesses.values():
-        if spec.adapter == job.harness or spec.id == job.harness:
-            return spec.binary
-    for ev in config.evaluators:
-        if ev.harness == job.harness:
-            href = config.harnesses.get(ev.harness)
-            return href.binary if href else None
-    return None
-
-
-def _secret_env_values(adapter: Harness) -> list[str]:
-    out: list[str] = []
-    for key, value in adapter.prepare_env().items():
-        low = key.lower()
-        if value and any(t in low for t in ("key", "token", "secret", "password", "credential")):
-            out.append(value)
-    return out
-
-
-def _command_preview(
-    command: Sequence[str],
-    *,
-    roots: Sequence[Path],
-    secret_values: Sequence[str],
-) -> str:
-    parts: list[str] = []
-    for i, arg in enumerate(command):
-        if i == 0:
-            parts.append(Path(arg).name)
-            continue
-        text = redact_text(arg, roots=roots, secret_values=secret_values)
-        if text.startswith("/") or (len(text) >= 2 and text[1] == ":" and text[0].isalpha()):
-            text = Path(text).name or "<path>"
-        parts.append(shlex.quote(text))
-    return " ".join(parts)
-
-
-def _read_text(path: Path) -> str:
-    try:
-        return path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return ""
-
-
-def _execution_error(process: ProcessResult) -> str | None:
-    if process.error:
-        return process.error
-    if process.timed_out:
-        return "timed out"
-    if process.interrupted:
-        return "interrupted"
-    if process.returncode is None:
-        return "process failed to start"
-    if process.returncode != 0:
-        return f"exit code {process.returncode}"
-    return None
-
-
-def _safe_error(
-    message: str | None,
-    *,
-    roots: Sequence[Path],
-    secret_values: Sequence[str],
-) -> str | None:
-    if message is None:
-        return None
-    text = redact_text(str(message), roots=roots, secret_values=secret_values)
-    text = re.sub(r"(?<![A-Za-z0-9])/(?:[^\s:]+)", "<path>", text)
-    text = re.sub(r"\b[A-Za-z]:\\[^\s:]+", "<path>", text)
-    return " ".join(text.split())[:500]
-
-
-def _process_ok(process: ProcessResult) -> bool:
-    return (
-        process.returncode == 0
-        and not process.timed_out
-        and not process.interrupted
-        and process.error is None
-    )
-
-
-def _resolve_cost(
-    model_id: str,
-    usage: Usage | None,
-    reported: float | None,
-    pricing_data: Mapping[str, Any] | None,
-    retrieved_at: str | None,
-    overrides: Mapping[str, Any] | None,
-) -> float | None:
-    if reported is not None and _nonneg(reported):
-        return float(reported)
-    if usage is None:
-        return None
-    lookup = find_exact_rates(model_id, pricing_data, overrides, retrieved_at=retrieved_at)
-    if lookup.rates is None:
-        return None
-    try:
-        return compute_cost(usage, lookup.rates)
-    except (TypeError, ValueError):
-        return None
-
-
-def _nonneg(value: Any) -> bool:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return False
-    return math.isfinite(float(value)) and float(value) >= 0.0
-
-
 def _sandbox(config: BenchConfig) -> str:
     return "danger-full-access" if config.full_access else "workspace-write"
 
 
-def _needs_unsafe(adapter: str, sandbox: str) -> bool:
-    return sandbox == "danger-full-access" or adapter in _NO_OS_SANDBOX
-
-
 def _startup_gates(config: BenchConfig, options: RunOptions) -> list[str]:
     errors: list[str] = []
-    sandbox = _sandbox(config)
-    adapters: set[str] = {h.adapter for h in config.harnesses.values() if h.enabled}
-    for ev in config.evaluators:
-        if ev.enabled and ev.harness in config.harnesses:
-            adapters.add(config.harnesses[ev.harness].adapter)
-    needs = config.full_access or any(
-        _needs_unsafe(a, sandbox) or _needs_unsafe(a, "workspace-write") for a in adapters
-    )
-    if needs and not (
+    if config.full_access and not (
         options.allow_unsafe_host_execution or options.confirmed_isolated_environment
     ):
         errors.append(
-            "unsafe: full_access or non-OS-sandboxed harness requires "
-            "allow_unsafe_host_execution or confirmed_isolated_environment"
+            "unsafe: full_access requires allow_unsafe_host_execution "
+            "or confirmed_isolated_environment"
         )
     if config.mode == "publication":
         if config.repetitions < _MIN_PUB_REPS:
@@ -1699,7 +1435,7 @@ def _final_status(
 
 def _checkpoint_run(
     config: BenchConfig,
-    ctx: Mapping[str, Any],
+    ctx: _RunContext,
     status: str,
     jobs: Sequence[Mapping[str, Any]],
     artifacts: Mapping[str, str],
@@ -1708,22 +1444,22 @@ def _checkpoint_run(
 ) -> None:
     _write_manifest(
         config,
-        ctx["run_dir"],
-        ctx["run_id"],
-        ctx["started"],
+        ctx.run_dir,
+        ctx.run_id,
+        ctx.started,
         status,
-        _public_pricing(ctx["pricing_prov"], ctx["pricing_ok"], ctx["pricing_reasons"]),
+        _public_pricing(ctx.pricing_prov, ctx.pricing_ok, ctx.pricing_reasons),
         [dict(job) for job in jobs],
         dict(artifacts),
-        dict(ctx["input_hashes"]),
-        [dict(item) for item in ctx["tooling"]],
+        dict(ctx.input_hashes),
+        [dict(item) for item in ctx.tooling],
         finished=finished,
     )
 
 
 def _checkpoint_writer(
     config: BenchConfig,
-    ctx: Mapping[str, Any],
+    ctx: _RunContext,
     jobs: list[dict[str, Any]],
     artifacts: dict[str, str],
 ) -> Callable[..., None]:
@@ -1916,16 +1652,9 @@ def _raised_job_record(
         secret_values=(),
     )
     interrupted = isinstance(exc, KeyboardInterrupt)
-    process = ProcessResult(
-        returncode=None,
-        duration_s=0.0,
-        timed_out=False,
+    process = ProcessResult.not_started(
+        message or type(exc).__name__,
         interrupted=interrupted,
-        stdout_bytes=0,
-        stderr_bytes=0,
-        stdout_truncated=False,
-        stderr_truncated=False,
-        error=message or type(exc).__name__,
     )
     return _job_record(
         job_id=job_id,

@@ -10,9 +10,7 @@ import csv
 import hashlib
 import io
 import json
-import math
 import os
-import re
 import statistics
 import tempfile
 from collections.abc import Mapping, Sequence
@@ -22,6 +20,7 @@ from types import MappingProxyType
 from typing import Any, Literal, cast
 
 from basecamp_bench.safety import resolve_within, validate_identifier
+from basecamp_bench.validation import is_finite_number, is_sha256_hex
 
 __all__ = [
     "Attempt",
@@ -32,7 +31,6 @@ __all__ = [
 _SCHEMA_VERSION = "1.0"
 _TRACKS = frozenset({"fe", "be"})
 _MODES = frozenset({"local", "publication"})
-_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 _MIN_PUBLICATION_REPETITIONS = 3
 _MIN_PUBLICATION_EVALUATORS = 2
 _ROOT_KEYS = (
@@ -111,12 +109,6 @@ _REASON_ATTEMPT_INELIGIBLE = "attempt_ineligible_reasons"
 _REASON_LOCAL_MODE = "local_mode"
 
 
-def _is_finite_number(value: Any) -> bool:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return False
-    return math.isfinite(float(value))
-
-
 def _require_bool(value: Any, field: str) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{field} must be bool, got {type(value).__name__}")
@@ -140,7 +132,7 @@ def _require_nonneg_int(value: Any, field: str) -> int:
 
 
 def _require_finite(value: Any, field: str) -> float:
-    if not _is_finite_number(value):
+    if not is_finite_number(value):
         raise ValueError(f"{field} must be a finite number (bool excluded)")
     return float(value)
 
@@ -188,9 +180,7 @@ def _require_nonempty_string(value: Any, field: str) -> str:
 
 
 def _require_sha256(value: Any, field: str) -> str:
-    if isinstance(value, bool) or not isinstance(value, str):
-        raise ValueError(f"{field} must be a 64-char lowercase hex string")
-    if _SHA256_HEX_RE.fullmatch(value) is None:
+    if not is_sha256_hex(value):
         raise ValueError(f"{field} must be a 64-char lowercase hex string")
     return value
 
