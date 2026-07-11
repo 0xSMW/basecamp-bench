@@ -1,0 +1,78 @@
+# Copy to bench.toml. Local files may include machine-specific binary paths;
+# bench.toml is ignored by Git.
+
+mode = "local"
+run_root = "runs"
+seed_root = "Repo"
+reference_root = "Repo/reference"
+reference_manifest = "benchmarks/reference-pack.json"
+timeout_s = 14400
+full_access = false
+repetitions = 1
+
+# `enabled` selects the implementation fleet. Evaluators may use any known
+# harness definition, including one disabled for implementation.
+
+[harnesses.codex]
+adapter = "codex"
+model = "gpt-5.6-sol"
+effort = "high"
+provider_family = "openai"
+display_name = "GPT-5.6 Sol"
+enabled = true
+
+[harnesses.claude]
+adapter = "claude"
+model = "claude-fable-5"
+effort = "high"
+provider_family = "anthropic"
+display_name = "Claude Fable 5"
+enabled = true
+
+[harnesses.grok]
+adapter = "grok"
+model = "grok-4.5"
+effort = "high"
+provider_family = "xai"
+display_name = "Grok 4.5"
+enabled = true
+# binary = "/absolute/path/to/the/intended/grok"
+
+[[evaluators]]
+id = "eval-sol"
+harness = "codex"
+model = "gpt-5.6-sol"
+effort = "high"
+provider_family = "openai"
+enabled = true
+
+# Publication mode requires at least two valid, non-overlapping evaluator
+# model IDs and three implementation repetitions. Configure the second
+# evaluator explicitly before switching mode to "publication".
+#
+# [[evaluators]]
+# id = "eval-fable"
+# harness = "claude"
+# model = "claude-fable-5"
+# effort = "high"
+# provider_family = "anthropic"
+# enabled = true
+
+[tracks.fe]
+prompt = "benchmarks/fe/prompt.md"
+rubric = "benchmarks/fe/eval.md"
+contract = "benchmarks/fe/contract.json"
+
+[tracks.be]
+prompt = "benchmarks/be/prompt.md"
+rubric = "benchmarks/be/eval.md"
+contract = "benchmarks/be/contract.json"
+
+# Exact USD rates per million tokens. Overrides take precedence over the
+# cached models.dev snapshot. Model IDs must be safe lowercase identifiers.
+#
+# [pricing."gpt-5.6-sol"]
+# input = 5.0
+# output = 30.0
+# cache_read = 0.5
+# cache_write = 6.25

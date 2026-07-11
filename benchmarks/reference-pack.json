@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "pack_id": "basecamp5-reference",
+  "pack_version": "2026-07-11.1",
+  "distributable": true,
+  "assets": [
+    {"path":"basecamp-sdk/README.md","sha256":"80ba4d861b4a7b41bc61fb60254377625a42e6e856189189400f205a50c0dec9","owner":"Basecamp, LLC","source":"https://github.com/basecamp/basecamp-sdk at cc8e9772e72970c2164d59039bf111179aed0d98","license":"MIT","modifications":"Copied verbatim","distributable":true},
+    {"path":"basecamp-sdk/SPEC.md","sha256":"4c5fc2f6833692ac6d774ea5d383c8044d6dc32b9e67e3dda61bd00e5382bd79","owner":"Basecamp, LLC","source":"https://github.com/basecamp/basecamp-sdk at cc8e9772e72970c2164d59039bf111179aed0d98","license":"MIT","modifications":"Copied verbatim","distributable":true},
+    {"path":"basecamp-sdk/behavior-model.json","sha256":"fad16ecf28d662e9c17c129c14df77092cc77c1e15ec82be152f411e4cdfb11e","owner":"Basecamp, LLC","source":"https://github.com/basecamp/basecamp-sdk at cc8e9772e72970c2164d59039bf111179aed0d98","license":"MIT","modifications":"Copied verbatim","distributable":true},
+    {"path":"basecamp-sdk/openapi.json","sha256":"a82395b8fd661f97bd33c24f9a861d3120189d91214577dc7d016c1af881fe87","owner":"Basecamp, LLC","source":"https://github.com/basecamp/basecamp-sdk at cc8e9772e72970c2164d59039bf111179aed0d98","license":"MIT","modifications":"Copied verbatim","distributable":true},
+    {"path":"screens/home.png","sha256":"21e24e1dfa6aea04537bf1bad5d3e2d3cec4f36d476118963740d6a9586cf90d","owner":"Project owner","source":"Project owner's personal account capture","license":"Fair use","modifications":"None recorded","distributable":true},
+    {"path":"screens/jump-menu.png","sha256":"54c34b00468a509d4d1d5b55d1e349a4c20adb9b0543a02c4bd340b9d62f2b7c","owner":"Project owner","source":"Project owner's personal account capture","license":"Fair use","modifications":"None recorded","distributable":true},
+    {"path":"screens/sample-card-table.png","sha256":"bf9536ac12e3b30a03b9e1ccfc4058f39abe6283d14b8defce395d882e79f4aa","owner":"Project owner","source":"Project owner's personal account capture","license":"Fair use","modifications":"None recorded","distributable":true},
+    {"path":"screens/sample-chat.png","sha256":"983f6ebe229d0d6688aee318df079bf14141925d63e0609de75b8c16cac10f90","owner":"Project owner","source":"Project owner's personal account capture","license":"Fair use","modifications":"None recorded","distributable":true},
+    {"path":"screens/sample-docs-files.png","sha256":"02a3ede93f21ced9d9f9ea53887e7df24408a039a2b3e70a766b13525bf6ba02","owner":"Project owner","source":"Project owner's personal account capture","license":"Fair use","modifications":"None recorded","distributable":true},
+    {"path":"screens/sample-message-board.png","sha256":"036e20576ded8ac00823b1581d7d7371cb47e26bba12298902b36dc1a52248d4","owner":"Project owner","source":"Project owner's personal account capture","license":"Fair use","modifications":"None recorded","distributable":true},
+    {"path":"screens/sample-project-dock.png","sha256":"eab6e28a77921f7b40c5415da9f44a79aef567aad0ba37239bfc395e4321b832","owner":"Project owner","source":"Project owner's personal account capture","license":"Fair use","modifications":"None recorded","distributable":true},
+    {"path":"screens/sample-todo-page.png","sha256":"fc8509fc5361e05ec92357810910ac47198de0077f6cb563b0b9f41e5336e2d0","owner":"Project owner","source":"Project owner's personal account capture","license":"Fair use","modifications":"None recorded","distributable":true},
+    {"path":"screens/sample-todos.png","sha256":"a2721d634211ef538bbc801d2d562f3999c5c541732d746462e7f4112b1bb3b6","owner":"Project owner","source":"Project owner's personal account capture","license":"Fair use","modifications":"None recorded","distributable":true}
+  ]
+}

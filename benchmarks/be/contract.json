@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "contract_version": "2026-07-11.2",
+  "track": "be",
+  "description": "Basecamp 5 backend evaluation contract for intelligent evaluator agents.",
+  "dimensions": [
+    {"id":"architecture_domain","label":"Architecture and domain modeling","weight":0.12,"anchors":{"0":"No coherent domain model or resource relationships.","5":"Core resources exist with shallow or duplicated lifecycle logic.","10":"Shared recording primitives, relationships, hierarchy, and lifecycle design are coherent and extensible."}},
+    {"id":"endpoint_coverage","label":"Endpoint surface coverage","weight":0.14,"anchors":{"0":"No meaningful API surface is reachable.","5":"A substantial subset of operations is registered with major omissions.","10":"The specified endpoint surface is registered and reachable with correct methods and paths."}},
+    {"id":"behavioral_depth","label":"Behavioral depth and statefulness","weight":0.16,"anchors":{"0":"CRUD and lifecycle behavior is absent or fabricated.","5":"Core mutations work with gaps in state or invariants.","10":"CRUD, lifecycle, cross-resource, parent, bucket, and status behavior is coherent and persistent."}},
+    {"id":"http_contract","label":"HTTP and schema contract fidelity","weight":0.16,"anchors":{"0":"Responses do not follow the supplied HTTP contract.","5":"Core shapes and statuses work with material serializer, header, pagination, or error defects.","10":"Requests, shapes, statuses, headers, queries, URLs, pagination, and errors closely conform."}},
+    {"id":"seed_fidelity","label":"Seed data fidelity","weight":0.10,"anchors":{"0":"The required sample account and project are absent.","5":"Core seed exists with missing or inconsistent relationships.","10":"The required sample account, people, projects, tools, and linked content are deterministic and navigable."}},
+    {"id":"request_hardening","label":"Validation, authorization, and request hardening","weight":0.12,"anchors":{"0":"Malformed or unauthorized requests succeed or crash.","5":"Core validation and auth work with gaps in limits, media types, identifiers, or errors.","10":"Credentials, permissions, validation, limits, media types, identifiers, and safe error behavior are handled consistently."}},
+    {"id":"operability","label":"Operability, testability, and packaging","weight":0.08,"anchors":{"0":"The server cannot be started and stopped reliably.","5":"Runnable with gaps in health, configuration, logging, isolation, or shutdown.","10":"Health, configuration, logging, request IDs, CORS, shutdown, reset, portability, and test seams are production-shaped."}},
+    {"id":"code_quality","label":"Code quality and maintainability","weight":0.07,"anchors":{"0":"Implementation is unreadable or unsafe to extend.","5":"Understandable with mixed concerns, duplication, or avoidable complexity.","10":"Readable layering, reuse, naming, documentation, and abstractions clarify real behavior."}},
+    {"id":"scope_honesty","label":"Scope honesty","weight":0.05,"anchors":{"0":"Missing behavior returns misleading success or unsupported claims.","5":"Most gaps are visible with some misleading stubs or documentation.","10":"Implemented, partial, stubbed, and unsupported behavior is explicit and fail-closed."}}
+  ],
+  "overall_policy": {"method":"weighted_sum","precision":6,"missing":"invalidate"}
+}

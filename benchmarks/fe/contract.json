@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "contract_version": "2026-07-11.2",
+  "track": "fe",
+  "description": "Basecamp 5 frontend evaluation contract for intelligent evaluator agents.",
+  "dimensions": [
+    {"id":"reference_fidelity","label":"Reference fidelity","weight":0.14,"anchors":{"0":"No recognizable correspondence to the supplied references.","5":"Core shell and several surfaces correspond, with material geometry or anatomy errors.","10":"The implementation closely matches reference geometry, anatomy, density, content, and visible behavior."}},
+    {"id":"visual_craft","label":"Visual craft and design-system coherence","weight":0.10,"anchors":{"0":"Broken or incoherent presentation.","5":"Usable styling with visible inconsistencies or weak detail work.","10":"Consistent typography, spacing, tokens, icons, surfaces, motion, and micro-UI."}},
+    {"id":"product_model","label":"Product-model and content fidelity","weight":0.09,"anchors":{"0":"Product concepts and terminology are absent or incorrect.","5":"Core concepts exist with shallow relationships or generic content.","10":"Concepts, terminology, relationships, and sample narrative align throughout."}},
+    {"id":"surface_coverage","label":"Surface coverage","weight":0.10,"anchors":{"0":"No meaningful product surface is usable.","5":"The primary surfaces exist with substantial omissions.","10":"The supplied product surface is represented broadly and deeply, including details and secondary states."}},
+    {"id":"functional_depth","label":"Functional depth","weight":0.12,"anchors":{"0":"Workflows are inert or broken.","5":"Several core workflows operate with material gaps.","10":"Create, edit, completion, commenting, filtering, navigation, and deletion behavior works coherently end to end where applicable."}},
+    {"id":"interaction_quality","label":"Interaction quality","weight":0.08,"anchors":{"0":"Interactions are unusable or misleading.","5":"Core interactions work with weak feedback, focus, or recovery.","10":"Interactions are discoverable, responsive, keyboard-efficient, and recoverable."}},
+    {"id":"state_persistence","label":"State and persistence","weight":0.10,"anchors":{"0":"State is lost or corrupt across ordinary use.","5":"Core mutations persist with gaps or malformed-state failures.","10":"State transitions remain correct across views, navigation, reload, reset, and malformed or outdated stored data."}},
+    {"id":"responsive_adaptation","label":"Responsive adaptation","weight":0.08,"anchors":{"0":"The implementation is unusable outside one desktop viewport.","5":"Core content reflows with overflow or feature-loss defects.","10":"Navigation, content, and interactions remain usable across desktop and mobile viewports."}},
+    {"id":"accessibility","label":"Accessibility","weight":0.07,"anchors":{"0":"Critical flows lack semantics or keyboard access.","5":"Core flows are keyboard-operable with material naming, focus, contrast, or announcement issues.","10":"Semantics, names, focus, keyboard behavior, contrast, reduced motion, and announcements are strong throughout."}},
+    {"id":"code_architecture","label":"Code architecture and maintainability","weight":0.06,"anchors":{"0":"Implementation is unreadable or unsafe to modify.","5":"Understandable structure with duplication or mixed concerns.","10":"Clear modular boundaries, reuse, naming, state and routing design, and test seams."}},
+    {"id":"reliability","label":"Reliability, safety, and performance","weight":0.06,"anchors":{"0":"Startup or core navigation fails.","5":"Core use works with console, escaping, compatibility, or efficiency defects.","10":"Runtime stability, escaping, defensive handling, compatibility, dependency resilience, and rendering efficiency are strong."}}
+  ],
+  "overall_policy": {"method":"weighted_sum","precision":6,"missing":"invalidate"}
+}

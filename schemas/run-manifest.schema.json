@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/0xSMW/basecamp-bench/main/schemas/run-manifest.schema.json",
+  "title": "Basecamp Bench run manifest 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "runner", "run", "environment", "config", "inputs", "pricing", "tooling", "jobs", "artifacts", "status"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "runner": {"$ref": "#/$defs/runner"},
+    "run": {"$ref": "#/$defs/run"},
+    "environment": {"$ref": "#/$defs/environment"},
+    "config": {"$ref": "#/$defs/config"},
+    "inputs": {"type": "object", "propertyNames": {"type": "string", "minLength": 1}, "additionalProperties": {"$ref": "#/$defs/sha256"}},
+    "pricing": {"$ref": "#/$defs/pricingProvenance"},
+    "tooling": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/toolingRecord"}},
+    "jobs": {"type": "array", "items": {"oneOf": [{"$ref": "#/$defs/implementationJob"}, {"$ref": "#/$defs/evaluationJob"}, {"$ref": "#/$defs/skippedEvaluationJob"}]}},
+    "artifacts": {"type": "object", "propertyNames": {"$ref": "#/$defs/publicArtifactPath"}, "additionalProperties": {"$ref": "#/$defs/sha256"}},
+    "status": {"enum": ["planned", "running", "complete", "failed", "ineligible"]}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "dateTime": {"type": "string", "format": "date-time", "pattern": "Z$"},
+    "nullableString": {"type": ["string", "null"], "minLength": 1},
+    "nullableAnyString": {"type": ["string", "null"]},
+    "nullableNonnegative": {"type": ["number", "null"], "minimum": 0},
+    "relativePath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\u0000-\\u001f]+$"},
+    "publicArtifactPath": {"allOf": [{"$ref": "#/$defs/relativePath"}, {"not": {"const": "run-manifest.json"}}, {"not": {"pattern": "^(?:logs|workspaces|private|prompts)(?:/|$)"}}]},
+    "runner": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "commit", "dirty", "error"],
+      "properties": {
+        "version": {"type": "string", "minLength": 1},
+        "commit": {"type": ["string", "null"], "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"},
+        "dirty": {"type": ["boolean", "null"]},
+        "error": {"$ref": "#/$defs/nullableString"}
+      }
+    },
+    "run": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "mode", "started_at", "finished_at"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "mode": {"enum": ["local", "publication"]},
+        "started_at": {"$ref": "#/$defs/dateTime"},
+        "finished_at": {"oneOf": [{"$ref": "#/$defs/dateTime"}, {"type": "null"}]}
+      }
+    },
+    "environment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["python_version", "python_implementation", "python_compiler", "platform_system", "platform_release", "platform_version", "platform_machine", "platform_architecture", "locale_language", "locale_encoding", "timezone_name", "timezone_offset"],
+      "properties": {
+        "python_version": {"type": "string", "minLength": 1},
+        "python_implementation": {"type": "string", "minLength": 1},
+        "python_compiler": {"$ref": "#/$defs/nullableAnyString"},
+        "platform_system": {"type": "string", "minLength": 1},
+        "platform_release": {"$ref": "#/$defs/nullableAnyString"},
+        "platform_version": {"$ref": "#/$defs/nullableAnyString"},
+        "platform_machine": {"$ref": "#/$defs/nullableAnyString"},
+        "platform_architecture": {"$ref": "#/$defs/nullableAnyString"},
+        "locale_language": {"$ref": "#/$defs/nullableAnyString"},
+        "locale_encoding": {"$ref": "#/$defs/nullableAnyString"},
+        "timezone_name": {"$ref": "#/$defs/nullableAnyString"},
+        "timezone_offset": {"$ref": "#/$defs/nullableAnyString"}
+      }
+    },
+    "config": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "run_root", "seed_root", "reference_root", "reference_manifest", "timeout_s", "full_access", "repetitions", "harnesses", "evaluators", "tracks", "pricing"],
+      "properties": {
+        "mode": {"enum": ["local", "publication"]},
+        "run_root": {"$ref": "#/$defs/relativePath"},
+        "seed_root": {"$ref": "#/$defs/relativePath"},
+        "reference_root": {"$ref": "#/$defs/relativePath"},
+        "reference_manifest": {"$ref": "#/$defs/relativePath"},
+        "timeout_s": {"type": "integer", "minimum": 1},
+        "full_access": {"type": "boolean"},
+        "repetitions": {"type": "integer", "minimum": 1},
+        "harnesses": {"type": "object", "minProperties": 1, "propertyNames": {"$ref": "#/$defs/id"}, "additionalProperties": {"$ref": "#/$defs/harness"}},
+        "evaluators": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/evaluator"}},
+        "tracks": {"type": "object", "minProperties": 1, "propertyNames": {"$ref": "#/$defs/id"}, "additionalProperties": {"$ref": "#/$defs/trackConfig"}},
+        "pricing": {"type": "object", "propertyNames": {"$ref": "#/$defs/id"}, "additionalProperties": {"$ref": "#/$defs/rates"}}
+      }
+    },
+    "harness": {
+      "type": "object", "additionalProperties": false,
+      "required": ["adapter", "model", "effort", "provider_family", "display_name", "enabled"],
+      "properties": {
+        "adapter": {"type": "string", "minLength": 1}, "model": {"type": "string", "minLength": 1},
+        "effort": {"type": "string", "minLength": 1}, "provider_family": {"type": "string", "minLength": 1},
+        "display_name": {"type": "string", "minLength": 1}, "enabled": {"type": "boolean"}
+      }
+    },
+    "evaluator": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "harness", "model", "effort", "provider_family", "enabled"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "harness": {"$ref": "#/$defs/id"}, "model": {"type": "string", "minLength": 1},
+        "effort": {"type": "string", "minLength": 1}, "provider_family": {"type": "string", "minLength": 1}, "enabled": {"type": "boolean"}
+      }
+    },
+    "trackConfig": {
+      "type": "object", "additionalProperties": false, "required": ["prompt", "rubric", "contract"],
+      "properties": {"prompt": {"$ref": "#/$defs/relativePath"}, "rubric": {"$ref": "#/$defs/relativePath"}, "contract": {"$ref": "#/$defs/relativePath"}}
+    },
+    "rates": {
+      "type": "object", "additionalProperties": false, "required": ["input", "output", "cache_read", "cache_write"],
+      "properties": {"input": {"type": "number", "minimum": 0}, "output": {"type": "number", "minimum": 0}, "cache_read": {"type": "number", "minimum": 0}, "cache_write": {"type": "number", "minimum": 0}}
+    },
+    "pricingProvenance": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["error"], "properties": {"error": {"type": "string", "minLength": 1}}},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["source", "retrieved_at", "stale", "error", "complete", "limitations", "url", "cache_path"],
+          "properties": {
+            "source": {"$ref": "#/$defs/nullableString"}, "retrieved_at": {"oneOf": [{"$ref": "#/$defs/dateTime"}, {"type": "null"}]},
+            "stale": {"type": "boolean"}, "error": {"$ref": "#/$defs/nullableString"}, "complete": {"type": "boolean"},
+            "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "url": {"$ref": "#/$defs/nullableString"}, "cache_path": {"oneOf": [{"$ref": "#/$defs/relativePath"}, {"type": "null"}]}
+          }
+        }
+      ]
+    },
+    "usage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["input_tokens", "cached_input_tokens", "cache_write_tokens", "output_tokens"],
+      "properties": {"input_tokens": {"type": "integer", "minimum": 0}, "cached_input_tokens": {"type": "integer", "minimum": 0}, "cache_write_tokens": {"type": "integer", "minimum": 0}, "output_tokens": {"type": "integer", "minimum": 0}}
+    },
+    "deterministicSeed": {
+      "type": "object", "additionalProperties": false,
+      "required": ["supported", "limitation"],
+      "properties": {"supported": {"const": false}, "limitation": {"type": "string", "minLength": 1}}
+    },
+    "toolingRecord": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "config_id", "evaluator_id", "adapter", "model_id", "provider_family", "effort", "executable_version", "version_error", "adapter_version", "runner_version", "deterministic_seed"],
+      "properties": {
+        "role": {"enum": ["implementation", "evaluator"]},
+        "config_id": {"$ref": "#/$defs/id"},
+        "evaluator_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "adapter": {"type": "string", "minLength": 1},
+        "model_id": {"type": "string", "minLength": 1},
+        "provider_family": {"type": "string", "minLength": 1},
+        "effort": {"type": "string", "minLength": 1},
+        "executable_version": {"$ref": "#/$defs/nullableString"},
+        "version_error": {"$ref": "#/$defs/nullableString"},
+        "adapter_version": {"type": "string", "minLength": 1},
+        "runner_version": {"type": "string", "minLength": 1},
+        "deterministic_seed": {"$ref": "#/$defs/deterministicSeed"}
+      },
+      "allOf": [
+        {"if": {"properties": {"role": {"const": "implementation"}}, "required": ["role"]}, "then": {"properties": {"evaluator_id": {"type": "null"}}}},
+        {"if": {"properties": {"role": {"const": "evaluator"}}, "required": ["role"]}, "then": {"properties": {"evaluator_id": {"$ref": "#/$defs/id"}}}},
+        {"oneOf": [
+          {"properties": {"executable_version": {"type": "string", "minLength": 1}, "version_error": {"type": "null"}}},
+          {"properties": {"executable_version": {"type": "null"}, "version_error": {"type": "string", "minLength": 1}}}
+        ]}
+      ]
+    },
+    "implementationJob": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "harness", "track", "repetition", "submission_id", "command_preview", "returncode", "duration_s", "timed_out", "interrupted", "error", "cost_usd", "reported_cost_usd", "usage"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "kind": {"const": "implement"}, "harness": {"$ref": "#/$defs/id"}, "track": {"enum": ["fe", "be"]},
+        "repetition": {"type": "integer", "minimum": 1}, "submission_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}, "command_preview": {"type": "string", "minLength": 1},
+        "returncode": {"type": ["integer", "null"]}, "duration_s": {"type": "number", "minimum": 0}, "timed_out": {"type": "boolean"}, "interrupted": {"type": "boolean"},
+        "error": {"$ref": "#/$defs/nullableString"}, "cost_usd": {"$ref": "#/$defs/nullableNonnegative"}, "reported_cost_usd": {"$ref": "#/$defs/nullableNonnegative"},
+        "usage": {"oneOf": [{"$ref": "#/$defs/usage"}, {"type": "null"}]}
+      }
+    },
+    "evaluationJob": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "harness", "track", "repetition", "submission_id", "command_preview", "returncode", "duration_s", "timed_out", "interrupted", "error", "cost_usd", "reported_cost_usd", "usage", "evaluator_id", "eval_attempt_id", "valid", "invalid_reasons"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "kind": {"const": "evaluate"}, "harness": {"$ref": "#/$defs/id"}, "track": {"enum": ["fe", "be"]},
+        "repetition": {"type": "integer", "minimum": 1}, "submission_id": {"$ref": "#/$defs/id"}, "command_preview": {"type": "string", "minLength": 1},
+        "returncode": {"type": ["integer", "null"]}, "duration_s": {"type": "number", "minimum": 0}, "timed_out": {"type": "boolean"}, "interrupted": {"type": "boolean"},
+        "error": {"$ref": "#/$defs/nullableString"}, "cost_usd": {"$ref": "#/$defs/nullableNonnegative"}, "reported_cost_usd": {"$ref": "#/$defs/nullableNonnegative"},
+        "usage": {"oneOf": [{"$ref": "#/$defs/usage"}, {"type": "null"}]}, "evaluator_id": {"$ref": "#/$defs/id"}, "eval_attempt_id": {"$ref": "#/$defs/id"},
+        "valid": {"type": "boolean"}, "invalid_reasons": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "skippedEvaluationJob": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "harness", "track", "repetition", "submission_id", "evaluator_id", "skipped", "reason"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "kind": {"const": "evaluate"}, "harness": {"$ref": "#/$defs/id"}, "track": {"enum": ["fe", "be"]}, "repetition": {"type": "integer", "minimum": 1}, "submission_id": {"$ref": "#/$defs/id"}, "evaluator_id": {"$ref": "#/$defs/id"}, "skipped": {"const": true}, "reason": {"type": "string", "minLength": 1}}
+    }
+  }
+}

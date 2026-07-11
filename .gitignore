@@ -1,0 +1,27 @@
+# Generated benchmark runs and local execution ledger
+runs/
+TMP_PLAN.md
+
+# Python bytecode
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+/build/
+/dist/
+/*.egg-info/
+
+# Cached models.dev pricing table (refetched automatically)
+.pricing-cache.json
+
+# macOS noise
+.DS_Store
+
+# Local bench config (commit bench.example.toml instead)
+bench.toml
+
+# Agent-local settings
+.claude/settings.local.json
