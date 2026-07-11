@@ -299,7 +299,7 @@ class PublicationLifecycleTests(E2EFixture):
         self.assertTrue(leaderboard["entries"][0]["eligible"])
         report = (run_dir / "report.html").read_text(encoding="utf-8")
         self.assertIn("Expected implementation cost per valid result", report)
-        self.assertIn("Raw attempt table", report)
+        self.assertIn("attempts-table", report)
         first, second = self.root / "export-a.zip", self.root / "export-b.zip"
         export_run(run_dir, first)
         export_run(run_dir, second)

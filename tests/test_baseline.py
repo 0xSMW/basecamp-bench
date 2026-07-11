@@ -22,7 +22,13 @@ class BaselineTests(unittest.TestCase):
         manifest = json.loads((BASELINE / "baseline-manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(
             manifest["models"],
-            ["claude-fable-5", "gpt-5.6-sol", "grok-4.5"],
+            [
+                "claude-fable-5",
+                "claude-sonnet-5",
+                "gpt-5.5",
+                "gpt-5.6-sol",
+                "grok-4.5",
+            ],
         )
         self.assertEqual(manifest["tracks"], ["be", "fe"])
 
@@ -50,8 +56,17 @@ class BaselineTests(unittest.TestCase):
             for entry in leaderboard["entries"]:
                 observed.add(entry["model_id"])
                 rows += 1
-        self.assertEqual(observed, {"claude-fable-5", "gpt-5.6-sol", "grok-4.5"})
-        self.assertEqual(rows, 6)
+        self.assertEqual(
+            observed,
+            {
+                "claude-fable-5",
+                "claude-sonnet-5",
+                "gpt-5.5",
+                "gpt-5.6-sol",
+                "grok-4.5",
+            },
+        )
+        self.assertEqual(rows, 10)
 
 
 if __name__ == "__main__":

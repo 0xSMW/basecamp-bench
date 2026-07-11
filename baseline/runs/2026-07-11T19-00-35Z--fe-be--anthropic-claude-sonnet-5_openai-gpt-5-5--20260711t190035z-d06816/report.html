@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Basecamp Bench Report</title>
+<style>
+
+:root { color-scheme: light dark; --bg:#f7f7f5; --fg:#1a1a1a; --muted:#5c5c5c;
+  --card:#fff; --border:#d0d0cc; --frontier:#0b6e4f; --dom:#8a6d3b; --inel:#8a8a8a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#141414; --fg:#f0f0f0; --muted:#a0a0a0; --card:#1e1e1e;
+    --border:#333; --frontier:#3dcea0; --dom:#e0b15c; --inel:#888; }
+}
+* { box-sizing: border-box; }
+body { margin:0; font: 15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+header, section { max-width: 1880px; margin: 0 auto;
+  padding: 1.25rem clamp(1rem, 3vw, 3rem); }
+header { border-bottom: 1px solid var(--border); }
+h1 { font-size: 1.6rem; margin: 0 0 .5rem; }
+h2 { font-size: 1.3rem; margin: 0 0 .75rem; }
+h3 { font-size: 1.05rem; margin: 2rem 0 .25rem; }
+.lede, .muted { color: var(--muted); }
+.track-section { background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; margin: 1.25rem auto; }
+.provenance-box { margin: .25rem 0 .5rem; }
+.provenance-box summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.provenance { display:grid; grid-template-columns: 14rem 1fr; gap:.25rem .75rem;
+  margin: .75rem 0 0; font-size: 13px; }
+.provenance dt { font-weight:600; }
+.provenance dd { margin:0; word-break: break-all; color: var(--muted); }
+.table-scroll { overflow-x: auto; margin: .5rem 0 1rem; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { border: 0; border-bottom: 1px solid var(--border);
+  padding: .5rem .75rem; text-align: left; vertical-align: top; white-space: nowrap; }
+thead th { background: rgba(127,127,127,.1); border-bottom: 2px solid var(--border); }
+tbody tr:nth-child(even) { background: rgba(127,127,127,.05); }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dim-weight { display: block; font-weight: 400; font-size: 11px; color: var(--muted); }
+.chart { width: 100%; max-width: 1200px; height: auto; background: transparent; }
+.chart-bg { fill: transparent; }
+.axis { stroke: var(--fg); stroke-width: 1.2; }
+.axis-label { fill: var(--fg); font-size: 12px; }
+.grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 4; }
+.tick-label { fill: var(--muted); font-size: 11px; }
+.frontier-line { stroke: var(--frontier); stroke-width: 2; stroke-dasharray: 4 2; }
+.frontier-point { stroke: #000; stroke-width: 1.2; }
+.dominated-point { opacity: .75; stroke: var(--dom); stroke-width: 1; stroke-dasharray: 2 2; }
+.ineligible-point { opacity: .45; stroke: var(--inel); stroke-width: 1; fill-opacity: .5; }
+.error-bar { stroke-width: 1; opacity: .7; }
+.point-label { font-size: 11px; fill: var(--fg); }
+.methodology ul { padding-left: 1.2rem; }
+table caption { caption-side: top; text-align: left; font-weight: 600;
+  margin-bottom: .35rem; color: var(--muted); font-size: 13px; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+
+</style>
+</head>
+<body>
+<header><h1>Basecamp Bench Report</h1><p class="lede">Deterministic cost-vs-quality report. FE and BE tracks and contract revisions are shown in separate sections. Expected implementation cost uses implementation cost per attempt divided by success rate; cheaper models appear to the right on charts. Evaluation overhead is shown separately and does not affect the Pareto frontier.</p></header><section class="track-section" id="section-0-be-2026-07-11.2"><h2>Track be · contract 2026-07-11.2</h2><details class="provenance-box"><summary>Provenance and hashes</summary><dl class="provenance"><dt>contract_sha256</dt><dd><code>21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71</code></dd><dt>schema_version</dt><dd>1.0</dd><dt>generated_at</dt><dd>2026-07-11T19:44:53Z</dd><dt>mode</dt><dd><code>local</code></dd><dt>runner_source_sha256</dt><dd><code>0bdfa64ca64d7c0b82748d42fcf5771be4237c7cfe0ae7ba7049f24e7845bf79</code></dd><dt>seed_tree_sha256</dt><dd><code>802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b</code></dd><dt>reference_manifest_sha256</dt><dd><code>2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53</code></dd><dt>reference_tree_sha256</dt><dd><code>d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e</code></dd><dt>prompt_sha256</dt><dd><code>b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7</code></dd><dt>rubric_sha256</dt><dd><code>8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40</code></dd><dt>schema_bundle_sha256</dt><dd><code>342d1f3ab2d17118672fa67f4772f3cbdc7e3f787315a1fee6ddcc591bcad679</code></dd><dt>source timestamps</dt><dd>2026-07-11T19:44:53Z</dd><dt>source run IDs</dt><dd>20260711t190035z-d06816</dd><dt>frontier</dt><dd>—</dd></dl></details><h3>Cost vs quality</h3><svg class="chart" role="img" width="960" height="460" viewBox="0 0 960 460" aria-label="Scatter chart of expected implementation cost versus score for be. Expected implementation cost on the horizontal axis with cheaper to the right. Score on the vertical axis. Includes error bars, point labels, and a frontier polyline.">
+<title>Cost vs quality for track be, contract 2026-07-11.2</title>
+<desc>Scatter chart of expected implementation cost versus score for be. Expected implementation cost on the horizontal axis with cheaper to the right. Score on the vertical axis. Includes error bars, point labels, and a frontier polyline.</desc>
+<rect x="0" y="0" width="960" height="460" class="chart-bg"/>
+<line x1="72" y1="24" x2="72" y2="396" class="axis"/>
+<line x1="72" y1="396" x2="924" y2="396" class="axis"/>
+<text x="498.0" y="448" text-anchor="middle" class="axis-label">Expected implementation cost (cheaper to the right)</text>
+<text x="16" y="210.0" text-anchor="middle" class="axis-label" transform="rotate(-90 16 210.0)">Score (quality)</text>
+<text x="72" y="428" text-anchor="start" class="muted">higher cost →</text>
+<text x="924" y="428" text-anchor="end" class="muted">← lower cost (cheaper)</text>
+<line class="grid" x1="806.24" y1="24" x2="806.24" y2="396"/>
+<text class="tick-label" x="806.24" y="412" text-anchor="middle">$5</text>
+<line class="grid" x1="574.32" y1="24" x2="574.32" y2="396"/>
+<text class="tick-label" x="574.32" y="412" text-anchor="middle">$10</text>
+<line class="grid" x1="342.41" y1="24" x2="342.41" y2="396"/>
+<text class="tick-label" x="342.41" y="412" text-anchor="middle">$15</text>
+<line class="grid" x1="110.49" y1="24" x2="110.49" y2="396"/>
+<text class="tick-label" x="110.49" y="412" text-anchor="middle">$20</text>
+<line class="grid" x1="72" y1="373.02" x2="924" y2="373.02"/>
+<text class="tick-label" x="64" y="377.02" text-anchor="end">7.05</text>
+<line class="grid" x1="72" y1="301.20" x2="924" y2="301.20"/>
+<text class="tick-label" x="64" y="305.20" text-anchor="end">7.1</text>
+<line class="grid" x1="72" y1="229.39" x2="924" y2="229.39"/>
+<text class="tick-label" x="64" y="233.39" text-anchor="end">7.15</text>
+<line class="grid" x1="72" y1="157.58" x2="924" y2="157.58"/>
+<text class="tick-label" x="64" y="161.58" text-anchor="end">7.2</text>
+<line class="grid" x1="72" y1="85.76" x2="924" y2="85.76"/>
+<text class="tick-label" x="64" y="89.76" text-anchor="end">7.25</text>
+<line class="error-bar" x1="865.24" y1="324.19" x2="865.24" y2="324.19" stroke="hsl(4, 70%, 42%)"/>
+<line class="error-bar" x1="865.24" y1="324.19" x2="865.24" y2="324.19" stroke="hsl(4, 70%, 42%)"/>
+<circle class="ineligible-point" cx="865.24" cy="324.19" r="4" fill="hsl(4, 70%, 42%)" data-model="gpt55:gpt-5.5"><title>GPT-5.5: score=7.084, expected_cost=3.728</title></circle>
+<text class="point-label" x="855.24" y="314.19" text-anchor="end">GPT-5.5</text>
+<line class="error-bar" x1="130.76" y1="95.81" x2="130.76" y2="95.81" stroke="hsl(213, 71%, 46%)"/>
+<line class="error-bar" x1="130.76" y1="95.81" x2="130.76" y2="95.81" stroke="hsl(213, 71%, 46%)"/>
+<circle class="ineligible-point" cx="130.76" cy="95.81" r="4" fill="hsl(213, 71%, 46%)" data-model="sonnet5:claude-sonnet-5"><title>Claude Sonnet 5: score=7.243, expected_cost=19.56</title></circle>
+<text class="point-label" x="140.76" y="85.81" text-anchor="start">Claude Sonnet 5</text>
+</svg><h3>Dimension scores</h3><div class="table-scroll"><table class="dim-table"><caption>Dimension scores</caption><thead><tr><th scope="col">Model</th><th scope="col" class="num">Architecture and domain modeling<span class="dim-weight">weight 0.12</span></th><th scope="col" class="num">Behavioral depth and statefulness<span class="dim-weight">weight 0.16</span></th><th scope="col" class="num">Code quality and maintainability<span class="dim-weight">weight 0.07</span></th><th scope="col" class="num">Endpoint surface coverage<span class="dim-weight">weight 0.14</span></th><th scope="col" class="num">HTTP and schema contract fidelity<span class="dim-weight">weight 0.16</span></th><th scope="col" class="num">Operability, testability, and packaging<span class="dim-weight">weight 0.08</span></th><th scope="col" class="num">Validation, authorization, and request hardening<span class="dim-weight">weight 0.12</span></th><th scope="col" class="num">Scope honesty<span class="dim-weight">weight 0.05</span></th><th scope="col" class="num">Seed data fidelity<span class="dim-weight">weight 0.1</span></th></tr></thead><tbody><tr><th scope="row">Claude Sonnet 5</th><td class="num">8</td><td class="num">7.5</td><td class="num">6.5</td><td class="num">10</td><td class="num">6.8</td><td class="num">7.5</td><td class="num">4.5</td><td class="num">5</td><td class="num">7.5</td></tr><tr><th scope="row">GPT-5.5</th><td class="num">7.2</td><td class="num">7.3</td><td class="num">6.5</td><td class="num">10</td><td class="num">5.3</td><td class="num">7.3</td><td class="num">7</td><td class="num">4.5</td><td class="num">7</td></tr></tbody></table></div><h3>Aggregate model table</h3><div class="table-scroll"><table class="raw-table"><caption>Aggregate model metrics for this contract section</caption><thead><tr><th scope="col">Model</th><th scope="col" class="num">Score</th><th scope="col" class="num">Expected implementation cost per valid result</th><th scope="col" class="num">Implementation cost per attempt</th><th scope="col" class="num">Evaluation overhead per attempt</th><th scope="col" class="num">Total cost per attempt</th><th scope="col" class="num">Success rate</th><th scope="col" class="num">Repetitions</th><th scope="col" class="num">Tokens</th><th scope="col" class="num">Duration</th><th scope="col">Classification</th></tr></thead><tbody><tr><td>Claude Sonnet 5</td><td class="num">7.24</td><td class="num">$19.56</td><td class="num">$19.56</td><td class="num">$2.45</td><td class="num">$22.01</td><td class="num">100%</td><td class="num">1</td><td class="num">52.3M</td><td class="num">42m 52s</td><td>ineligible — local_mode</td></tr><tr><td>GPT-5.5</td><td class="num">7.08</td><td class="num">$3.73</td><td class="num">$3.73</td><td class="num">$2.48</td><td class="num">$6.21</td><td class="num">100%</td><td class="num">1</td><td class="num">5.7M</td><td class="num">25m 53s</td><td>ineligible — local_mode</td></tr></tbody></table></div><h3>Raw attempt table</h3><div class="table-scroll"><table class="attempts-table"><caption>Per-attempt raw results including failures (missing scores and costs shown as —)</caption><thead><tr><th scope="col">Model</th><th scope="col">Implementation success</th><th scope="col">Evaluation success</th><th scope="col" class="num">Score</th><th scope="col" class="num">Implementation cost</th><th scope="col" class="num">Evaluation cost</th><th scope="col" class="num">Tokens</th><th scope="col" class="num">Duration</th></tr></thead><tbody><tr><td>Claude Sonnet 5</td><td>yes</td><td>yes</td><td class="num">7.24</td><td class="num">$19.56</td><td class="num">$2.45</td><td class="num">52.3M</td><td class="num">42m 52s</td></tr><tr><td>GPT-5.5</td><td>yes</td><td>yes</td><td class="num">7.08</td><td class="num">$3.73</td><td class="num">$2.48</td><td class="num">5.7M</td><td class="num">25m 53s</td></tr></tbody></table></div></section><section class="track-section" id="section-1-fe-2026-07-11.2"><h2>Track fe · contract 2026-07-11.2</h2><details class="provenance-box"><summary>Provenance and hashes</summary><dl class="provenance"><dt>contract_sha256</dt><dd><code>ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1</code></dd><dt>schema_version</dt><dd>1.0</dd><dt>generated_at</dt><dd>2026-07-11T19:44:53Z</dd><dt>mode</dt><dd><code>local</code></dd><dt>runner_source_sha256</dt><dd><code>0bdfa64ca64d7c0b82748d42fcf5771be4237c7cfe0ae7ba7049f24e7845bf79</code></dd><dt>seed_tree_sha256</dt><dd><code>802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b</code></dd><dt>reference_manifest_sha256</dt><dd><code>2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53</code></dd><dt>reference_tree_sha256</dt><dd><code>d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e</code></dd><dt>prompt_sha256</dt><dd><code>6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a</code></dd><dt>rubric_sha256</dt><dd><code>9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79</code></dd><dt>schema_bundle_sha256</dt><dd><code>342d1f3ab2d17118672fa67f4772f3cbdc7e3f787315a1fee6ddcc591bcad679</code></dd><dt>source timestamps</dt><dd>2026-07-11T19:44:53Z</dd><dt>source run IDs</dt><dd>20260711t190035z-d06816</dd><dt>frontier</dt><dd>—</dd></dl></details><h3>Cost vs quality</h3><svg class="chart" role="img" width="960" height="460" viewBox="0 0 960 460" aria-label="Scatter chart of expected implementation cost versus score for fe. Expected implementation cost on the horizontal axis with cheaper to the right. Score on the vertical axis. Includes error bars, point labels, and a frontier polyline.">
+<title>Cost vs quality for track fe, contract 2026-07-11.2</title>
+<desc>Scatter chart of expected implementation cost versus score for fe. Expected implementation cost on the horizontal axis with cheaper to the right. Score on the vertical axis. Includes error bars, point labels, and a frontier polyline.</desc>
+<rect x="0" y="0" width="960" height="460" class="chart-bg"/>
+<line x1="72" y1="24" x2="72" y2="396" class="axis"/>
+<line x1="72" y1="396" x2="924" y2="396" class="axis"/>
+<text x="498.0" y="448" text-anchor="middle" class="axis-label">Expected implementation cost (cheaper to the right)</text>
+<text x="16" y="210.0" text-anchor="middle" class="axis-label" transform="rotate(-90 16 210.0)">Score (quality)</text>
+<text x="72" y="428" text-anchor="start" class="muted">higher cost →</text>
+<text x="924" y="428" text-anchor="end" class="muted">← lower cost (cheaper)</text>
+<line class="grid" x1="898.29" y1="24" x2="898.29" y2="396"/>
+<text class="tick-label" x="898.29" y="412" text-anchor="middle">$2</text>
+<line class="grid" x1="720.55" y1="24" x2="720.55" y2="396"/>
+<text class="tick-label" x="720.55" y="412" text-anchor="middle">$4</text>
+<line class="grid" x1="542.81" y1="24" x2="542.81" y2="396"/>
+<text class="tick-label" x="542.81" y="412" text-anchor="middle">$6</text>
+<line class="grid" x1="365.07" y1="24" x2="365.07" y2="396"/>
+<text class="tick-label" x="365.07" y="412" text-anchor="middle">$8</text>
+<line class="grid" x1="187.32" y1="24" x2="187.32" y2="396"/>
+<text class="tick-label" x="187.32" y="412" text-anchor="middle">$10</text>
+<line class="grid" x1="72" y1="289.68" x2="924" y2="289.68"/>
+<text class="tick-label" x="64" y="293.68" text-anchor="end">6</text>
+<line class="grid" x1="72" y1="167.47" x2="924" y2="167.47"/>
+<text class="tick-label" x="64" y="171.47" text-anchor="end">6.5</text>
+<line class="grid" x1="72" y1="45.26" x2="924" y2="45.26"/>
+<text class="tick-label" x="64" y="49.26" text-anchor="end">7</text>
+<line class="error-bar" x1="865.24" y1="370.34" x2="865.24" y2="370.34" stroke="hsl(4, 70%, 42%)"/>
+<line class="error-bar" x1="865.24" y1="370.34" x2="865.24" y2="370.34" stroke="hsl(4, 70%, 42%)"/>
+<circle class="ineligible-point" cx="865.24" cy="370.34" r="4" fill="hsl(4, 70%, 42%)" data-model="gpt55:gpt-5.5"><title>GPT-5.5: score=5.67, expected_cost=2.372</title></circle>
+<text class="point-label" x="855.24" y="360.34" text-anchor="end">GPT-5.5</text>
+<line class="error-bar" x1="130.76" y1="49.66" x2="130.76" y2="49.66" stroke="hsl(213, 71%, 46%)"/>
+<line class="error-bar" x1="130.76" y1="49.66" x2="130.76" y2="49.66" stroke="hsl(213, 71%, 46%)"/>
+<circle class="ineligible-point" cx="130.76" cy="49.66" r="4" fill="hsl(213, 71%, 46%)" data-model="sonnet5:claude-sonnet-5"><title>Claude Sonnet 5: score=6.982, expected_cost=10.64</title></circle>
+<text class="point-label" x="140.76" y="39.66" text-anchor="start">Claude Sonnet 5</text>
+</svg><h3>Dimension scores</h3><div class="table-scroll"><table class="dim-table"><caption>Dimension scores</caption><thead><tr><th scope="col">Model</th><th scope="col" class="num">Accessibility<span class="dim-weight">weight 0.07</span></th><th scope="col" class="num">Code architecture and maintainability<span class="dim-weight">weight 0.06</span></th><th scope="col" class="num">Functional depth<span class="dim-weight">weight 0.12</span></th><th scope="col" class="num">Interaction quality<span class="dim-weight">weight 0.08</span></th><th scope="col" class="num">Product-model and content fidelity<span class="dim-weight">weight 0.09</span></th><th scope="col" class="num">Reference fidelity<span class="dim-weight">weight 0.14</span></th><th scope="col" class="num">Reliability, safety, and performance<span class="dim-weight">weight 0.06</span></th><th scope="col" class="num">Responsive adaptation<span class="dim-weight">weight 0.08</span></th><th scope="col" class="num">State and persistence<span class="dim-weight">weight 0.1</span></th><th scope="col" class="num">Surface coverage<span class="dim-weight">weight 0.1</span></th><th scope="col" class="num">Visual craft and design-system coherence<span class="dim-weight">weight 0.1</span></th></tr></thead><tbody><tr><th scope="row">Claude Sonnet 5</th><td class="num">5.2</td><td class="num">6.5</td><td class="num">7.1</td><td class="num">6</td><td class="num">8.8</td><td class="num">7.8</td><td class="num">6.5</td><td class="num">5.9</td><td class="num">5.8</td><td class="num">8.2</td><td class="num">7.5</td></tr><tr><th scope="row">GPT-5.5</th><td class="num">4</td><td class="num">5.5</td><td class="num">3.5</td><td class="num">4</td><td class="num">8</td><td class="num">6.5</td><td class="num">5</td><td class="num">5.5</td><td class="num">4.5</td><td class="num">7.5</td><td class="num">7.5</td></tr></tbody></table></div><h3>Aggregate model table</h3><div class="table-scroll"><table class="raw-table"><caption>Aggregate model metrics for this contract section</caption><thead><tr><th scope="col">Model</th><th scope="col" class="num">Score</th><th scope="col" class="num">Expected implementation cost per valid result</th><th scope="col" class="num">Implementation cost per attempt</th><th scope="col" class="num">Evaluation overhead per attempt</th><th scope="col" class="num">Total cost per attempt</th><th scope="col" class="num">Success rate</th><th scope="col" class="num">Repetitions</th><th scope="col" class="num">Tokens</th><th scope="col" class="num">Duration</th><th scope="col">Classification</th></tr></thead><tbody><tr><td>Claude Sonnet 5</td><td class="num">6.98</td><td class="num">$10.64</td><td class="num">$10.64</td><td class="num">$3.58</td><td class="num">$14.22</td><td class="num">100%</td><td class="num">1</td><td class="num">26.6M</td><td class="num">44m 17s</td><td>ineligible — local_mode</td></tr><tr><td>GPT-5.5</td><td class="num">5.67</td><td class="num">$2.37</td><td class="num">$2.37</td><td class="num">$2.36</td><td class="num">$4.73</td><td class="num">100%</td><td class="num">1</td><td class="num">3.6M</td><td class="num">18m 21s</td><td>ineligible — local_mode</td></tr></tbody></table></div><h3>Raw attempt table</h3><div class="table-scroll"><table class="attempts-table"><caption>Per-attempt raw results including failures (missing scores and costs shown as —)</caption><thead><tr><th scope="col">Model</th><th scope="col">Implementation success</th><th scope="col">Evaluation success</th><th scope="col" class="num">Score</th><th scope="col" class="num">Implementation cost</th><th scope="col" class="num">Evaluation cost</th><th scope="col" class="num">Tokens</th><th scope="col" class="num">Duration</th></tr></thead><tbody><tr><td>GPT-5.5</td><td>yes</td><td>yes</td><td class="num">5.67</td><td class="num">$2.37</td><td class="num">$2.36</td><td class="num">3.6M</td><td class="num">18m 21s</td></tr><tr><td>Claude Sonnet 5</td><td>yes</td><td>yes</td><td class="num">6.98</td><td class="num">$10.64</td><td class="num">$3.58</td><td class="num">26.6M</td><td class="num">44m 17s</td></tr></tbody></table></div></section>
+<section class="methodology" id="methodology">
+  <h2>Methodology and provenance</h2>
+  <ul>
+    <li><strong>Expected implementation cost per valid result</strong> is
+      <code>implementation_cost_per_attempt / success_rate</code>
+      (equal to <code>cost_per_attempt / success_rate</code> when aggregates
+      are consistent). It estimates the expected implementation cost per valid
+      submission. When success rate is zero, or inputs are non-finite or
+      negative, expected cost is undefined and the point cannot join the
+      Pareto frontier.</li>
+    <li><strong>Evaluation overhead per attempt</strong>
+      (<code>evaluation_cost_per_attempt</code>) is reported for transparency
+      only. It never changes Pareto membership or expected implementation
+      cost.</li>
+    <li><strong>Total cost per attempt</strong> is observed implementation cost
+      plus evaluator overhead. The frontier continues to use implementation
+      cost so evaluator routing does not change contestant cost ranking.</li>
+    <li><strong>End-to-end agent duration</strong> is implementation process
+      time plus the critical-path evaluator process time. Parallel evaluators
+      contribute their maximum duration rather than their sum; queueing,
+      snapshot copying, aggregation, and report rendering are excluded.</li>
+    <li><strong>Runner compatibility</strong>: local exploratory reports may
+      combine matching benchmark evidence from different runner revisions and
+      list every source hash. Publication reports keep runner revisions in
+      separate comparison sections.</li>
+    <li><strong>Success handling</strong>: a success rate of zero forces the
+      entry ineligible even if the source marked it eligible. Ineligible and
+      failed attempts remain visible in tables and denominators.</li>
+    <li><strong>Pareto frontier</strong>: among eligible points with finite
+      nonnegative score and expected implementation cost, point A dominates B
+      when A has score ≥ B and expected cost ≤ B, with at least one strict
+      inequality. Exact score/cost ties keep the lexicographically smaller
+      <code>model_id</code> as the frontier representative. Among multiple
+      dominators, prefer lowest expected cost, then highest score, then
+      lexicographically smallest model id.</li>
+    <li><strong>Marginal cost per quality</strong> is computed only between
+      adjacent frontier points ordered by increasing score:
+      Δexpected_cost / Δscore when Δscore &gt; 0.</li>
+    <li><strong>Contracts and hashes</strong>: FE and BE tracks are never
+      combined. Distinct <code>contract_version</code> /
+      <code>contract_sha256</code> values form separate report sections.</li>
+    <li><strong>Schema version and generated_at</strong> are carried from the
+      source leaderboard files only; this report does not inject wall-clock
+      time.</li>
+    <li><strong>Harness</strong> identifies the agent/tooling configuration
+      that produced the attempts.</li>
+    <li><strong>Judge spread and error bars</strong>: score standard deviation
+      and judge spread quantify observed variance; cost standard deviation is
+      shown as horizontal error bars. These do not make nondeterministic
+      models deterministic.</li>
+    <li><strong>Colors</strong> are stable HSL values derived from
+      SHA-256(<code>model_id</code>). Classification is also labeled in text.</li>
+    <li>Only run IDs/hashes are shown; filesystem paths are never rendered.</li>
+  </ul>
+</section>
+
+<script type="application/json" id="report-payload">{"sections":[{"contract_sha256":"21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71","contract_version":"2026-07-11.2","dimension_profile":[{"id":"architecture_domain","label":"Architecture and domain modeling","weight":0.12},{"id":"behavioral_depth","label":"Behavioral depth and statefulness","weight":0.16},{"id":"code_quality","label":"Code quality and maintainability","weight":0.07},{"id":"endpoint_coverage","label":"Endpoint surface coverage","weight":0.14},{"id":"http_contract","label":"HTTP and schema contract fidelity","weight":0.16},{"id":"operability","label":"Operability, testability, and packaging","weight":0.08},{"id":"request_hardening","label":"Validation, authorization, and request hardening","weight":0.12},{"id":"scope_honesty","label":"Scope honesty","weight":0.05},{"id":"seed_fidelity","label":"Seed data fidelity","weight":0.1}],"frontier":[],"generated_at":"2026-07-11T19:44:53Z","generated_at_values":["2026-07-11T19:44:53Z"],"mode":"local","models":[{"classification":"ineligible","cost_max":19.562980749999994,"cost_mean":19.562980749999994,"cost_min":19.562980749999994,"cost_per_attempt":19.562980749999994,"cost_range":0.0,"cost_stdev":0.0,"dimensions":{"architecture_domain":8.0,"behavioral_depth":7.5,"code_quality":6.5,"endpoint_coverage":10.0,"http_contract":6.8,"operability":7.5,"request_hardening":4.5,"scope_honesty":5.0,"seed_fidelity":7.5},"display_name":"Claude Sonnet 5","dominator":null,"duration_max_s":2571.7845924180074,"duration_mean_s":2571.7845924180074,"duration_min_s":2571.7845924180074,"duration_range_s":0.0,"duration_s":2571.7845924180074,"eligible":false,"evaluation_cost_per_attempt":2.446213,"expected_cost":19.562980749999994,"harness":"sonnet5","implementation_cost_per_attempt":19.562980749999994,"ineligible_reasons":["local_mode"],"judge_spread":0.0,"marginal_cost_per_quality":null,"model_id":"claude-sonnet-5","point_id":"sonnet5:claude-sonnet-5","raw_attempts":[{"contract_sha256":"21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71","contract_version":"2026-07-11.2","dimensions":{"architecture_domain":8.0,"behavioral_depth":7.5,"code_quality":6.5,"endpoint_coverage":10.0,"http_contract":6.8,"operability":7.5,"request_hardening":4.5,"scope_honesty":5.0,"seed_fidelity":7.5},"display_name":"Claude Sonnet 5","duration_s":2571.7845924180074,"evaluation_cost_usd":2.446213,"evaluation_success":true,"evaluator_ids":["gpt-5.6-sol"],"harness":"sonnet5","implementation_cost_usd":19.562980749999994,"implementation_success":true,"ineligible_reasons":[],"judge_spread":0.0,"model_id":"claude-sonnet-5","repetition":1,"run_id":"20260711t190035z-d06816","score":7.243,"submission_id":"id-e747ba1f","tokens":52271380,"track":"be"}],"repetitions":1,"run_ids":["20260711t190035z-d06816"],"score":7.243,"score_max":7.243,"score_mean":7.243,"score_min":7.243,"score_range":0.0,"score_stdev":0.0,"success_rate":1.0,"tokens":52271380,"tokens_max":52271380,"tokens_mean":52271380.0,"tokens_min":52271380,"tokens_range":0,"total_cost_per_attempt":22.009193749999994},{"classification":"ineligible","cost_max":3.727977,"cost_mean":3.727977,"cost_min":3.727977,"cost_per_attempt":3.727977,"cost_range":0.0,"cost_stdev":0.0,"dimensions":{"architecture_domain":7.2,"behavioral_depth":7.3,"code_quality":6.5,"endpoint_coverage":10.0,"http_contract":5.3,"operability":7.3,"request_hardening":7.0,"scope_honesty":4.5,"seed_fidelity":7.0},"display_name":"GPT-5.5","dominator":null,"duration_max_s":1553.1496575839992,"duration_mean_s":1553.1496575839992,"duration_min_s":1553.1496575839992,"duration_range_s":0.0,"duration_s":1553.1496575839992,"eligible":false,"evaluation_cost_per_attempt":2.479987,"expected_cost":3.727977,"harness":"gpt55","implementation_cost_per_attempt":3.727977,"ineligible_reasons":["local_mode"],"judge_spread":0.0,"marginal_cost_per_quality":null,"model_id":"gpt-5.5","point_id":"gpt55:gpt-5.5","raw_attempts":[{"contract_sha256":"21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71","contract_version":"2026-07-11.2","dimensions":{"architecture_domain":7.2,"behavioral_depth":7.3,"code_quality":6.5,"endpoint_coverage":10.0,"http_contract":5.3,"operability":7.3,"request_hardening":7.0,"scope_honesty":4.5,"seed_fidelity":7.0},"display_name":"GPT-5.5","duration_s":1553.1496575839992,"evaluation_cost_usd":2.479987,"evaluation_success":true,"evaluator_ids":["gpt-5.6-sol"],"harness":"gpt55","implementation_cost_usd":3.727977,"implementation_success":true,"ineligible_reasons":[],"judge_spread":0.0,"model_id":"gpt-5.5","repetition":1,"run_id":"20260711t190035z-d06816","score":7.084,"submission_id":"id-fcb47662","tokens":5715354,"track":"be"}],"repetitions":1,"run_ids":["20260711t190035z-d06816"],"score":7.084,"score_max":7.084,"score_mean":7.084,"score_min":7.084,"score_range":0.0,"score_stdev":0.0,"success_rate":1.0,"tokens":5715354,"tokens_max":5715354,"tokens_mean":5715354.0,"tokens_min":5715354,"tokens_range":0,"total_cost_per_attempt":6.2079640000000005}],"prompt_sha256":"b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7","reference_manifest_sha256":"2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53","reference_tree_sha256":"d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e","rubric_sha256":"8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40","runner_source_sha256":"0bdfa64ca64d7c0b82748d42fcf5771be4237c7cfe0ae7ba7049f24e7845bf79","runner_source_sha256_values":["0bdfa64ca64d7c0b82748d42fcf5771be4237c7cfe0ae7ba7049f24e7845bf79"],"schema_bundle_sha256":"342d1f3ab2d17118672fa67f4772f3cbdc7e3f787315a1fee6ddcc591bcad679","schema_version":"1.0","seed_tree_sha256":"802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b","source_run_ids":["20260711t190035z-d06816"],"track":"be"},{"contract_sha256":"ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1","contract_version":"2026-07-11.2","dimension_profile":[{"id":"accessibility","label":"Accessibility","weight":0.07},{"id":"code_architecture","label":"Code architecture and maintainability","weight":0.06},{"id":"functional_depth","label":"Functional depth","weight":0.12},{"id":"interaction_quality","label":"Interaction quality","weight":0.08},{"id":"product_model","label":"Product-model and content fidelity","weight":0.09},{"id":"reference_fidelity","label":"Reference fidelity","weight":0.14},{"id":"reliability","label":"Reliability, safety, and performance","weight":0.06},{"id":"responsive_adaptation","label":"Responsive adaptation","weight":0.08},{"id":"state_persistence","label":"State and persistence","weight":0.1},{"id":"surface_coverage","label":"Surface coverage","weight":0.1},{"id":"visual_craft","label":"Visual craft and design-system coherence","weight":0.1}],"frontier":[],"generated_at":"2026-07-11T19:44:53Z","generated_at_values":["2026-07-11T19:44:53Z"],"mode":"local","models":[{"classification":"ineligible","cost_max":10.636490100000001,"cost_mean":10.636490100000001,"cost_min":10.636490100000001,"cost_per_attempt":10.636490100000001,"cost_range":0.0,"cost_stdev":0.0,"dimensions":{"accessibility":5.2,"code_architecture":6.5,"functional_depth":7.1,"interaction_quality":6.0,"product_model":8.8,"reference_fidelity":7.8,"reliability":6.5,"responsive_adaptation":5.9,"state_persistence":5.8,"surface_coverage":8.2,"visual_craft":7.5},"display_name":"Claude Sonnet 5","dominator":null,"duration_max_s":2657.2634944589954,"duration_mean_s":2657.2634944589954,"duration_min_s":2657.2634944589954,"duration_range_s":0.0,"duration_s":2657.2634944589954,"eligible":false,"evaluation_cost_per_attempt":3.579834,"expected_cost":10.636490100000001,"harness":"sonnet5","implementation_cost_per_attempt":10.636490100000001,"ineligible_reasons":["local_mode"],"judge_spread":0.0,"marginal_cost_per_quality":null,"model_id":"claude-sonnet-5","point_id":"sonnet5:claude-sonnet-5","raw_attempts":[{"contract_sha256":"ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1","contract_version":"2026-07-11.2","dimensions":{"accessibility":5.2,"code_architecture":6.5,"functional_depth":7.1,"interaction_quality":6.0,"product_model":8.8,"reference_fidelity":7.8,"reliability":6.5,"responsive_adaptation":5.9,"state_persistence":5.8,"surface_coverage":8.2,"visual_craft":7.5},"display_name":"Claude Sonnet 5","duration_s":2657.2634944589954,"evaluation_cost_usd":3.579834,"evaluation_success":true,"evaluator_ids":["gpt-5.6-sol"],"harness":"sonnet5","implementation_cost_usd":10.636490100000001,"implementation_success":true,"ineligible_reasons":[],"judge_spread":0.0,"model_id":"claude-sonnet-5","repetition":1,"run_id":"20260711t190035z-d06816","score":6.982,"submission_id":"id-fa3f19b4","tokens":26577147,"track":"fe"}],"repetitions":1,"run_ids":["20260711t190035z-d06816"],"score":6.982,"score_max":6.982,"score_mean":6.982,"score_min":6.982,"score_range":0.0,"score_stdev":0.0,"success_rate":1.0,"tokens":26577147,"tokens_max":26577147,"tokens_mean":26577147.0,"tokens_min":26577147,"tokens_range":0,"total_cost_per_attempt":14.216324100000001},{"classification":"ineligible","cost_max":2.371877,"cost_mean":2.371877,"cost_min":2.371877,"cost_per_attempt":2.371877,"cost_range":0.0,"cost_stdev":0.0,"dimensions":{"accessibility":4.0,"code_architecture":5.5,"functional_depth":3.5,"interaction_quality":4.0,"product_model":8.0,"reference_fidelity":6.5,"reliability":5.0,"responsive_adaptation":5.5,"state_persistence":4.5,"surface_coverage":7.5,"visual_craft":7.5},"display_name":"GPT-5.5","dominator":null,"duration_max_s":1101.3840947080025,"duration_mean_s":1101.3840947080025,"duration_min_s":1101.3840947080025,"duration_range_s":0.0,"duration_s":1101.3840947080025,"eligible":false,"evaluation_cost_per_attempt":2.35606,"expected_cost":2.371877,"harness":"gpt55","implementation_cost_per_attempt":2.371877,"ineligible_reasons":["local_mode"],"judge_spread":0.0,"marginal_cost_per_quality":null,"model_id":"gpt-5.5","point_id":"gpt55:gpt-5.5","raw_attempts":[{"contract_sha256":"ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1","contract_version":"2026-07-11.2","dimensions":{"accessibility":4.0,"code_architecture":5.5,"functional_depth":3.5,"interaction_quality":4.0,"product_model":8.0,"reference_fidelity":6.5,"reliability":5.0,"responsive_adaptation":5.5,"state_persistence":4.5,"surface_coverage":7.5,"visual_craft":7.5},"display_name":"GPT-5.5","duration_s":1101.3840947080025,"evaluation_cost_usd":2.35606,"evaluation_success":true,"evaluator_ids":["gpt-5.6-sol"],"harness":"gpt55","implementation_cost_usd":2.371877,"implementation_success":true,"ineligible_reasons":[],"judge_spread":0.0,"model_id":"gpt-5.5","repetition":1,"run_id":"20260711t190035z-d06816","score":5.67,"submission_id":"id-68357f11","tokens":3603935,"track":"fe"}],"repetitions":1,"run_ids":["20260711t190035z-d06816"],"score":5.67,"score_max":5.67,"score_mean":5.67,"score_min":5.67,"score_range":0.0,"score_stdev":0.0,"success_rate":1.0,"tokens":3603935,"tokens_max":3603935,"tokens_mean":3603935.0,"tokens_min":3603935,"tokens_range":0,"total_cost_per_attempt":4.727937}],"prompt_sha256":"6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a","reference_manifest_sha256":"2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53","reference_tree_sha256":"d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e","rubric_sha256":"9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79","runner_source_sha256":"0bdfa64ca64d7c0b82748d42fcf5771be4237c7cfe0ae7ba7049f24e7845bf79","runner_source_sha256_values":["0bdfa64ca64d7c0b82748d42fcf5771be4237c7cfe0ae7ba7049f24e7845bf79"],"schema_bundle_sha256":"342d1f3ab2d17118672fa67f4772f3cbdc7e3f787315a1fee6ddcc591bcad679","schema_version":"1.0","seed_tree_sha256":"802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b","source_run_ids":["20260711t190035z-d06816"],"track":"fe"}]}</script>
+</body>
+</html>

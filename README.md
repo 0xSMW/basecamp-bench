@@ -117,7 +117,7 @@ file. Workspaces and private logs are never exported.
 
 ## Official baseline
 
-The repository's [`baseline/`](baseline/) directory contains three verified,
+The repository's [`baseline/`](baseline/) directory contains four verified,
 shareability-scanned reference runs and one combined self-contained HTML report.
 It preserves model snapshots, evaluator reports and results, raw attempts,
 leaderboards, and provenance manifests while excluding private logs, prompts,

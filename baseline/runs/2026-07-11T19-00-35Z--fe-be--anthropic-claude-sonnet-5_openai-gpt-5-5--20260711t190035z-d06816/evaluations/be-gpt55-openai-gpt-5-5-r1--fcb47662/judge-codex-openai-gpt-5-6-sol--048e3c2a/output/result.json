@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "track": "be",
+  "submission_id": "id-fcb47662",
+  "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "architecture_domain": {
+      "score": 7.2,
+      "notes": "A strong shared SQLite recording model supports real parent, bucket, status, and cross-cutting behavior, but lifecycle inheritance, dock projections, access rules, and peripheral family semantics drift.",
+      "evidence": [
+        "submission/basecamp5_api.py:291 stores generic resources with parent_kind, parent_id, bucket_id, status, ordering, indexes, and JSON data",
+        "submission/basecamp5_api.py:916 builds a reusable recording envelope with creator, parent, bucket, lifecycle, visibility, and cross-cutting URLs",
+        "Trashing project 12345 returned 204/then 404 while child recording 3001 remained reachable with 200; disabling tool 201 left the project's embedded dock projection enabled"
+      ]
+    },
+    "endpoint_coverage": {
+      "score": 10.0,
+      "notes": "The complete canonical operation surface is registered with exact methods and templates.",
+      "evidence": [
+        "Canonical OpenAPI contains 131 paths and 203 operations: 100 GET, 42 PUT, 41 POST, and 20 DELETE",
+        "Exhaustive template construction and matching verified 203/203 intended operation-method pairs with zero collisions",
+        "submission/basecamp5_api.py:227 builds routes directly from every supported OpenAPI path operation"
+      ]
+    },
+    "behavioral_depth": {
+      "score": 7.3,
+      "notes": "Core project and recording workflows are genuinely persistent and cross-resource, with material gaps in lifecycle invariants and semantically shallow peripheral handlers.",
+      "evidence": [
+        "Project and todo create/read/update/lifecycle effects persisted after rebuilding App against the same SQLite file; reset removed created objects and restored the seed",
+        "Card 5101 moved from column 5001 to 5002 and immediately changed membership in both parent lists; comments, boosts, subscriptions, events, and idempotency also persisted",
+        "A nonexistent question accepted answer creation with 201 as type Question, project trash did not hide children, and MarkAsRead did not affect subsequent read flags"
+      ]
+    },
+    "http_contract": {
+      "score": 5.3,
+      "notes": "Centralized envelopes, pagination, headers, and many core statuses work, but successful payload schemas, lifecycle statuses, media types, and some response shapes materially diverge from OpenAPI.",
+      "evidence": [
+        "Only 10 of 26 representative successful seeded GET payloads passed Draft 2020-12 validation against documented response schemas",
+        "Fourteen matrix successes used an undocumented success status; CompleteTodo and recording archive/unarchive returned 200 bodies where OpenAPI requires 204",
+        "Attachment and campfire-upload media types returned 415, and GetUpcomingSchedule returned an array instead of the documented aggregate object"
+      ]
+    },
+    "seed_fidelity": {
+      "score": 7.0,
+      "notes": "The sample graph is broad, stable in identity, and navigable, but misses specified subscriptions, boosted comments, chat depth, and fully deterministic timestamps.",
+      "evidence": [
+        "Seed DB contains 1 account, 10 people with exactly 8 sample people, 1 project, 8 tools, 5 messages, 10 todos, 13 cards, docs/uploads, 8 chat lines, 2 schedule entries, 21 events, 15 comments, and 11 boosts",
+        "Kickoff has 7 boosts and 4 comments but zero required subscriptions; no comments are boosted and chat has 8 rather than roughly 16 lines",
+        "Two fresh boot snapshots differed because seed events/comments/boosts and recount timestamps use wall-clock time"
+      ]
+    },
+    "request_hardening": {
+      "score": 7.0,
+      "notes": "Auth, roles, visibility, required input, media types, body limits, idempotency, rate limiting, and structured errors are solid, while malformed identifiers, UTF-8, types, and dates expose significant gaps.",
+      "evidence": [
+        "Observed 401 missing/bad token, 403 account/client violations, 400 malformed JSON, 413 oversized body, 415 wrong media, 422 missing/foreign fields, and 429 with Retry-After",
+        "Idempotent replay returned the original 201 with Idempotency-Replayed true; conflicting reuse returned 409",
+        "Nonnumeric path IDs and invalid UTF-8 raised uncaught exceptions that become 500; invalid date text was accepted and reset has no second secret by default"
+      ]
+    },
+    "operability": {
+      "score": 7.3,
+      "notes": "The stdlib server is configurable and offers health, logging, request IDs, CORS, reset, SQLite persistence, and graceful-shutdown code, with limited health depth and test/package seams.",
+      "evidence": [
+        "submission/basecamp5_api.py:2777 provides host, port, DB, and log configuration plus SIGINT/SIGTERM shutdown; file-backed initialization, health, reset, and persistence were verified",
+        "submission/basecamp5_api.py:2698 centralizes request IDs, elapsed logging, safe error containment, ETag emission, and security/CORS headers",
+        "No tests/package metadata exist; health does not probe DB, CORS defaults to wildcard, and threaded use of App(':memory:') failed with no such table: tokens"
+      ]
+    },
+    "code_quality": {
+      "score": 6.5,
+      "notes": "Readable helpers and centralized layers make substantial behavior understandable, but the monolith, duplicated projections, generic substring routing, and lack of tests make extension risky.",
+      "evidence": [
+        "Clear ApiError, Route, Store, Actor, shared recording, pagination, and grouped domain-handler abstractions are present",
+        "All persistence, seed, routing, auth, domain behavior, HTTP emission, and process lifecycle reside in one 2811-line file",
+        "Stored JSON and indexed/embedded projections drift in observed tool behavior, while generic handlers collapse distinct domain resources"
+      ]
+    },
+    "scope_honesty": {
+      "score": 4.5,
+      "notes": "An explicit 501 fallback exists, but broad generic handlers intercept all current operations and frequently return misleading success for semantically stubbed behavior.",
+      "evidence": [
+        "submission/basecamp5_api.py:1760 defines an explicit unsupported 501 response, but all 203 current operation IDs are routed before it",
+        "Creating under nonexistent template/question parents returned 201 resources of the wrong semantic type rather than a faithful result or explicit unsupported error",
+        "GetQuestionReminders is unconditional 200 empty and MarkAsRead returns success without changing notification read state"
+      ]
+    }
+  },
+  "summary": "Complete route registration and a strong persistent core make this a substantial prototype. Contract-schema fidelity, lifecycle invariants, input typing, deterministic seed details, and misleading generic successes keep it short of production-shaped behavior."
+}

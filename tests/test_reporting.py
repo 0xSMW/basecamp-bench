@@ -867,6 +867,24 @@ class RenderReportHtmlTests(unittest.TestCase):
         ):
             self.assertNotIn(needle, lowered)
 
+    def test_zero_cost_model_can_be_the_value_pick(self) -> None:
+        points = [
+            _point(
+                model_id="leader",
+                display_name="Leader",
+                score=8.0,
+                cost_per_attempt=2.0,
+            ),
+            _point(
+                model_id="free",
+                display_name="Free",
+                score=6.0,
+                cost_per_attempt=0.0,
+            ),
+        ]
+        html_out = render_report_html(build_report_payload(points))
+        self.assertIn("Free</span> delivers 75% of the quality at 0% of the cost", html_out)
+
     def test_chart_accessibility_error_bars_frontier_cheaper_right(self) -> None:
         html_out = render_report_html(self._sample_payload())
         self.assertIn('role="img"', html_out)
@@ -891,15 +909,32 @@ class RenderReportHtmlTests(unittest.TestCase):
         self.assertIn("contract 9.9", html_out)
         self.assertIn("Score", html_out)
         self.assertIn("Expected implementation cost per valid result", html_out)
-        self.assertIn("Implementation cost median per attempt", html_out)
+        self.assertIn("Implementation cost per attempt", html_out)
         self.assertIn("Evaluation overhead per attempt", html_out)
         self.assertIn("Total cost per attempt", html_out)
-        self.assertIn("End-to-end agent duration median (s)", html_out)
-        self.assertIn("End-to-end agent duration (s)", html_out)
+        self.assertIn("Duration", html_out)
         self.assertIn("critical-path evaluator process time", html_out)
         self.assertIn("Judge spread", html_out)
         self.assertIn("report-payload", html_out)
         self.assertIn("<caption>", html_out)
+        # This fixture has repetitions=3, so spread columns are shown.
+        self.assertIn("Score stdev", html_out)
+        self.assertIn("Score min–max", html_out)
+        # Provenance is present but collapsed.
+        self.assertIn("<details", html_out)
+        self.assertIn("Provenance and hashes", html_out)
+        # Tables scroll inside their own container, never the page.
+        self.assertIn("table-scroll", html_out)
+
+    def test_spread_columns_hidden_for_single_repetition(self) -> None:
+        points = [
+            _point(model_id="solo", score=7.0, cost_per_attempt=2.0, repetitions=1),
+        ]
+        html_out = render_report_html(build_report_payload(points))
+        self.assertNotIn("Score stdev", html_out)
+        self.assertNotIn("Score min–max", html_out)
+        self.assertNotIn("Impl cost stdev", html_out)
+        self.assertIn("Implementation cost per attempt", html_out)
 
     def test_no_filesystem_paths_rendered(self) -> None:
         points = [

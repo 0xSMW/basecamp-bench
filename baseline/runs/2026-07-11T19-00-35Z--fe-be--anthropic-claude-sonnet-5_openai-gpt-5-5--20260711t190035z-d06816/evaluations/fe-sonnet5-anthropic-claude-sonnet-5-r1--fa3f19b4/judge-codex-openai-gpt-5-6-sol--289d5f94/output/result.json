@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "track": "fe",
+  "submission_id": "id-fa3f19b4",
+  "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "reference_fidelity": {
+      "score": 7.8,
+      "notes": "Strong correspondence across the shell and all screenshot-backed surfaces, with simplified controls, generic icons, and several visible anatomy/content mismatches.",
+      "evidence": [
+        "submission/prototype.html:521-1134 implements the account shell, My Bar, Home columns, dock, tool layouts, and responsive geometry using the supplied design tokens.",
+        "submission/prototype.html:1995-2680 renders Home, dock, Message Board, To-dos, Card Table, Docs & Files, Chat, and Calendar anatomies corresponding to seed/reference/screens/*.png.",
+        "submission/prototype.html:2038-2060 includes an extra project and omits the specified Add-a-folder Home action; multiple screenshot-visible controls are simplified or inert."
+      ]
+    },
+    "visual_craft": {
+      "score": 7.5,
+      "notes": "A coherent production-derived token system and consistent component styling are weakened by emoji iconography, inline styles, hover-only actions, and incomplete motion/mobile polish.",
+      "evidence": [
+        "submission/prototype.html:7-477 defines 288 CSS custom properties with light/dark ramps, typography, spacing, radii, shadows, and feature tokens.",
+        "submission/prototype.html:484-1113 consistently styles sheets, cards, buttons, chips, overlays, tool rows, Kanban, files, chat, and editors.",
+        "submission/prototype.html:645-682 animates overlays/sidebar without a prefers-reduced-motion override, while many icons are raw emoji."
+      ]
+    },
+    "product_model": {
+      "score": 8.8,
+      "notes": "The shared Recording model and deterministic sample narrative are rich and faithful; several secondary relationships and administrative concepts remain shallow.",
+      "evidence": [
+        "submission/prototype.html:1244-1267 centralizes recordings, events, comments, boosts, readings, bookmarks, pings, and preferences.",
+        "Runtime seed execution produced 9 people, 2 projects, 74 recordings, 33 events, 5 messages, 10 to-dos, 13 cards, 3 docs/files items, 2 schedule entries, and 16 chat lines.",
+        "submission/prototype.html:1276-1510 matches the named eight-person Launch the new website narrative, including pinned threads, on-hold cards, watchers, uploads/cloud links, dates, and chat reactions."
+      ]
+    },
+    "surface_coverage": {
+      "score": 8.2,
+      "notes": "All required surfaces plus many optional destinations are reachable, though a meaningful portion of secondary screens is summary-only, empty, or stubbed.",
+      "evidence": [
+        "Runtime route matrix rendered Home, dock, six tools, four recording details, Activity, Calendar, Reports, Everything, Search, Adminland, Pings, Assignments, Drafts, and My Boosts without the error boundary.",
+        "submission/prototype.html:1594-1620 and 1995-2023 define the broad hash router and route renderer.",
+        "submission/prototype.html:2738-2885 shows shallow Reports, Everything, empty admin groups/companies, and placeholder Drafts surfaces."
+      ]
+    },
+    "functional_depth": {
+      "score": 7.1,
+      "notes": "Many create/mutate/comment/move/navigation workflows work end to end, but editing, reorder, calendar/file workflows, and numerous prominent controls stop at stubs or missing dispatch cases.",
+      "evidence": [
+        "Runtime tests verified persistent to-do completion, bookmark, message creation with comment and boost, card movement, and trash/restore.",
+        "submission/prototype.html:2921-3175 implements creation, completion, steps, comments, boosts, card moves, chat/pings, project settings, bookmarks, archive, trash, and notes.",
+        "Static action-to-dispatch comparison found 60 rendered action names, 19 explicit noop occurrences, and missing handlers for the visible new-message and new-doc actions at submission/prototype.html:2224 and 2530."
+      ]
+    },
+    "interaction_quality": {
+      "score": 6.0,
+      "notes": "Shortcuts, filtering, confirmations, and toasts provide useful feedback, while global rerenders, prompt-driven flows, weak modal focus, hover-only controls, and inert affordances materially reduce usability.",
+      "evidence": [
+        "submission/prototype.html:3214-3348 implements Escape handling, extensive keyboard shortcuts, shortcut hints, and context-aware quick-add keys.",
+        "submission/prototype.html:1763-1784 provides live filtering and polite toast feedback; reset uses confirmation.",
+        "submission/prototype.html:1982-1989 replaces the full app innerHTML on render, which discards focus and transient DOM state outside specially handled inputs."
+      ]
+    },
+    "state_persistence": {
+      "score": 5.8,
+      "notes": "Ordinary mutations persist correctly, but incomplete reset and acceptance of malformed yet parseable state are material contract failures.",
+      "evidence": [
+        "Runtime save/reload preserved tested to-do, bookmark, created message/comment/boost, card parent movement, and trash/restore state with Map and Set reconstruction.",
+        "A stored payload containing recordings:[] and projects:[{}] was accepted by loadDB and drove Home into the visible Something went sideways error boundary.",
+        "The actual reset path left bookmarks, readings, Do Today IDs, My Notes, pings, and Shhh enabled because submission/prototype.html:1269-1271 does not clear them before submission/prototype.html:1566-1571 saves the rebuilt seed."
+      ]
+    },
+    "responsive_adaptation": {
+      "score": 5.9,
+      "notes": "Core layouts reflow and Kanban remains scrollable, but navigation, Calendar, breadcrumbs, and the fixed My Bar lack a robust mobile-specific adaptation.",
+      "evidence": [
+        "submission/prototype.html:1118-1134 stacks Home/fields, widens sidebar/trays, and verticalizes toolbars at 900px and 600px.",
+        "submission/prototype.html:967-989 preserves Card Table through horizontal scrolling.",
+        "submission/prototype.html:569-637 keeps avatar, five My Bar tools, and New-for-you in a fixed wrapping bar while the reserved tray height remains fixed; Calendar stays seven columns."
+      ]
+    },
+    "accessibility": {
+      "score": 5.2,
+      "notes": "Solid semantic and keyboard foundations are offset by weak dialog focus management, unnamed editors/controls, placeholder-only fields, inert tabbable UI, and no reduced-motion support.",
+      "evidence": [
+        "submission/prototype.html:499-519 and 1137-1141 provide visible focus, a skip link, semantic main target, and a polite live region.",
+        "submission/prototype.html:1792-1915 names the account nav, My Bar toolbar, jump dialog, sidebar dialog, and key icon buttons.",
+        "submission/prototype.html:1729-1744 creates contenteditable editors without role or accessible name; dialogs have no focus trap/restoration and CSS has no prefers-reduced-motion rule."
+      ]
+    },
+    "code_architecture": {
+      "score": 6.5,
+      "notes": "Clear sections and reusable domain/render helpers make the mandated single file understandable, but global mutable state, giant string renderers/dispatcher, full rerenders, and absent tests/migrations limit maintainability.",
+      "evidence": [
+        "submission/prototype.html:1144-1779 separates utilities, deterministic model construction, persistence, routing helpers, common components, filtering, and notifications.",
+        "submission/prototype.html:1982-2892 separates per-surface render functions and shared detail components.",
+        "submission/prototype.html:2921-3175 is a roughly 250-line global action switch mixing domain mutation, prompts, routing, persistence, and UI state."
+      ]
+    },
+    "reliability": {
+      "score": 6.5,
+      "notes": "The script validates and broad routes execute, with escaping and an error boundary, but malformed-state handling, missing handlers, route ownership, sanitizer scope, and dangling-content risks prevent production-shaped reliability.",
+      "evidence": [
+        "The extracted submission script passes node --check, and the runtime harness rendered the primary and optional route matrix without uncaught startup failures.",
+        "submission/prototype.html:1150-1177 escapes ordinary text and sanitizes rich text, while submission/prototype.html:1995-2023 catches render failures.",
+        "Valid incomplete stored data reaches the error boundary; visible action handlers are missing; rich-text IMG src and SPAN style remain unrestricted; remove-tool can orphan existing recordings."
+      ]
+    }
+  },
+  "summary": "A broad and product-aware Basecamp prototype with a strong deterministic Recording graph, faithful primary surface anatomy, and many real persistent workflows. It falls short of production shape through conspicuous stubs and unwired entry points, global rerender/focus weaknesses, incomplete reset and malformed-state recovery, and limited mobile/accessibility hardening."
+}

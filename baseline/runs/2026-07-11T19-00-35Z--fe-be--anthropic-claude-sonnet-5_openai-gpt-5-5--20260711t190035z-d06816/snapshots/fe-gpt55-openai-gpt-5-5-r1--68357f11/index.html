@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en" data-color-scheme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Basecamp 5 Prototype</title>
+  <style>
+    :root {
+      --hsl-black: 0, 0%, 0%;
+      --hsl-white: 0, 0%, 100%;
+      --10px: 1rem; --12px: 1.2rem; --14px: 1.4rem; --16px: 1.6rem; --18px: 1.8rem; --20px: 2rem; --24px: 2.4rem; --28px: 2.8rem; --32px: 3.2rem;
+      --1px: .1rem; --2px: .2rem; --4px: .4rem; --6px: .6rem; --8px: .8rem; --10pxs: 1rem; --12pxs: 1.2rem; --14pxs: 1.4rem; --16pxs: 1.6rem; --18pxs: 1.8rem; --20pxs: 2rem; --24pxs: 2.4rem; --28pxs: 2.8rem; --32pxs: 3.2rem; --36pxs: 3.6rem; --40pxs: 4rem; --44pxs: 4.4rem; --48pxs: 4.8rem; --56pxs: 5.6rem; --64pxs: 6.4rem; --72pxs: 7.2rem; --80pxs: 8rem; --88pxs: 8.8rem; --96pxs: 9.6rem;
+      --color-ink-10: hsl(240, 7.7%, 97.5%);
+      --color-ink-20: hsl(200, 11.1%, 94.7%);
+      --color-ink-30: hsl(180, 3.7%, 89.4%);
+      --color-ink-40: hsl(195, 3.6%, 78%);
+      --color-ink-50: hsl(202.5, 4.1%, 62%);
+      --color-ink-60: hsl(201.4, 6%, 45.5%);
+      --color-ink-70: hsl(202.1, 18.8%, 19.8%);
+      --color-sand-10: hsl(33.3, 60%, 97.1%);
+      --color-sand-20: hsl(34.3, 46.7%, 94.1%);
+      --color-sand-30: hsl(31.4, 36.8%, 88.8%);
+      --color-sand-40: hsl(31.6, 31.7%, 76.5%);
+      --color-sand-50: hsl(32.9, 29.5%, 58.8%);
+      --color-sand-60: hsl(33.8, 29.1%, 43.1%);
+      --color-sand-70: hsl(34.1, 29.8%, 33.5%);
+      --color-slate-10: var(--color-ink-10);
+      --color-slate-20: var(--color-ink-20);
+      --color-slate-30: var(--color-ink-30);
+      --color-slate-40: var(--color-ink-40);
+      --color-slate-50: var(--color-ink-50);
+      --color-slate-60: var(--color-ink-60);
+      --color-slate-70: var(--color-ink-70);
+      --color-red-10: hsl(10.9, 100%, 97.8%); --color-red-30: hsl(12, 100%, 91.2%); --color-red-50: hsl(13, 97.9%, 62.9%); --color-red-60: hsl(7.8, 63.6%, 49.6%); --color-red-70: hsl(6.7, 69.1%, 38%);
+      --color-orange-10: hsl(40, 100%, 95.9%); --color-orange-30: hsl(36.5, 100%, 84.5%); --color-orange-40: hsl(32.9, 93.5%, 69.8%); --color-orange-50: hsl(34.6, 98.4%, 48.4%); --color-orange-60: hsl(29.4, 98.9%, 36.9%); --color-orange-70: hsl(26.4, 98.7%, 29.4%);
+      --color-yellow-10: hsl(51.4, 77.8%, 94.7%); --color-yellow-20: hsl(48.4, 93.4%, 88%); --color-yellow-30: hsl(48.1, 100%, 77.3%); --color-yellow-40: hsl(45.7, 92.8%, 67.3%); --color-yellow-50: hsl(46, 87.9%, 48.6%); --color-yellow-60: hsl(42.2, 96.2%, 31%); --color-yellow-70: hsl(39.1, 82.4%, 26.7%);
+      --color-lime-50: hsl(60.4, 62.2%, 42.5%); --color-lime-60: hsl(60.5, 100%, 23.9%);
+      --color-green-10: hsl(102, 55.6%, 96.5%); --color-green-20: hsl(105, 55.6%, 92.9%); --color-green-30: hsl(110.5, 54.3%, 86.3%); --color-green-40: hsl(123, 44.1%, 73.3%); --color-green-50: hsl(135.6, 39.7%, 52.5%); --color-green-60: hsl(148.4, 68.8%, 31.4%); --color-green-70: hsl(149.3, 68.2%, 25.9%);
+      --color-aqua-20: hsl(177.3, 57.9%, 92.5%); --color-aqua-30: hsl(178.8, 62%, 84.5%); --color-aqua-50: hsl(184.7, 87.4%, 40.4%); --color-aqua-60: hsl(186.7, 98.6%, 28.4%);
+      --color-blue-10: hsl(201.4, 100%, 97.3%); --color-blue-20: hsl(205, 92.3%, 94.9%); --color-blue-30: hsl(205.9, 100%, 90%); --color-blue-40: hsl(208.4, 88.6%, 79.4%); --color-blue-50: hsl(209.2, 100%, 62.9%); --color-blue-60: hsl(211.2, 71.4%, 48%); --color-blue-70: hsl(213.3, 67.2%, 39.4%);
+      --color-violet-30: hsl(222.6, 100%, 92.5%); --color-violet-50: hsl(238.4, 100%, 77.6%); --color-violet-60: hsl(242.9, 82.7%, 66.1%);
+      --color-purple-10: hsl(255, 100%, 98.4%); --color-purple-30: hsl(253.1, 100%, 93.7%); --color-purple-50: hsl(261.7, 100%, 75.1%); --color-purple-60: hsl(267.9, 84.2%, 60.4%);
+      --color-pink-30: hsl(319.4, 81%, 91.8%); --color-pink-50: hsl(323.6, 81.4%, 66.3%); --color-pink-60: hsl(326.9, 54.9%, 52.2%);
+      --color-body: var(--color-page-tint);
+      --color-canvas: hsl(var(--hsl-white));
+      --color-canvas-light: var(--color-canvas);
+      --color-inverted: white;
+      --color-page-tint: var(--color-page-tint-1);
+      --color-page-tint-1: hsl(135, 29%, 97%);
+      --color-text: var(--color-ink-70);
+      --color-text-subtle: var(--color-ink-60);
+      --color-text-placeholder: var(--color-ink-50);
+      --color-client: var(--color-yellow-40);
+      --color-client-hidden: var(--color-blue-30);
+      --color-uncolor-10: var(--color-sand-10); --color-uncolor-20: var(--color-sand-20); --color-uncolor-30: var(--color-sand-30); --color-uncolor-40: var(--color-sand-40); --color-uncolor-50: var(--color-sand-50); --color-uncolor-60: var(--color-sand-60);
+      --tint-black-5: hsla(var(--hsl-black), .05); --tint-black-10: hsla(var(--hsl-black), .1); --tint-black-15: hsla(var(--hsl-black), .15); --tint-black-25: hsla(var(--hsl-black), .25); --tint-black-50: hsla(var(--hsl-black), .5);
+      --tint-ink-3: color-mix(in hsl, transparent, var(--color-ink-70) 3%);
+      --tint-ink-5: color-mix(in hsl, transparent, var(--color-ink-70) 5%);
+      --tint-ink-10: color-mix(in hsl, transparent, var(--color-ink-70) 10%);
+      --tint-ink-15: color-mix(in hsl, transparent, var(--color-ink-70) 15%);
+      --tint-ink-20: color-mix(in hsl, transparent, var(--color-ink-70) 20%);
+      --tint-ink-35: color-mix(in hsl, transparent, var(--color-ink-70) 35%);
+      --recording-color-aqua: var(--color-aqua-50); --recording-color-purple: var(--color-purple-50); --recording-color-blue: var(--color-blue-50); --recording-color-red: var(--color-red-50); --recording-color-green: var(--color-green-50); --recording-color-sand: var(--color-sand-50); --recording-color-orange: var(--color-orange-50); --recording-color-yellow: var(--color-yellow-50); --recording-color-pink: var(--color-pink-50); --recording-color-gray: var(--color-ink-50);
+      --font-base: -apple-system, system-ui, BlinkMacSystemFont, Aptos, Roboto, "Segoe UI", Helvetica, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --line-height-base: 1.5; --line-height-snug: 1.35; --line-height-headings: 1.15;
+      --border: 1px solid var(--color-ink-30);
+      --border-uncolor: 1px solid var(--color-uncolor-30);
+      --radius-xs: .2rem; --radius-sm: .4rem; --radius-md: .6rem; --radius-lg: .8rem; --radius-xl: 1.2rem;
+      --shadow-base: 0 -1px 1px hsla(var(--hsl-black), .025), 0 1px 2px -.5px hsla(var(--hsl-black), .05);
+      --shadow-sm: var(--shadow-base), 0 2px 4px -1px hsla(var(--hsl-black), .1);
+      --shadow-md: var(--shadow-sm), 0 4px 8px -2px hsla(var(--hsl-black), .1);
+      --shadow-lg: var(--shadow-md), 0 16px 32px -8px hsla(var(--hsl-black), .1);
+      --shadow-card: 0 0 0 1px hsla(var(--hsl-black), .05), 0 .2em .2em hsla(var(--hsl-black), .05), 0 .4em .4em hsla(var(--hsl-black), .05), 0 .8em .8em hsla(var(--hsl-black), .05);
+      --shadow-modal: 0 0 0 1px hsla(var(--hsl-black), .1), 0 16px 24px -8px hsla(var(--hsl-black), .25), 0 24px 32px -16px hsla(var(--hsl-black), .25);
+      --ease-out-expo: cubic-bezier(.16, 1, .3, 1);
+      --toolbar-size: 4rem; --footer-size: 4.6rem; --shell-gutter: clamp(1.6rem, 3vw, 5.4rem);
+      --kanbanColumnWidth: 25.5rem; --kanbanSlimColumnWidth: 5.4rem; --kanbanGridGap: 1rem;
+      color-scheme: light;
+      font-size: 10px;
+    }
+
+    :root[data-color-scheme="dark"] {
+      --color-ink-10: hsl(200, 18%, 19.6%);
+      --color-ink-20: hsl(200, 14.3%, 24.7%);
+      --color-ink-30: hsl(198.8, 10.1%, 31%);
+      --color-ink-40: hsl(200, 7.6%, 38.6%);
+      --color-ink-50: hsl(198.5, 5.5%, 53.5%);
+      --color-ink-60: hsl(201.8, 6.7%, 68%);
+      --color-ink-70: hsl(205.7, 13.2%, 89.6%);
+      --color-sand-10: hsl(34.3, 7.1%, 19.4%);
+      --color-sand-20: hsl(34.3, 5.6%, 24.5%);
+      --color-sand-30: hsl(33, 13%, 30.2%);
+      --color-sand-40: hsl(33.7, 21.9%, 36.7%);
+      --color-sand-50: hsl(33.1, 23%, 50.6%);
+      --color-sand-60: hsl(32.2, 30.7%, 65.5%);
+      --color-sand-70: hsl(33.3, 25.7%, 79.4%);
+      --color-slate-10: hsl(199.3, 28.6%, 19.2%);
+      --color-slate-20: hsl(200, 24.2%, 24.3%);
+      --color-slate-30: hsl(198.5, 16.7%, 30.6%);
+      --color-slate-40: hsl(199, 21.2%, 37.8%);
+      --color-slate-50: hsl(200.4, 23.1%, 52.5%);
+      --color-slate-60: hsl(200.4, 31.7%, 67.3%);
+      --color-slate-70: hsl(200, 41.2%, 80%);
+      --color-red-10: hsl(6.7, 8.6%, 20.6%); --color-red-30: hsl(7, 25.4%, 33.1%); --color-red-50: hsl(8.9, 66.8%, 56.3%); --color-red-60: hsl(14.4, 93.6%, 69.4%); --color-red-70: hsl(15.2, 91.2%, 82.2%);
+      --color-orange-10: hsl(34.3, 14.3%, 19.2%); --color-orange-30: hsl(28.3, 35.6%, 29.2%); --color-orange-40: hsl(28.3, 60.9%, 34.1%); --color-orange-50: hsl(28.9, 78.4%, 47.3%); --color-orange-60: hsl(30, 82.7%, 59.2%); --color-orange-70: hsl(28.9, 93.3%, 76.5%);
+      --color-yellow-10: hsl(49.1, 11.6%, 18.6%); --color-yellow-20: hsl(36, 21%, 23.3%); --color-yellow-30: hsl(38.8, 36.7%, 27.3%); --color-yellow-40: hsl(47.3, 85.3%, 65.3%); --color-yellow-50: hsl(40.7, 60.3%, 50.6%); --color-yellow-60: hsl(43.9, 76.2%, 58.8%); --color-yellow-70: hsl(45.4, 73.7%, 67.3%);
+      --color-green-10: hsl(172.9, 18.3%, 18.2%); --color-green-20: hsl(166.4, 19%, 22.7%); --color-green-30: hsl(160.6, 23.9%, 27.8%); --color-green-40: hsl(152.3, 30.2%, 33.7%); --color-green-50: hsl(143.4, 42.6%, 43.7%); --color-green-60: hsl(133.5, 40%, 60.8%); --color-green-70: hsl(122.6, 39.7%, 77.3%);
+      --color-aqua-20: hsl(192.4, 24.4%, 23.3%); --color-aqua-30: hsl(190.8, 35.2%, 27.8%); --color-aqua-50: hsl(187.7, 63.5%, 40.8%); --color-aqua-60: hsl(185.8, 52.3%, 57.3%);
+      --color-blue-10: hsl(204.7, 34%, 19.6%); --color-blue-20: hsl(209.4, 35.9%, 25.7%); --color-blue-30: hsl(208.7, 41.1%, 32%); --color-blue-40: hsl(210, 53.9%, 40%); --color-blue-50: hsl(212.1, 77.5%, 56.5%); --color-blue-60: hsl(210.2, 97.4%, 70.4%); --color-blue-70: hsl(208.6, 91.3%, 82%);
+      --color-purple-10: hsl(255, 10.9%, 21.6%); --color-purple-30: hsl(260.5, 20.9%, 35.7%); --color-purple-50: hsl(269.3, 71.3%, 64.5%); --color-purple-60: hsl(264.7, 87.4%, 78.2%);
+      --color-pink-30: hsl(319.4, 20.2%, 32.9%); --color-pink-50: hsl(328.2, 54.4%, 57.8%); --color-pink-60: hsl(326.5, 66.9%, 72.7%);
+      --color-body: hsl(202.5, 42.1%, 7.5%);
+      --color-canvas: var(--color-canvas-light);
+      --color-canvas-light: var(--color-slate-10);
+      --color-inverted: hsl(199.1, 44%, 9.8%);
+      --color-page-tint: var(--color-body);
+      --color-uncolor-10: var(--color-slate-10); --color-uncolor-20: var(--color-slate-20); --color-uncolor-30: var(--color-slate-30); --color-uncolor-40: var(--color-slate-40); --color-uncolor-60: var(--color-slate-60); --color-uncolor-70: var(--color-slate-70);
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; }
+    body {
+      font-family: var(--font-base);
+      color: var(--color-text);
+      background: var(--color-body);
+      font-size: 1.5rem;
+      line-height: var(--line-height-base);
+      overflow-x: hidden;
+    }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; text-decoration: none; }
+    .skip { position: fixed; top: 1rem; left: 1rem; transform: translateY(-200%); z-index: 500; background: var(--color-blue-50); color: white; padding: .8rem 1.2rem; border-radius: var(--radius-md); }
+    .skip:focus { transform: none; }
+    .app { min-height: 100vh; padding-bottom: calc(var(--footer-size) + 1rem); }
+    .topbar {
+      position: sticky; top: 0; z-index: 80;
+      height: 5.6rem; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      padding: 0 var(--shell-gutter);
+      background: linear-gradient(to bottom, var(--color-body) 70%, transparent);
+    }
+    .top-left, .top-right { display: flex; align-items: center; gap: .8rem; min-width: 0; }
+    .top-right { justify-content: flex-end; }
+    .account-switcher {
+      border: 0; background: transparent; padding: .6rem 1rem; border-radius: 999px;
+      display: inline-flex; align-items: center; gap: .5rem; font-weight: 700;
+    }
+    .account-switcher:hover, .ghost:hover { background: var(--tint-ink-10); }
+    .top-link, .ghost, .icon-btn {
+      border: 0; background: transparent; border-radius: var(--radius-md); min-height: 3.2rem;
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      color: var(--color-text-subtle);
+    }
+    .top-link { padding: .4rem .8rem; font-size: 1.3rem; font-weight: 650; }
+    .ghost { padding: .6rem .9rem; }
+    .icon-btn { width: 3.2rem; padding: 0; }
+    .hint {
+      display: none; min-width: 1.8rem; height: 1.8rem; place-items: center;
+      border-radius: var(--radius-xs); background: var(--color-yellow-40); color: hsl(35, 45%, 12%);
+      font-size: 1.1rem; font-weight: 800;
+    }
+    .show-hints .hint { display: inline-grid; }
+
+    .page {
+      width: min(132rem, calc(100vw - var(--shell-gutter) * 2));
+      margin: 0 auto 3rem;
+    }
+    .sheet {
+      background: var(--color-canvas-light);
+      border: 1px solid color-mix(in hsl, var(--color-ink-30), transparent 25%);
+      box-shadow: var(--shadow-lg);
+      border-radius: var(--radius-xl);
+      min-height: calc(100vh - 12rem);
+    }
+    .narrow { width: min(98rem, calc(100vw - var(--shell-gutter) * 2)); }
+    .toolbar, .crumbbar {
+      display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+      padding: 1.2rem 1.8rem; border-bottom: var(--border);
+    }
+    .crumbbar { justify-content: space-between; color: var(--color-text-subtle); font-size: 1.3rem; }
+    .crumbs { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+    .crumbs a { color: var(--color-text); font-weight: 700; }
+    .main-pad { padding: clamp(2rem, 4vw, 5.6rem); }
+    h1, h2, h3 { margin: 0; line-height: var(--line-height-headings); letter-spacing: 0; }
+    h1 { font-size: clamp(3.2rem, 4.6vw, 5rem); font-weight: 850; }
+    h2 { font-size: 2.5rem; font-weight: 800; }
+    h3 { font-size: 1.7rem; font-weight: 800; }
+    p { margin: 0; }
+    .muted { color: var(--color-text-subtle); }
+    .small { font-size: 1.3rem; }
+    .tiny { font-size: 1.15rem; }
+    .rule-title { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: center; margin: 2.4rem 0 1.2rem; }
+    .rule-title:after { content: ""; border-top: var(--border); }
+
+    .btn {
+      border: 1px solid transparent; border-radius: var(--radius-lg); min-height: 3.4rem;
+      display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
+      padding: .65rem 1.05rem; font-weight: 750; background: var(--tint-ink-5); color: var(--color-text);
+      box-shadow: var(--shadow-base);
+    }
+    .btn.primary { background: var(--color-blue-50); color: white; border-color: color-mix(in hsl, var(--color-blue-50), black 12%); }
+    .btn.success { background: var(--color-green-50); color: hsl(150, 40%, 10%); }
+    .btn.outline { background: transparent; border-color: var(--color-ink-30); box-shadow: none; color: var(--color-text-subtle); }
+    .btn.dashed { border-style: dashed; background: transparent; color: var(--color-text-subtle); }
+    .pill, .chip, .boost {
+      display: inline-flex; align-items: center; gap: .45rem; border-radius: 999px; padding: .35rem .7rem;
+      border: 1px solid var(--color-ink-30); background: var(--tint-ink-5); color: var(--color-text);
+      font-size: 1.22rem; font-weight: 700; white-space: nowrap;
+    }
+    .pill.blue { background: var(--color-blue-20); color: var(--color-blue-70); border-color: var(--color-blue-30); }
+    .pill.green { background: var(--color-green-20); color: var(--color-green-70); border-color: var(--color-green-30); }
+    .pill.yellow { background: var(--color-yellow-20); color: var(--color-yellow-70); border-color: var(--color-yellow-30); }
+    .pill.peach { background: var(--color-orange-10); color: var(--color-orange-70); border-color: var(--color-orange-30); }
+    .filter {
+      min-width: 18rem; height: 3.4rem; border-radius: var(--radius-md); border: var(--border);
+      background: var(--tint-ink-3); padding: 0 1rem; outline: none;
+    }
+    .filter:focus, textarea:focus, input:focus { border-color: var(--color-blue-50); box-shadow: 0 0 0 .3rem color-mix(in hsl, var(--color-blue-50), transparent 72%); }
+    mark { background: var(--color-yellow-40); color: hsl(35, 45%, 12%); border-radius: .2rem; padding: 0 .15rem; }
+
+    .avatar { --s: 3.2rem; width: var(--s); height: var(--s); border-radius: 50%; display: inline-grid; place-items: center; color: white; font-weight: 850; border: 2px solid var(--color-canvas-light); background: var(--avatar-bg, var(--color-blue-50)); flex: 0 0 auto; position: relative; overflow: hidden; }
+    .avatar.sm { --s: 2.4rem; font-size: 1.1rem; }
+    .avatar.xs { --s: 1.8rem; font-size: 1rem; border-width: 1px; }
+    .avatar.big { --s: 4.8rem; font-size: 1.9rem; }
+    .avatar-stack { display: flex; align-items: center; }
+    .avatar-stack .avatar { margin-left: -.8rem; }
+    .avatar-stack .avatar:first-child { margin-left: 0; }
+
+    .home-grid { display: grid; grid-template-columns: minmax(26rem, 43rem) minmax(28rem, 1fr); gap: clamp(2rem, 5vw, 7rem); align-items: start; }
+    .home-actions { display: flex; gap: .8rem; flex-wrap: wrap; justify-content: center; margin: 1.2rem 0 2rem; }
+    .project-card {
+      display: grid; gap: 1rem; min-height: 12.5rem; padding: 1.5rem; border-radius: var(--radius-lg);
+      background: var(--color-slate-20); border: var(--border); box-shadow: var(--shadow-card);
+      position: relative; transition: transform .15s var(--ease-out-expo), border-color .15s;
+    }
+    .project-card:hover { transform: translateY(-2px); border-color: var(--color-blue-40); }
+    .star { display: inline-grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: linear-gradient(135deg, var(--color-yellow-70), var(--color-yellow-60) 50%, var(--color-orange-60) 54%, var(--color-orange-50)); color: hsl(30, 45%, 14%); font-weight: 900; border: 0; }
+    .star.off { background: var(--tint-ink-10); color: var(--color-text-subtle); }
+    .activity-rail { border-left: var(--border); padding-left: 2.4rem; min-height: 52rem; }
+    .activity-row, .list-row {
+      display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: start;
+      padding: 1.2rem 0; border-bottom: var(--border);
+    }
+    .dot { width: .9rem; height: .9rem; border-radius: 50%; background: var(--color-orange-50); display: inline-block; box-shadow: 0 0 0 .3rem color-mix(in hsl, var(--color-orange-50), transparent 80%); }
+
+    .project-hero { display: grid; gap: 1.2rem; margin-bottom: 3rem; position: relative; }
+    .hero-people { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .client-tab {
+      position: absolute; right: -1px; top: 8rem; writing-mode: vertical-rl; transform: rotate(180deg);
+      background: var(--color-blue-30); color: var(--color-blue-70); border-radius: var(--radius-md) var(--radius-md) 0 0;
+      padding: 1.1rem .55rem; font-size: 1.15rem; font-weight: 850; letter-spacing: 0;
+    }
+    .dock-grid { display: grid; grid-template-columns: repeat(3, minmax(24rem, 1fr)); gap: 2rem; align-items: stretch; }
+    .dock-tool { min-width: 0; }
+    .tool-heading { color: var(--color-orange-70); font-size: 1.4rem; margin: 0 0 .7rem; display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
+    .dock-card {
+      min-height: 24rem; border-radius: var(--radius-xl); background: var(--color-slate-20); border: var(--border);
+      padding: 1.4rem; box-shadow: var(--shadow-card); overflow: hidden; position: relative;
+    }
+    .dock-card.compact { min-height: 15rem; }
+    .dock-add { min-height: 24rem; display: grid; place-items: center; border: 2px dashed var(--color-ink-30); border-radius: var(--radius-xl); color: var(--color-text-subtle); background: transparent; }
+    .preview-list { display: grid; gap: .9rem; }
+    .message-row { display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: start; padding: 1.2rem .2rem; border-bottom: var(--border); }
+    .message-row .title { font-weight: 820; }
+    .unread-dot { width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--color-blue-50); align-self: center; }
+    .category { color: var(--color-orange-70); font-weight: 800; }
+    .body-copy { font-size: 2rem; line-height: 1.55; display: grid; gap: 1.4rem; }
+    .body-copy blockquote { margin: .4rem 0; border-left: .4rem solid var(--color-blue-40); padding: .5rem 1.2rem; color: var(--color-text-subtle); background: var(--tint-ink-5); border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+    .comment { display: grid; grid-template-columns: auto 1fr; gap: 1rem; padding: 1.2rem 0; border-top: var(--border); }
+    .composer { display: grid; grid-template-columns: 1fr auto; gap: .8rem; margin-top: 1.2rem; }
+    .composer textarea, .notes-field {
+      width: 100%; min-height: 4.2rem; resize: vertical; border-radius: var(--radius-md); border: var(--border);
+      background: var(--tint-ink-3); padding: 1rem; outline: none;
+    }
+
+    .todo-list { margin: 2rem 0 3.2rem; }
+    .todo-list-head { display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+    .pie { width: 3rem; height: 3rem; border-radius: 50%; background: conic-gradient(var(--color-green-50) var(--progress, 40%), var(--tint-ink-10) 0); box-shadow: inset 0 0 0 .6rem var(--color-canvas-light); border: 1px solid var(--color-ink-30); }
+    .todo-row { display: grid; grid-template-columns: auto 1fr auto; gap: .8rem; align-items: start; padding: .7rem 0; }
+    .check {
+      width: 2rem; height: 2rem; border-radius: var(--radius-sm); border: 1.5px solid var(--color-ink-40);
+      background: transparent; display: grid; place-items: center; margin-top: .15rem;
+    }
+    .check.done { background: var(--color-green-50); border-color: var(--color-green-50); color: hsl(145, 35%, 10%); }
+    .todo-title.done { text-decoration: line-through; color: var(--color-text-subtle); }
+    .field-grid { display: grid; grid-template-columns: 14rem 1fr; gap: 1.3rem; margin: 2rem 0; }
+    .field-grid dt { font-weight: 800; color: var(--color-text); }
+    .field-grid dd { margin: 0; color: var(--color-text-subtle); }
+    .steps { display: grid; gap: .7rem; }
+    .step { display: grid; grid-template-columns: auto 1fr auto; gap: .8rem; align-items: center; }
+
+    .kanban { margin: 0 calc(var(--shell-gutter) * -1); padding: 0 var(--shell-gutter) 2rem; overflow-x: auto; }
+    .triage { min-width: 90rem; margin-bottom: 1.4rem; padding: 1.2rem; border: var(--border); border-radius: var(--radius-lg); background: var(--color-slate-20); }
+    .cards-row { display: flex; gap: 1rem; align-items: stretch; }
+    .card-tile {
+      width: 22.5rem; min-height: 8.8rem; padding: 1rem; border-radius: var(--radius-md); background: var(--color-canvas-light);
+      border: 1px solid var(--color-ink-30); box-shadow: var(--shadow-sm); display: grid; gap: .8rem;
+    }
+    .kanban-grid { min-width: 118rem; display: grid; grid-template-columns: var(--kanbanSlimColumnWidth) repeat(5, var(--kanbanColumnWidth)) var(--kanbanSlimColumnWidth); gap: var(--kanbanGridGap); align-items: stretch; }
+    .edge-strip { writing-mode: vertical-rl; transform: rotate(180deg); display: grid; place-items: center; min-height: 33rem; border-radius: var(--radius-md); border: var(--border); background: var(--color-slate-20); font-weight: 850; color: var(--color-text-subtle); }
+    .edge-strip.done { background: color-mix(in hsl, var(--color-green-50), transparent 78%); color: var(--color-green-70); border-color: var(--color-green-40); }
+    .column { border-radius: var(--radius-md); overflow: hidden; background: color-mix(in hsl, var(--col, var(--color-slate-30)), transparent 84%); border: 1px solid color-mix(in hsl, var(--col, var(--color-ink-30)), var(--color-ink-30) 55%); min-height: 33rem; }
+    .col-head { border-top: .4rem solid var(--col, var(--color-ink-40)); padding: .9rem 1rem; display: flex; justify-content: space-between; align-items: center; font-weight: 850; }
+    .col-body { display: grid; gap: .9rem; padding: 1rem; }
+    .onhold { border-top: 1px dashed var(--color-ink-40); padding-top: 1rem; margin-top: .2rem; }
+    .onhold-label { font-size: 1rem; letter-spacing: .08em; font-weight: 900; color: var(--color-text-subtle); margin-bottom: .7rem; }
+    .onhold .card-tile { border-style: dashed; }
+
+    .docs-list .file-icon { width: 4.4rem; height: 5.4rem; border-radius: var(--radius-sm); display: grid; place-items: center; font-size: 2rem; border: var(--border); background: var(--tint-ink-5); }
+    .doc-grid { display: grid; grid-template-columns: auto 1fr auto; gap: 1.2rem; align-items: center; padding: 1.2rem 0; border-bottom: var(--border); }
+    .file-thumb { width: 5.2rem; height: 5.2rem; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--color-pink-50), var(--color-orange-50)); display: grid; place-items: center; color: white; font-weight: 900; }
+    .mini-chart { height: 8rem; border-radius: var(--radius-md); background: linear-gradient(to top, color-mix(in hsl, var(--color-green-50), transparent 60%) 28%, transparent 28%), linear-gradient(135deg, var(--color-green-20), var(--color-blue-20)); position: relative; overflow: hidden; }
+    .mini-chart:before { content: ""; position: absolute; inset: 2rem 1rem 1.2rem; border-bottom: .3rem solid var(--color-green-60); border-left: .3rem solid var(--color-green-60); transform: skewX(-18deg); }
+
+    .chat-wrap { max-width: 82rem; margin: 0 auto; }
+    .day-divider { display: flex; align-items: center; gap: 1rem; color: var(--color-text-subtle); margin: 1.6rem 0; }
+    .day-divider:before, .day-divider:after { content: ""; flex: 1; border-top: var(--border); }
+    .chat-line { display: grid; grid-template-columns: auto 1fr; gap: 1rem; margin: .5rem 0; }
+    .chat-line.suppressed { grid-template-columns: 4.2rem 1fr; }
+    .bubble { display: inline-block; max-width: min(64rem, 100%); border-radius: var(--radius-md); background: var(--color-slate-20); border: var(--border); padding: .8rem 1rem; }
+    .chat-composer { position: sticky; bottom: calc(var(--footer-size) + .8rem); display: grid; grid-template-columns: 1fr auto auto auto; gap: .6rem; align-items: end; padding-top: 1rem; background: linear-gradient(to top, var(--color-canvas-light) 75%, transparent); }
+
+    .calendar-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: .35rem; text-align: center; font-size: 1.1rem; }
+    .calendar-mini b { color: var(--color-text-subtle); }
+    .calendar-mini span { min-height: 2.4rem; border-radius: .4rem; padding-top: .25rem; }
+    .calendar-mini .event { background: var(--color-green-20); color: var(--color-green-70); font-weight: 850; }
+    .calendar-mini .due { background: var(--color-yellow-20); color: var(--color-yellow-70); font-weight: 850; }
+
+    .footer {
+      position: fixed; z-index: 90; left: 0; right: 0; bottom: 0; height: var(--footer-size);
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem;
+      padding: .5rem var(--shell-gutter); background: var(--color-slate-20); border-top: var(--border); box-shadow: 0 -1rem 3rem hsla(var(--hsl-black), .12);
+    }
+    .footer-center { display: flex; gap: .35rem; align-items: center; justify-content: center; }
+    .tray-btn { border: 0; background: transparent; border-radius: var(--radius-md); color: var(--color-text-subtle); height: 3.4rem; padding: .4rem .75rem; font-size: 1.2rem; font-weight: 700; display: inline-flex; align-items: center; gap: .45rem; }
+    .tray-btn:hover { background: var(--tint-ink-10); color: var(--color-text); }
+    .notify-pill { justify-self: end; border: 1px solid var(--color-orange-40); background: var(--color-orange-10); color: var(--color-orange-70); border-radius: 999px; padding: .55rem .95rem; font-weight: 800; display: inline-flex; align-items: center; gap: .45rem; }
+    .tray {
+      position: fixed; z-index: 120; bottom: calc(var(--footer-size) + .8rem); left: 50%; transform: translateX(-50%) translateY(1rem);
+      width: min(56rem, calc(100vw - 2rem)); max-height: 52rem; overflow: auto;
+      background: var(--color-canvas-light); border: var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-modal);
+      padding: 1.4rem; opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s var(--ease-out-expo);
+    }
+    .tray.open { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+
+    .modal-backdrop, .sidebar-backdrop { position: fixed; inset: 0; background: hsla(var(--hsl-black), .35); z-index: 250; opacity: 0; pointer-events: none; transition: opacity .15s; }
+    .modal-backdrop.open, .sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+    .jump {
+      position: fixed; z-index: 300; top: 7rem; left: 50%; transform: translateX(-50%) translateY(-1rem);
+      width: min(49rem, calc(100vw - 2rem)); background: var(--color-slate-20); border: var(--border); border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-modal); padding: 1.4rem; opacity: 0; pointer-events: none; transition: opacity .14s, transform .14s var(--ease-out-expo);
+    }
+    .jump.open { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+    .jump-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; margin-bottom: 1rem; }
+    .jump-tile { border: var(--border); background: var(--tint-ink-5); border-radius: var(--radius-md); padding: 1rem .5rem; text-align: center; font-weight: 800; font-size: 1.2rem; }
+    .jump input { width: 100%; height: 4.2rem; margin: .6rem 0 1rem; }
+    .jump-row { display: grid; grid-template-columns: auto 1fr auto; gap: .8rem; align-items: center; border-radius: var(--radius-md); padding: .55rem; }
+    .jump-row:hover, .jump-row.active { background: var(--tint-ink-10); }
+
+    .sidebar {
+      position: fixed; z-index: 270; top: 0; right: 0; bottom: 0; width: min(48rem, 100vw);
+      background: var(--color-slate-20); border-left: var(--border); box-shadow: var(--shadow-modal);
+      transform: translateX(105%); transition: transform .2s var(--ease-out-expo); display: grid; grid-template-rows: auto 1fr auto;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-head, .sidebar-foot { padding: 1.4rem; border-bottom: var(--border); display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .sidebar-foot { border-top: var(--border); border-bottom: 0; }
+    .sidebar-body { overflow: auto; padding: 0 1.4rem 1.4rem; }
+    .notification { display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: start; padding: 1.1rem 0; border-bottom: var(--border); }
+    .bubble-menu { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .7rem; }
+    .bubble-menu button { border: var(--border); background: var(--tint-ink-5); border-radius: 999px; padding: .35rem .7rem; font-size: 1.2rem; }
+
+    .options {
+      position: absolute; z-index: 140; right: 1.4rem; top: 5.4rem; width: 27rem; border-radius: var(--radius-lg);
+      background: var(--color-blue-50); color: white; box-shadow: var(--shadow-modal); padding: .8rem; display: none;
+    }
+    .options.open { display: block; }
+    .options button { width: 100%; text-align: left; border: 0; background: transparent; color: white; border-radius: var(--radius-md); padding: .75rem .8rem; font-weight: 750; }
+    .options button:hover { background: hsla(var(--hsl-white), .14); }
+    .toast {
+      position: fixed; z-index: 200; left: 50%; bottom: calc(var(--footer-size) + 1.5rem); transform: translateX(-50%) translateY(2rem);
+      max-width: min(60rem, calc(100vw - 2rem)); background: var(--color-green-20); color: var(--color-green-70); border: 1px solid var(--color-green-40);
+      border-radius: 999px; padding: .8rem 1.2rem; box-shadow: var(--shadow-modal); opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s var(--ease-out-expo); font-weight: 800;
+    }
+    .toast.open { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .empty-sketch { min-height: 16rem; display: grid; place-items: center; text-align: center; border: 1.5px dashed var(--color-ink-30); border-radius: var(--radius-lg); color: var(--color-text-subtle); padding: 2rem; }
+    .screen-note { color: var(--color-text-subtle); font-size: 1.3rem; padding: .9rem 1rem; border: 1px dashed var(--color-ink-30); border-radius: var(--radius-md); background: var(--tint-ink-3); }
+
+    @media (max-width: 980px) {
+      .topbar { grid-template-columns: auto 1fr auto; }
+      .top-left .top-link:nth-child(n+3), .top-right .top-link { display: none; }
+      .page, .narrow { width: calc(100vw - 2rem); }
+      .home-grid, .dock-grid { grid-template-columns: 1fr; }
+      .activity-rail { border-left: 0; padding-left: 0; }
+      .main-pad { padding: 2rem; }
+      .field-grid { grid-template-columns: 1fr; gap: .3rem; }
+      .footer { grid-template-columns: auto 1fr auto; padding-inline: .8rem; }
+      .tray-btn span.label { display: none; }
+    }
+
+    @media (max-width: 640px) {
+      body { font-size: 1.4rem; }
+      h1 { font-size: 3.2rem; }
+      .jump-tiles { grid-template-columns: repeat(2, 1fr); }
+      .toolbar { align-items: stretch; }
+      .filter { width: 100%; }
+      .message-row, .activity-row, .list-row, .doc-grid { grid-template-columns: auto 1fr; }
+      .message-row > .unread-dot, .activity-row > .small, .doc-grid > .pill { grid-column: 2; justify-self: start; }
+      .chat-composer { grid-template-columns: 1fr auto; }
+      .chat-composer .icon-btn:nth-last-child(-n+2) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to main content</a>
+  <div class="app" id="app"></div>
+  <div class="modal-backdrop" id="jumpBackdrop"></div>
+  <section class="jump" id="jump" role="dialog" aria-modal="true" aria-label="Jump menu"></section>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar" aria-label="Pings and notifications"></aside>
+  <section class="tray" id="tray" role="dialog" aria-label="My Bar tray"></section>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const T = new Date("2026-07-12T09:00:00+07:00");
+    const day = 86400000;
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
+    const initials = (name) => name.split(" ").map((p) => p[0]).join("").slice(0, 2);
+    const relDate = (offset) => new Date(T.getTime() + offset * day).toLocaleDateString([], { month: "short", day: "numeric" });
+    const uid = () => Math.random().toString(36).slice(2, 9);
+
+    const people = [
+      ["maya", "Maya Chen", "Project lead", "linear-gradient(135deg,#1aa182,#3ba6ff)"],
+      ["sam", "Sam Whitaker", "Writer", "linear-gradient(135deg,#805cff,#d367c1)"],
+      ["omar", "Omar Haddad", "Designer", "linear-gradient(135deg,#ff8a3d,#e35353)"],
+      ["priya", "Priya Nair", "Developer", "linear-gradient(135deg,#2b7cff,#5cc4ff)"],
+      ["lena", "Lena Kowalski", "Marketing", "linear-gradient(135deg,#e04793,#ffb24a)"],
+      ["diego", "Diego Ramos", "Community", "linear-gradient(135deg,#6ecb63,#0aa5aa)"],
+      ["grace", "Grace Okafor", "QA", "linear-gradient(135deg,#8b6cff,#5586ff)"],
+      ["felix", "Felix Berg", "Ops", "linear-gradient(135deg,#a57c52,#dbc071)"],
+      ["stephen", "Stephen", "Owner", "linear-gradient(135deg,#febf45,#ff8f3d)"]
+    ].map(([id, name, role, bg]) => ({ id, name, role, bg, sample: id !== "stephen" }));
+    const person = (id) => people.find((p) => p.id === id);
+    const avatar = (id, cls = "") => {
+      const p = person(id) || people[0];
+      return `<span class="avatar ${cls}" style="--avatar-bg:${p.bg}" title="${esc(p.name)}">${esc(initials(p.name))}</span>`;
+    };
+    const stack = (ids, cls = "sm") => `<span class="avatar-stack">${ids.map((id) => avatar(id, cls)).join("")}</span>`;
+    const chip = (id) => `<span class="chip">${avatar(id, "xs")} ${esc(person(id).name.split(" ")[0])}</span>`;
+
+    const seed = {
+      account: { name: "Basecamp", logo: "🏕️" },
+      project: {
+        id: "launch", name: "Launch the new website", folder: "Marketing", allAccess: true, starred: true,
+        description: "👋 This is a sample project that shows how a team works together here. Poke around, click into things - and delete this project whenever you're ready.",
+        people: ["maya", "sam", "omar", "priya", "lena", "diego", "grace", "felix"]
+      },
+      messages: [
+        { id: "kickoff", title: "Kickoff: the plan", cat: "📣 Announcement", author: "maya", date: -4, pinned: true, unread: true, boosts: ["👏", "👏", "👏", "👏", "👏", "👏", "👏"], subscribers: 5, excerpt: "Here is how we'll use Basecamp to coordinate everything needed to produce our updated site.", body: ["Hey all! We'll use this project to coordinate the site launch. @Sam owns homepage copy, @Omar owns visual polish, @Priya owns the technical launch path, and @Lena owns the rollout plan.", "The goal is boring in the best way: clear copy, production-ready DNS, a launch announcement queued in advance, and a place where questions do not disappear.", "Post updates in the matching tools. If something needs a decision, put it on the Message Board so we can come back to the reasoning later."], comments: [["sam", "I'll trim the homepage draft today and call out anything that needs a real decision.", "💪"], ["omar", "I uploaded first logo directions in Docs & Files.", ""], ["priya", "DNS checklist is in To-dos. I added a comment with the host notes.", "👍"], ["lena", "Launch-week content list is ready.", "🚀"]] },
+        { id: "copy", title: "Pitch: trim the homepage copy", cat: "💡 Pitch", author: "sam", date: -4, unread: false, boosts: ["💡", "👍"], subscribers: 4, excerpt: "The current draft says the right things, but it is asking the visitor to read too much.", body: ["I think the homepage should do one job per section. The current version stacks too many promises into the hero and makes the product sound more complicated than it is.", "Proposal: cut the hero to one sentence, move the proof points lower, and let the screenshots carry more of the explanation."], comments: [["maya", "Agree. Let's keep the first screen calm and concrete.", ""], ["lena", "Can we keep one customer outcome near the top?", ""], ["sam", "Yes. I'll use the beta tester quote as the bridge.", "✨"], ["diego", "That quote is the strongest outside voice we have.", ""], ["omar", "Shorter copy gives the visual system room to breathe.", ""], ["priya", "No implementation concerns from me.", ""], ["felix", "Less copy, fewer launch-day surprises.", "👏"]] },
+        { id: "beta", title: "Nice note from a beta tester", cat: "✨ FYI", author: "diego", date: -4, unread: true, boosts: ["💖"], subscribers: 2, excerpt: '"I finally understood what the product does without needing a sales call."', body: ["Sharing a customer note from this morning:", "> I finally understood what the product does without needing a sales call. The new examples made it click.", "This feels like the proof point we should keep close to launch copy."], comments: [] },
+        { id: "traffic", title: "Traffic this week", cat: "❤️ Heartbeat", author: "lena", date: -4, unread: false, boosts: ["📈"], subscribers: 3, excerpt: "Small but steady lift from the newsletter preview.", body: ["Traffic is up 18% week over week after the preview. Organic search is flat, newsletter clicks are carrying the change.", "<chart>"], comments: [] },
+        { id: "press", title: "Local press opportunity", cat: "❤️ Heartbeat", author: "maya", date: -4, unread: false, boosts: [], subscribers: 2, excerpt: "A local business reporter asked if we can share screenshots after launch.", body: ["The city business desk asked whether we can share screenshots and a short founder note after launch. This is low effort if we already have approved visuals."], comments: [["lena", "I'll draft a two-paragraph note and keep it non-hypey.", ""]] }
+      ],
+      todoLists: [
+        { id: "prelaunch", title: "Pre-launch checklist", desc: "", color: "green", todos: [
+          { id: "analytics", title: "Set up analytics", assignees: ["priya"], due: 2, steps: [{ title: "Confirm event names", done: false }], comments: [], done: false },
+          { id: "dns", title: "Point DNS at the new host", assignees: ["priya", "felix"], due: 4, steps: [], comments: [["priya", "TTL is down to 300 seconds. We can flip it after the content review call."]], done: false },
+          { id: "favicons", title: "Export launch favicons", assignees: ["omar"], due: -1, steps: [], comments: [], done: true },
+          { id: "redirects", title: "Check old-page redirects", assignees: ["grace"], due: -1, steps: [], comments: [], done: true }
+        ] },
+        { id: "content", title: "Launch week: content", desc: "Everything that needs words, polish, and final approval before launch week.", color: "orange", todos: [
+          { id: "newsletter", title: "Email newsletter", assignees: ["sam", "lena"], due: 3, notify: ["maya"], steps: [{ title: "Draft subject line", done: true }, { title: "Drop in beta quote", done: false }], comments: [], done: false },
+          { id: "homepage", title: "Homepage final copy pass", assignees: ["sam"], due: 5, steps: [{ title: "Trim hero", done: false }, { title: "Match headings to nav", done: false }], comments: [], done: false },
+          { id: "social", title: "Social launch thread", assignees: ["lena"], due: 6, steps: [], comments: [], done: false },
+          { id: "screens", title: "Pick screenshots for announcement", assignees: ["omar", "maya"], due: 7, steps: [], comments: [], done: false },
+          { id: "qa-copy", title: "Proofread production pages", assignees: ["grace"], due: 6, steps: [], comments: [], done: false },
+          { id: "quote", title: "Choose beta tester quote", assignees: ["diego"], due: -1, steps: [], comments: [], done: true }
+        ] }
+      ],
+      columns: [
+        { id: "triage", name: "Page ideas", cards: [
+          { id: "story", title: "A story-driven About page", author: "maya", date: -20, assignees: ["omar"], steps: 2, doneSteps: 0, comments: 0 },
+          { id: "proof", title: "Customer proof section", author: "maya", date: -20, assignees: ["grace"], steps: 0, doneSteps: 0, comments: 1 }
+        ], watchers: ["maya", "omar", "grace"] },
+        { id: "writing", name: "Writing", color: "var(--color-purple-50)", cards: [
+          { id: "hero", title: "Homepage hero rewrite", author: "sam", date: -18, assignees: ["sam"], steps: 3, doneSteps: 1, comments: 2 },
+          { id: "case", title: "Case study outline", author: "maya", date: -17, assignees: ["sam"], steps: 4, doneSteps: 0, comments: 1, onHold: true }
+        ] },
+        { id: "design", name: "Design", color: "var(--color-pink-50)", cards: [] },
+        { id: "review", name: "Review", color: "var(--color-orange-50)", cards: [
+          { id: "assets", title: "Approved logo set", author: "omar", date: -12, assignees: ["omar", "maya"], steps: 1, doneSteps: 1, comments: 0 }
+        ] },
+        { id: "ready", name: "Ready", color: "var(--color-yellow-50)", cards: [
+          { id: "privacy", title: "Privacy page update", author: "priya", date: -10, assignees: ["priya"], steps: 2, doneSteps: 2, comments: 0 }
+        ] },
+        { id: "done", name: "Done", count: 5 },
+        { id: "notnow", name: "Not now", count: 2 }
+      ],
+      docs: [
+        { id: "homepage-doc", type: "doc", icon: "▤", title: "Homepage copy - draft", author: "Sam Whitaker", date: -3, meta: "Rich-text document, 1 comment", color: "green" },
+        { id: "logos", type: "upload", icon: "IMG", title: "logo-concepts.png", author: "Omar Haddad", date: -3, meta: "PNG image, three directions", color: "pink" },
+        { id: "calendar", type: "cloud", icon: "☁", title: "Content calendar", author: "Lena Kowalski", date: -3, meta: "Google Sheet cloud link", color: "yellow" }
+      ],
+      chat: [
+        ["cheryl", "maya", "Good thread. Thanks for getting us in sync 🙌", "🙌"],
+        ["victor", "sam", "Okay, I just checked Twitter and we're ready to post anniversary episode in full.", ""],
+        ["cheryl2", "sam", "Need a first line that says why the upgrade is worth subscriptions?", "🙏"],
+        ["victor2", "omar", "No, that's what I was trying to avoid. We're good to go 👍", "👍"],
+        ["annie", "lena", "Just got this incredible customer feedback!", ""],
+        ["annie2", "lena", "So just a thank you for making awesome tools and awesome content (we love the 37signals podcast and all the Basecamp resources).", "💖"],
+        ["cheryl3", "maya", "Awww!! 💖", ""],
+        ["diego", "diego", "Adding that quote to the message board so it is not lost in chat.", ""],
+        ["priya", "priya", "Heads up, deploying the preview now.", "🚀"],
+        ["grace", "grace", "I'll run a quick link pass once it is up.", ""]
+      ]
+    };
+
+    const defaults = {
+      theme: "dark",
+      completed: {},
+      bookmarks: { launch: true },
+      read: {},
+      notes: "Remember to follow up with Lena about the press note.",
+      notificationsRead: {},
+      bubbled: [],
+      currentTray: null,
+      query: "",
+      includeArchived: false
+    };
+    const state = Object.assign({}, defaults, JSON.parse(localStorage.getItem("bc5-state") || "{}"));
+    const save = () => localStorage.setItem("bc5-state", JSON.stringify(state));
+    document.documentElement.dataset.colorScheme = state.theme;
+
+    const routes = {
+      home: renderHome,
+      project: renderProject,
+      messages: renderMessages,
+      message: renderMessage,
+      todos: renderTodos,
+      todo: renderTodo,
+      cards: renderCards,
+      card: renderCard,
+      docs: renderDocs,
+      chat: renderChat,
+      schedule: renderSchedule,
+      everything: renderEverything,
+      reports: renderReports,
+      activity: renderActivity,
+      search: renderEverything
+    };
+    function path() { return location.hash.replace(/^#\/?/, "") || "home"; }
+    function nav(to) { location.hash = "#/" + to; }
+    function toast(text) {
+      const el = $("#toast");
+      el.textContent = text;
+      el.classList.add("open");
+      clearTimeout(toast.t);
+      toast.t = setTimeout(() => el.classList.remove("open"), 2400);
+    }
+    function highlight(text, q) {
+      if (!q) return esc(text);
+      const r = new RegExp("(" + q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig");
+      return esc(text).replace(r, "<mark>$1</mark>");
+    }
+    function todoDone(todo) { return Boolean(state.completed[todo.id] ?? todo.done); }
+    function allTodos() { return seed.todoLists.flatMap((list) => list.todos.map((todo) => ({ ...todo, list: list.title, listId: list.id }))); }
+    function allCards() { return seed.columns.filter((c) => c.cards).flatMap((col) => col.cards.map((card) => ({ ...card, column: col.name }))); }
+    function activityItems() {
+      return [
+        ["📣", "Maya posted", "Kickoff: the plan", "Message Board", -4],
+        ["✅", "Priya commented on", "Point DNS at the new host", "To-dos", -3],
+        ["▤", "Sam updated", "Homepage copy - draft", "Docs & Files", -3],
+        ["💬", "Lena shared", "customer feedback", "Chat", -2],
+        ["📈", "Lena posted", "Traffic this week", "Message Board", -2],
+        ["🧭", "Maya moved", "Approved logo set to Review", "Card Table", -1]
+      ];
+    }
+
+    function appShell(content, opts = {}) {
+      return `
+        <div class="topbar">
+          <nav class="top-left" aria-label="Primary">
+            <button class="top-link" data-nav="home">⌂ Home <span class="hint">H</span></button>
+            <button class="top-link" data-nav="activity">Activity</button>
+            <button class="top-link" data-nav="schedule">Calendar</button>
+            <button class="top-link" data-nav="reports">Reports</button>
+            <button class="top-link" data-nav="everything">Everything</button>
+          </nav>
+          <button class="account-switcher" data-action="jump">${seed.account.logo} ${seed.account.name}⌄ <span class="hint">J</span></button>
+          <div class="top-right">
+            <button class="top-link" data-action="theme">${state.theme === "dark" ? "Light" : "Dark"}</button>
+            <button class="top-link" data-action="jump">Jump</button>
+            <button class="top-link" data-action="sidebar">New for you <span class="dot"></span> <span class="hint">S</span></button>
+          </div>
+        </div>
+        <main id="main" class="page ${opts.narrow ? "narrow" : ""}" tabindex="-1">${content}</main>
+        ${footer()}
+      `;
+    }
+
+    function crumb(parts, actions = "") {
+      return `<div class="crumbbar">
+        <div class="crumbs">${parts.map((p, i) => p.href ? `<a href="#/${p.href}">${esc(p.label)}</a>` : `<span>${esc(p.label)}</span>`).join("<span>‹</span>")}</div>
+        <div style="display:flex;gap:.5rem;align-items:center;position:relative">
+          ${actions}
+          <button class="ghost" data-action="bookmark">${state.bookmarks.launch ? "★ Bookmarked" : "☆ Bookmark"}</button>
+          <button class="icon-btn" data-action="options" aria-label="Options">•••</button>
+          <div class="options" id="options">
+            <button data-toast="Bubble up options opened">⏰ Bubble up</button>
+            <button data-toast="Copy action is stubbed in this prototype">⎘ Copy</button>
+            <button data-toast="Change log opened">↻ View change log</button>
+            <button data-toast="Share sheet opened">↗ Share or notify</button>
+            <button data-toast="Archive is intentionally stubbed">▦ Archive</button>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    function footer() {
+      return `<footer class="footer" aria-label="My Bar">
+        <div>${avatar("stephen", "sm")}</div>
+        <div class="footer-center">
+          ${[["tasks", "☑", "My Tasks", "T"], ["events", "◷", "My Events", "E"], ["today", "◆", "Do Today", "V"], ["bookmarks", "★", "My Bookmarks", "B"], ["notes", "✎", "My Notes", "N"]].map(([id, icon, label, h]) => `<button class="tray-btn" data-tray="${id}">${icon} <span class="label">${label}</span> <span class="hint">${h}</span></button>`).join("")}
+        </div>
+        <button class="notify-pill" data-action="sidebar">Pings + <span class="dot"></span> New for you</button>
+      </footer>`;
+    }
+
+    function renderHome() {
+      const project = seed.project;
+      const content = `<section class="main-pad">
+        <div class="home-grid">
+          <section style="text-align:center">
+            <p class="muted">Good afternoon, Stephen</p>
+            <div class="home-actions">
+              <button class="btn primary" data-toast="New project flow opened">+ Make a new project</button>
+              <button class="btn outline" data-toast="Invite people flow opened">Invite people to the account</button>
+              <button class="btn outline" data-toast="Adminland is stubbed">Adminland</button>
+            </div>
+            <div style="display:grid;gap:1.2rem;text-align:left">
+              <article class="project-card" data-nav="project">
+                <div style="display:flex;justify-content:space-between;gap:1rem">
+                  <h3>My Project</h3><button class="star off" data-stop data-toast="Project pinned">★</button>
+                </div>
+                <p class="muted small">Personal scratch space for planning.</p>
+                <div>${avatar("stephen")}</div>
+              </article>
+              <article class="project-card" data-nav="project">
+                <div style="display:flex;justify-content:space-between;gap:1rem">
+                  <h3>${esc(project.name)}</h3><button class="star" data-stop data-toast="Favorite toggled">★</button>
+                </div>
+                <p class="muted">${esc(project.description)}</p>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  ${stack(project.people)}
+                  <span class="pill green">All-access</span>
+                </div>
+              </article>
+            </div>
+            <div style="margin-top:2rem">${stack(project.people.concat("stephen"), "sm")} <span class="muted small">9 people active in the last 24 hours</span></div>
+          </section>
+          <aside class="activity-rail">
+            <h3>Most recent activity</h3>
+            ${activityItems().map(([icon, actor, title, source, d]) => `<div class="activity-row">
+              <div>${icon}</div><div><strong>${actor}</strong> <a href="#/activity">${esc(title)}</a><div class="muted small">${source}</div></div><div class="small muted">${relDate(d)}</div>
+            </div>`).join("")}
+          </aside>
+        </div>
+      </section>`;
+      return appShell(`<div class="sheet">${content}</div>`);
+    }
+
+    function renderProject() {
+      const p = seed.project;
+      const content = `${crumb([{ label: "Home", href: "home" }, { label: p.name }])}
+      <section class="main-pad">
+        <div class="project-hero">
+          <div class="hero-people"><div>${stack(p.people, "sm")}</div><span class="pill green">All-access</span></div>
+          <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap"><h1>${esc(p.name)}</h1><button class="star">★</button></div>
+          <p class="muted" style="max-width:82rem">${esc(p.description)}</p>
+          <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+            <span class="pill yellow">This is a Sample Project</span>
+            <span class="pill blue">Gauge: on track</span>
+            <span class="pill">Dates: ${relDate(0)} - ${relDate(49)}</span>
+            <button class="btn outline" data-toast="Notification settings opened">Notify me</button>
+          </div>
+          <div class="client-tab">Team private. Change</div>
+        </div>
+        <div class="rule-title"><h3>Tools</h3></div>
+        <div class="dock-grid">
+          ${dockMessage()}
+          ${dockTodos()}
+          ${dockCards()}
+          ${dockDocs()}
+          ${dockCalendar()}
+          ${dockChat()}
+          <button class="dock-add" data-toast="Add-tool catalog opened"><div><div style="font-size:5rem;line-height:1">+</div><strong>Add another tool</strong></div></button>
+        </div>
+      </section>`;
+      return appShell(`<div class="sheet">${content}</div>`);
+    }
+    function dockMessage() {
+      return `<article class="dock-tool"><h3 class="tool-heading"><a href="#/messages">Message Board</a><button class="icon-btn" data-toast="New message composer opened">+</button></h3><div class="dock-card"><div class="preview-list">${seed.messages.slice(0,4).map((m) => `<div class="message-row"><div>${avatar(m.author, "sm")}</div><div><strong>${esc(m.title)}</strong><div class="muted small">${m.cat} · ${esc(m.excerpt).slice(0, 92)}</div></div>${m.unread ? '<span class="unread-dot"></span>' : ""}</div>`).join("")}</div></div></article>`;
+    }
+    function dockTodos() {
+      return `<article class="dock-tool"><h3 class="tool-heading"><a href="#/todos">To-dos</a><button class="icon-btn" data-toast="New list composer opened">+</button></h3><div class="dock-card"><div class="preview-list">${seed.todoLists.map((list) => `<div><strong>${esc(list.title)}</strong>${list.todos.slice(0,4).map((t) => `<div class="todo-row"><button class="check ${todoDone(t) ? "done" : ""}" data-toggle-todo="${t.id}">${todoDone(t) ? "✓" : ""}</button><div class="small ${todoDone(t) ? "todo-title done" : ""}">${esc(t.title)}</div><div>${t.assignees.map((id) => avatar(id, "xs")).join("")}</div></div>`).join("")}</div>`).join("")}</div></div></article>`;
+    }
+    function dockCards() {
+      return `<article class="dock-tool"><h3 class="tool-heading"><a href="#/cards">Card Table</a><button class="icon-btn" data-toast="New card form opened">+</button></h3><div class="dock-card"><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;height:18rem">${seed.columns.filter(c => c.cards).map((c) => `<div style="border-radius:.6rem;background:color-mix(in hsl, ${c.color || "var(--color-blue-50)"}, transparent 72%);border:1px solid ${c.color || "var(--color-blue-40)"};display:grid;align-content:start;gap:.5rem;padding:.5rem"><strong class="tiny">${esc(c.name)}</strong>${c.cards.map(card => `<span class="tiny" style="display:block;background:var(--color-slate-20);border-radius:.4rem;padding:.4rem">${esc(card.title)}</span>`).join("")}</div>`).join("")}</div></div></article>`;
+    }
+    function dockDocs() {
+      return `<article class="dock-tool"><h3 class="tool-heading"><a href="#/docs">Docs & Files</a><button class="icon-btn" data-toast="New docs menu opened">+</button></h3><div class="dock-card compact">${seed.docs.map((d) => `<div class="doc-grid"><div class="file-icon">${esc(d.icon)}</div><div><strong>${esc(d.title)}</strong><div class="muted small">${esc(d.meta)}</div></div></div>`).join("")}</div></article>`;
+    }
+    function dockCalendar() {
+      return `<article class="dock-tool"><h3 class="tool-heading"><a href="#/schedule">Calendar</a><button class="icon-btn" data-toast="New event form opened">+</button></h3><div class="dock-card compact"><div class="calendar-mini">${["S","M","T","W","T","F","S"].map(d=>`<b>${d}</b>`).join("")}${Array.from({length:35},(_,i)=>`<span class="${i===12?"due":i===26?"event":""}">${i+1<=31?i+1:""}</span>`).join("")}</div><p class="muted small" style="margin-top:1rem">Content review call · Launch day 🚀</p></div></article>`;
+    }
+    function dockChat() {
+      return `<article class="dock-tool"><h3 class="tool-heading"><a href="#/chat">Chat</a><button class="icon-btn" data-toast="Focused chat composer">+</button></h3><div class="dock-card compact">${seed.chat.slice(0,4).map(([,author,text,boost]) => `<div class="chat-line"><div>${avatar(author, "sm")}</div><div class="bubble"><strong class="small">${esc(person(author).name.split(" ")[0])}</strong><br>${esc(text)} ${boost ? `<span class="boost">${boost}</span>` : ""}</div></div>`).join("")}</div></article>`;
+    }
+
+    function toolPage(title, route, body, toolbar = "") {
+      return appShell(`<div class="sheet">${crumb([{ label: "Home", href: "home" }, { label: seed.project.name, href: "project" }, { label: title }])}<section class="main-pad"><h1>${title}</h1>${toolbar}${body}</section></div>`);
+    }
+    function renderMessages() {
+      const q = state.query || "";
+      const rows = seed.messages.filter((m) => !q || (m.title + " " + m.excerpt + " " + m.cat).toLowerCase().includes(q.toLowerCase()));
+      const toolbar = `<div class="toolbar" style="padding-left:0;border-bottom:0"><button class="btn primary" data-toast="New message composer opened">+ New message</button><button class="btn outline">All messages</button><button class="btn outline">Categories⌄</button><button class="btn outline">Recent post⌄</button><input class="filter" data-filter placeholder="Filter..." value="${esc(q)}"></div>`;
+      const body = `<div class="rule-title"><h3>📌 Pinned</h3></div>${messageRows(rows.filter(m=>m.pinned), q)}<div class="rule-title"><h3>Messages</h3></div>${messageRows(rows.filter(m=>!m.pinned), q)}`;
+      return toolPage("Message Board", "messages", body, toolbar);
+    }
+    function messageRows(rows, q) {
+      return rows.map((m) => `<a class="message-row" href="#/message/${m.id}"><div>${avatar(m.author)}</div><div><div class="category">${m.cat}</div><div class="title">${highlight(m.title, q)}</div><div class="muted">${highlight(m.excerpt, q)}</div><div class="small muted">${person(m.author).name} on ${relDate(m.date)} · ${m.comments.length} comments · ${m.boosts.length} boosts</div></div>${m.unread ? '<span class="unread-dot"></span>' : ""}</a>`).join("") || `<div class="empty-sketch">No messages match this filter.</div>`;
+    }
+    function renderMessage(id) {
+      const m = seed.messages.find((x) => x.id === id) || seed.messages[0];
+      const bodyBits = m.body.map((b) => b === "<chart>" ? `<div class="mini-chart" aria-label="Traffic chart"></div>` : b.startsWith(">") ? `<blockquote>${esc(b.slice(1).trim())}</blockquote>` : `<p>${esc(b)}</p>`).join("");
+      const body = `${crumb([{ label: "Home", href: "home" }, { label: seed.project.name, href: "project" }, { label: "Message Board", href: "messages" }, { label: m.title }])}
+      <section class="main-pad" style="position:relative"><div class="client-tab">This message is private to our team. Change</div>
+        <p class="category">${m.cat}</p><h1>${esc(m.title)}</h1>
+        <p class="muted" style="margin:.8rem 0 2rem">${person(m.author).name} on ${relDate(m.date)} · ${m.subscribers} people subscribed</p>
+        <div class="body-copy">${bodyBits}</div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin:2rem 0"><button class="btn outline" data-toast="Boost picker opened">🚀 Boost</button>${m.boosts.map((b) => `<span class="boost">${b}</span>`).join("")}</div>
+        <div class="rule-title"><h3>${m.comments.length} comments</h3></div>
+        ${m.comments.map(([author, text, boost]) => `<article class="comment"><div>${avatar(author)}</div><div><strong>${person(author).name}</strong><p>${esc(text)}</p>${boost ? `<span class="boost">${boost}</span>` : ""}</div></article>`).join("") || `<div class="empty-sketch">No comments yet.</div>`}
+        <div class="composer"><textarea placeholder="Add a comment..."></textarea><button class="btn primary" data-toast="Comment saved locally for this session">Post</button></div>
+        <div class="rule-title"><h3>Subscribers</h3></div><p class="muted">${m.subscribers} people will be notified. ${stack(seed.project.people.slice(0,m.subscribers), "sm")} <button class="btn outline" data-toast="Subscriber picker opened">Add/remove people...</button> <button class="btn outline" data-toast="You won't be notified">Don't notify me</button></p>
+      </section>`;
+      return appShell(`<div class="sheet">${body}</div>`, { narrow: true });
+    }
+
+    function renderTodos() {
+      const q = state.query || "";
+      const toolbar = `<div class="toolbar" style="padding-left:0;border-bottom:0"><button class="btn primary" data-toast="New list composer opened">+ New list</button><button class="btn outline">View as⌄</button><button class="btn outline" data-toast="Completed items toggled">Hide completed</button><input class="filter" data-filter placeholder="Filter..." value="${esc(q)}"></div>`;
+      const body = `${seed.todoLists.map((list) => {
+        const todos = list.todos.filter((t) => !q || t.title.toLowerCase().includes(q.toLowerCase()));
+        const complete = list.todos.filter(todoDone).length;
+        return `<section class="todo-list"><div class="todo-list-head"><div class="pie" style="--progress:${Math.round(complete/list.todos.length*100)}%"></div><div><h2>${esc(list.title)}</h2>${list.desc ? `<p class="muted">${esc(list.desc)}</p>` : ""}</div><span class="muted small">${complete}/${list.todos.length}</span></div>
+          ${todos.filter(t=>!todoDone(t)).map(todoRow).join("")}
+          <button class="btn dashed" data-toast="Add to-do row opened">+ Add a to-do</button>
+          <details style="margin-top:1rem"><summary class="muted">${complete} completed</summary>${todos.filter(todoDone).map(todoRow).join("")}</details>
+        </section>`;
+      }).join("")}`;
+      return toolPage("To-dos", "todos", body, toolbar);
+    }
+    function todoRow(t) {
+      const done = todoDone(t);
+      return `<div class="todo-row"><button class="check ${done ? "done" : ""}" data-toggle-todo="${t.id}" aria-label="Toggle ${esc(t.title)}">${done ? "✓" : ""}</button><div><a href="#/todo/${t.id}" class="todo-title ${done ? "done" : ""}">${esc(t.title)}</a><div class="muted small">${t.steps.length ? `Steps ${t.steps.filter(s=>s.done).length}/${t.steps.length} · ` : ""}${t.comments.length ? `${t.comments.length} comment · ` : ""}${t.due ? `Due ${relDate(t.due)}` : ""}</div></div><div>${t.assignees.map((id) => avatar(id, "sm")).join("")}</div></div>`;
+    }
+    function renderTodo(id) {
+      const t = allTodos().find((x) => x.id === id) || allTodos()[0];
+      const done = todoDone(t);
+      const body = `${crumb([{ label: "Home", href: "home" }, { label: seed.project.name, href: "project" }, { label: "To-dos", href: "todos" }, { label: t.title }], `<button class="btn ${done ? "outline" : "primary"}" data-toggle-todo="${t.id}">${done ? "Mark incomplete" : "Mark complete"}</button>`)}
+      <section class="main-pad"><h1>${esc(t.title)}</h1><p class="muted">Added by Maya Chen on ${relDate(-3)}</p>
+        <dl class="field-grid"><dt>Assigned to</dt><dd>${t.assignees.map(chip).join(" ") || "No one yet"}</dd><dt>When done</dt><dd>${(t.notify || []).map(chip).join(" ") || "Notify nobody"}</dd><dt>Due on</dt><dd>${t.due ? relDate(t.due) : "Select a due date..."}</dd><dt>Notes</dt><dd>${t.title.includes("DNS") ? "Point production DNS after the content review call." : t.title.includes("newsletter") ? "Change newsletter signup to get REWORK delivered to your inbox." : "No notes yet."}</dd><dt>Subtasks</dt><dd><div class="steps">${(t.steps.length ? t.steps : [{title:"Draft signup page copy",done:false}]).map((s) => `<div class="step"><span class="check ${s.done ? "done" : ""}">${s.done ? "✓" : ""}</span><span>${esc(s.title)}</span><span class="muted small">Step</span></div>`).join("")}<button class="btn dashed" data-toast="Subtask row opened">Add a new subtask</button></div></dd></dl>
+        <div class="rule-title"><h3>Comments</h3></div>${(t.comments || []).map(([author,text]) => `<article class="comment">${avatar(author)}<div><strong>${person(author).name}</strong><p>${esc(text)}</p></div></article>`).join("") || `<article class="comment">${avatar("sam")}<div><strong>Sam Whitaker</strong><p>We'll be sending out the newsletter 2x a month now, so we should remove the word monthly.</p></div></article>`}
+        <div class="composer"><textarea placeholder="Add a comment..."></textarea><button class="btn primary" data-toast="Comment posted">Post</button></div>
+      </section>`;
+      return appShell(`<div class="sheet">${body}</div>`, { narrow: true });
+    }
+
+    function renderCards() {
+      const triage = seed.columns[0];
+      const userCols = seed.columns.slice(1,5);
+      const body = `${crumb([{ label: "Home", href: "home" }, { label: seed.project.name, href: "project" }, { label: "Card Table" }])}
+      <section class="main-pad"><h1>Card Table</h1><div class="toolbar" style="padding-left:0;border-bottom:0"><button class="btn primary" data-toast="New card composer opened">+ Add a card</button><input class="filter" data-filter placeholder="Filter..." value="${esc(state.query || "")}"></div>
+        <div class="kanban"><section class="triage"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><h3>${esc(triage.name)} (${triage.cards.length})</h3><div class="muted small">Watching: ${stack(triage.watchers, "xs")}</div></div><div class="cards-row">${triage.cards.map(cardTile).join("")}</div></section>
+        <div class="kanban-grid"><div class="edge-strip">Not now (2)</div>${userCols.map((col) => `<section class="column" style="--col:${col.color}"><div class="col-head"><span>${esc(col.name)} (${col.cards.length})</span><button class="icon-btn">•••</button></div><div class="col-body">${col.cards.filter(c=>!c.onHold).map(cardTile).join("") || `<div class="empty-sketch" style="min-height:10rem">No cards</div>`}${col.cards.some(c=>c.onHold) ? `<div class="onhold"><div class="onhold-label">ON HOLD</div>${col.cards.filter(c=>c.onHold).map(cardTile).join("")}</div>` : ""}</div></section>`).join("")}<button class="btn primary" style="align-self:center;border-radius:50%;width:4rem;height:4rem;padding:0" data-toast="New column form opened">+</button><div class="edge-strip done">Done (5)</div></div></div>
+      </section>`;
+      return appShell(`<div class="sheet" style="overflow:hidden">${body}</div>`);
+    }
+    function cardTile(c) {
+      return `<a class="card-tile" href="#/card/${c.id}"><strong>${esc(c.title)}</strong><div class="muted small">By ${person(c.author).name} on ${relDate(c.date)}</div><div style="display:flex;justify-content:space-between;align-items:center"><span class="pill">${c.steps ? `✓ ${c.doneSteps}/${c.steps}` : "No steps"}</span><span>${c.assignees.map(id=>avatar(id,"xs")).join("")}</span></div></a>`;
+    }
+    function renderCard(id) {
+      const c = allCards().find(x => x.id === id) || allCards()[0];
+      const body = `${crumb([{ label: "Home", href: "home" }, { label: seed.project.name, href: "project" }, { label: "Card Table", href: "cards" }, { label: c.title }])}
+      <section class="main-pad"><h1>${esc(c.title)}</h1><p class="muted">By ${person(c.author).name} on ${relDate(c.date)} · ${c.column}</p>
+        <dl class="field-grid"><dt>Move along to...</dt><dd><select class="filter">${["Page ideas","Writing","Writing: On hold","Design","Review","Ready","Done","Not now"].map(x=>`<option>${x}</option>`).join("")}</select></dd><dt>Assigned to</dt><dd>${c.assignees.map(chip).join(" ")}</dd><dt>Due on</dt><dd>${relDate(8)}</dd><dt>Notes</dt><dd>Keep the page useful enough for launch, then improve it after we see real traffic.</dd><dt>Subtasks</dt><dd>${Array.from({length:c.steps || 2},(_,i)=>`<div class="step"><span class="check ${i < c.doneSteps ? "done" : ""}">${i < c.doneSteps ? "✓" : ""}</span><span>${["Collect examples","Draft the section","Ask for review","Ship final polish"][i] || "Step"}</span></div>`).join("")}</dd></dl>
+        <div class="rule-title"><h3>Discussion</h3></div><article class="comment">${avatar("grace")}<div><strong>Grace Okafor</strong><p>I am watching this one for launch-readiness.</p></div></article>
+      </section>`;
+      return appShell(`<div class="sheet">${body}</div>`, { narrow: true });
+    }
+
+    function renderDocs() {
+      const q = state.query || "";
+      const rows = seed.docs.filter((d) => !q || (d.title + d.meta).toLowerCase().includes(q.toLowerCase()));
+      const toolbar = `<div class="toolbar" style="padding-left:0;border-bottom:0"><button class="btn primary" data-toast="New document menu opened">+ New...</button><button class="btn outline">All files</button><button class="btn outline">File type⌄</button><button class="btn outline">Sort manually⌄</button><input class="filter" data-filter placeholder="Filter..." value="${esc(q)}"><span class="pill">0/99 keep folders open</span></div>`;
+      const body = `<section class="docs-list">${rows.map((d) => `<div class="doc-grid"><div class="${d.type === "upload" ? "file-thumb" : "file-icon"}">${esc(d.icon)}</div><div><h3>${highlight(d.title, q)}</h3><p class="muted">${highlight(d.meta, q)} · ${esc(d.author)} · ${relDate(d.date)}</p></div><button class="icon-btn" data-toast="File options opened">•••</button></div>`).join("")}</section>`;
+      return toolPage("Docs & Files", "docs", body, toolbar);
+    }
+    function renderChat() {
+      const body = `${crumb([{ label: "Home", href: "home" }, { label: seed.project.name, href: "project" }, { label: "Chat" }], `<button class="btn outline" data-toast="Chat notification menu opened">Notify me when people chat</button>`)}
+      <section class="main-pad chat-wrap"><p class="muted">Just put a heads up in case anyone's trying to listen to it in the next 40 minutes or so!</p><div class="day-divider">Today</div>
+        ${seed.chat.map((line, i) => {
+          const [, author, text, boost] = line;
+          const prev = seed.chat[i-1]?.[1] === author;
+          return `<div class="chat-line ${prev ? "suppressed" : ""}">${prev ? "<div></div>" : `<div>${avatar(author)}</div>`}<div>${prev ? "" : `<strong>${person(author).name}</strong> <span class="muted small">12:${String(i+10).padStart(2,"0")}pm</span><br>`}<span class="bubble">${esc(text)} ${boost ? `<span class="boost">${boost}</span>` : ""}</span></div></div>`;
+        }).join("")}
+        <div class="chat-composer"><textarea class="notes-field" rows="1" placeholder="Write something..."></textarea><button class="icon-btn" data-toast="Emoji picker opened">☺</button><button class="icon-btn" data-toast="Attachment picker opened">↥</button><button class="btn primary" data-toast="Chat line posted">Post</button></div>
+      </section>`;
+      return appShell(`<div class="sheet">${body}</div>`);
+    }
+
+    function renderSchedule() {
+      const body = `<div class="sheet">${crumb([{label:"Home",href:"home"},{label:seed.project.name,href:"project"},{label:"Calendar"}])}<section class="main-pad"><h1>Calendar</h1><div class="toolbar" style="padding-left:0;border-bottom:0"><button class="btn primary" data-toast="New event form opened">+ New event</button><button class="btn outline">Mine</button><button class="btn outline">Everyone</button></div><div class="calendar-mini" style="font-size:1.3rem;gap:.6rem">${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>`<b>${d}</b>`).join("")}${Array.from({length:35},(_,i)=>`<span class="${i===15?"due":i===24||i===31?"event":""}" style="min-height:8rem;text-align:left;padding:.7rem">${i+1<=31?`<strong>${i+1}</strong>${i===15?'<br><span class="pill yellow">Email newsletter</span>':i===24?'<br><span class="pill blue">Content review call</span>':i===31?'<br><span class="pill green">Launch day 🚀</span>':""}`:""}</span>`).join("")}</div></section></div>`;
+      return appShell(body);
+    }
+    function renderActivity() {
+      const body = `<div class="sheet">${crumb([{label:"Home",href:"home"},{label:"Activity"}])}<section class="main-pad"><h1>Activity</h1><p class="muted">${stack(seed.project.people,"sm")} 8 people active today</p>${activityItems().map(([icon, actor, title, source, d])=>`<div class="activity-row"><div style="font-size:2rem">${icon}</div><div><strong>${actor}</strong> ${esc(title)}<div class="muted small">${source}</div></div><div class="small muted">${relDate(d)}</div></div>`).join("")}</section></div>`;
+      return appShell(body);
+    }
+    function renderEverything() {
+      const cards = [["Messages", seed.messages.length, "messages"], ["To-dos", allTodos().length, "todos"], ["Docs & Files", seed.docs.length, "docs"], ["Cards", allCards().length, "cards"], ["Chat lines", seed.chat.length, "chat"], ["Calendar entries", 3, "schedule"]];
+      return appShell(`<div class="sheet">${crumb([{label:"Home",href:"home"},{label:"Everything"}])}<section class="main-pad"><h1>Everything</h1><p class="muted">Account-wide views over recordings in the sample project.</p><div class="dock-grid" style="margin-top:2rem">${cards.map(([name,count,href])=>`<a class="project-card" href="#/${href}"><h2>${name}</h2><p class="muted">${count} recordings</p></a>`).join("")}</div></section></div>`);
+    }
+    function renderReports() {
+      return appShell(`<div class="sheet">${crumb([{label:"Home",href:"home"},{label:"Reports"}])}<section class="main-pad"><h1>Reports</h1><div class="dock-grid" style="margin-top:2rem">${["Assignments","Overdue","Lineup","Hilltop","Gauges","Timesheet"].map((x,i)=>`<article class="dock-card compact"><h2>${x}</h2><p class="muted">${["7 open assignments","0 overdue items","Launch marker in 7 weeks","To-do list progress","Project is on track","12.5 hours logged"][i]}</p></article>`).join("")}</div></section></div>`);
+    }
+
+    function renderJump() {
+      const q = $("#jumpSearch")?.value || "";
+      const recent = [["🏠", "Home", "home"], ["✅", "My Tasks", "todos"], ["📣", "Kickoff: the plan", "message/kickoff"], ["▤", "Homepage copy - draft", "docs"], ["📈", "Reports", "reports"]];
+      const projects = [["★", seed.project.name, "project"], ["○", "My Project", "project"]];
+      const filter = (rows) => rows.filter(([, label]) => !q || label.toLowerCase().includes(q.toLowerCase()));
+      $("#jump").innerHTML = `<div class="jump-tiles">${[["↗","Activity","1","activity"],["◷","Calendar","2","schedule"],["◎","Reports","3","reports"],["▦","Everything","4","everything"]].map(([icon,label,key,href])=>`<button class="jump-tile" data-nav="${href}"><div style="font-size:2rem">${icon}</div>${label}<div class="muted tiny">${key}</div></button>`).join("")}</div><input id="jumpSearch" class="filter" placeholder="Search or jump to a project, person, or Basecamp page" value="${esc(q)}" autofocus><div class="small muted">Recently visited</div>${filter(recent).map(([icon,label,href])=>`<button class="jump-row" data-nav="${href}"><span>${icon}</span><span>${highlight(label,q)}</span><span class="muted tiny">↵</span></button>`).join("")}<div class="small muted" style="margin-top:1rem">Projects <button class="ghost" data-toast="Showing all projects">See all</button></div>${filter(projects).map(([icon,label,href])=>`<button class="jump-row" data-nav="${href}"><span>${icon}</span><span>${highlight(label,q)}</span>${stack(seed.project.people.slice(0,6),"xs")}</button>`).join("")}<label class="small muted" style="display:flex;gap:.6rem;margin-top:1rem"><input type="checkbox" id="includeArchived" ${state.includeArchived ? "checked" : ""}> Include archived projects</label><div class="small muted" style="border-top:var(--border);margin-top:1rem;padding-top:1rem">My Profile · My Activity · Account & Settings · Ctrl+Enter searches all projects</div>`;
+      setTimeout(() => $("#jumpSearch")?.focus(), 20);
+    }
+    function openJump() { $("#jump").classList.add("open"); $("#jumpBackdrop").classList.add("open"); renderJump(); }
+    function closeJump() { $("#jump").classList.remove("open"); $("#jumpBackdrop").classList.remove("open"); }
+
+    function renderSidebar() {
+      const notifications = [
+        ["@","maya","Maya mentioned you in Kickoff: the plan","Help keep launch questions visible in Basecamp.","Message Board", "kickoff"],
+        ["💬","lena","New customer quote in Chat","So just a thank you for making awesome tools...","Chat", "chat"],
+        ["✅","priya","DNS to-do has a new comment","TTL is down to 300 seconds.","To-dos", "dns"],
+        ["📣","sam","Pitch thread has replies","Homepage copy should do one job per section.","Message Board", "copy"]
+      ];
+      $("#sidebar").innerHTML = `<div class="sidebar-head"><div><h2>Pings</h2><p class="muted small">${state.bubbled.length || 2} items will bubble up later</p></div><button class="icon-btn" data-action="sidebar">×</button></div><div class="sidebar-body"><button class="btn dashed" data-toast="New ping composer opened" style="width:100%;margin:1rem 0">+ Ping</button><div class="rule-title"><h3>Bubbled up</h3></div>${state.bubbled.length ? state.bubbled.map((b)=>`<div class="notification"><span>⏰</span><div><strong>${esc(b.title)}</strong><p class="muted small">${esc(b.when)}</p></div></div>`).join("") : `<p class="muted small">No custom bubble-ups yet.</p>`}<div class="rule-title"><h3 style="color:var(--color-orange-70)">New for you</h3></div><button class="ghost" data-action="mark-read">Mark all read</button>${notifications.map(([icon,author,title,excerpt,source,id])=>`<div class="notification"><div>${avatar(author,"sm")}</div><div><strong>${esc(title)}</strong><p class="muted small">${esc(excerpt)}</p><p class="muted tiny">${source} · ${relDate(-1)}</p><div class="bubble-menu"><button data-bubble="${esc(title)}|Later today">Later today</button><button data-bubble="${esc(title)}|Tomorrow">Tomorrow</button><button data-bubble="${esc(title)}|Next week">Next week</button></div></div>${state.notificationsRead[id] ? "" : '<span class="dot"></span>'}</div>`).join("")}<div class="rule-title"><h3>Previous notifications</h3></div><div class="notification"><span>✓</span><div><strong>Grace completed a QA pass</strong><p class="muted small">All launch pages checked.</p></div></div></div><div class="sidebar-foot"><input class="filter" placeholder="Filter..."><button class="btn outline" data-toast="Shhh mode enabled">🔕 Shhh...</button></div>`;
+    }
+    function openSidebar() { renderSidebar(); $("#sidebar").classList.add("open"); $("#sidebarBackdrop").classList.add("open"); }
+    function closeSidebar() { $("#sidebar").classList.remove("open"); $("#sidebarBackdrop").classList.remove("open"); }
+
+    function openTray(id) {
+      const tray = $("#tray");
+      const tasks = allTodos().filter(t => !todoDone(t)).slice(0,5);
+      const content = {
+        tasks: `<h2>My Tasks</h2>${tasks.map(todoRow).join("")}<a class="btn outline" href="#/todos">Open My Assignments</a>`,
+        events: `<h2>My Events</h2><div class="list-row"><span>◷</span><div><strong>Content review call</strong><p class="muted small">${relDate(14)}, 10:00-11:00am</p></div></div><div class="list-row"><span>🚀</span><div><strong>Launch day</strong><p class="muted small">${relDate(49)}, all day</p></div></div>`,
+        today: `<h2>Do Today</h2><div class="list-row"><span>◆</span><div><strong>Email newsletter</strong><p class="muted small">Due soon</p></div></div><button class="btn dashed" data-toast="Added to Do Today">+ Add something</button>`,
+        bookmarks: `<h2>My Bookmarks</h2><a class="list-row" href="#/project"><span>★</span><div><strong>${seed.project.name}</strong><p class="muted small">Project</p></div></a><a class="list-row" href="#/message/kickoff"><span>★</span><div><strong>Kickoff: the plan</strong><p class="muted small">Message</p></div></a>`,
+        notes: `<h2>My Notes</h2><textarea class="notes-field" id="notesField" rows="7">${esc(state.notes)}</textarea><button class="btn primary" data-action="save-notes">Save note</button>`
+      }[id];
+      tray.innerHTML = content;
+      tray.classList.add("open");
+      state.currentTray = id;
+    }
+    function closeTray() { $("#tray").classList.remove("open"); state.currentTray = null; }
+
+    function render() {
+      const [route, id] = path().split("/");
+      const fn = routes[route] || routes.home;
+      $("#app").innerHTML = fn(id);
+      bindStatic();
+      $("#main")?.focus({ preventScroll: true });
+    }
+    function bindStatic() {
+      $$("[data-nav]").forEach((el) => el.addEventListener("click", (e) => { if (el.dataset.stop !== undefined) return; nav(el.dataset.nav); closeJump(); closeTray(); }));
+      $$("[data-toast]").forEach((el) => el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); toast(el.dataset.toast); }));
+      $$("[data-action]").forEach((el) => el.addEventListener("click", (e) => {
+        const a = el.dataset.action;
+        if (a === "jump") openJump();
+        if (a === "sidebar") $("#sidebar").classList.contains("open") ? closeSidebar() : openSidebar();
+        if (a === "theme") { state.theme = state.theme === "dark" ? "light" : "dark"; document.documentElement.dataset.colorScheme = state.theme; save(); render(); }
+        if (a === "bookmark") { state.bookmarks.launch = !state.bookmarks.launch; save(); render(); toast(state.bookmarks.launch ? "Bookmarked" : "Bookmark removed"); }
+        if (a === "options") $("#options")?.classList.toggle("open");
+        if (a === "save-notes") { state.notes = $("#notesField")?.value || ""; save(); toast("Note saved"); }
+        if (a === "mark-read") { state.notificationsRead = { kickoff:true, chat:true, dns:true, copy:true }; save(); renderSidebar(); toast("Notifications marked read"); }
+      }));
+      $$("[data-tray]").forEach((el) => el.addEventListener("click", () => state.currentTray === el.dataset.tray ? closeTray() : openTray(el.dataset.tray)));
+      $$("[data-toggle-todo]").forEach((el) => el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); const id = el.dataset.toggleTodo; const t = allTodos().find(x=>x.id===id); state.completed[id] = !todoDone(t); save(); render(); toast(state.completed[id] ? "Marked complete" : "Marked incomplete"); }));
+      $$("[data-filter]").forEach((el) => el.addEventListener("input", () => { state.query = el.value; save(); render(); }));
+    }
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".tray") && !e.target.closest("[data-tray]")) closeTray();
+      if (!e.target.closest(".options") && !e.target.closest('[data-action="options"]')) $("#options")?.classList.remove("open");
+    });
+    $("#jumpBackdrop").addEventListener("click", closeJump);
+    $("#sidebarBackdrop").addEventListener("click", closeSidebar);
+    $("#jump").addEventListener("input", (e) => {
+      if (e.target.id === "jumpSearch") renderJump();
+      if (e.target.id === "includeArchived") { state.includeArchived = e.target.checked; save(); }
+    });
+    $("#jump").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { const first = $("#jump [data-nav]"); if (first) nav(first.dataset.nav); closeJump(); }
+      if (e.key === "Escape") closeJump();
+    });
+    $("#sidebar").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-bubble]");
+      if (b) { const [title, when] = b.dataset.bubble.split("|"); state.bubbled.push({ title, when }); save(); renderSidebar(); toast(`Bubbled up ${when.toLowerCase()}`); }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Shift") document.body.classList.add("show-hints");
+      const modJump = (e.metaKey && ["j","k"].includes(e.key.toLowerCase())) || (e.shiftKey && e.key.toLowerCase() === "j");
+      if (modJump) { e.preventDefault(); openJump(); }
+      if (e.shiftKey && e.key.toLowerCase() === "s") { e.preventDefault(); openSidebar(); }
+      if (e.shiftKey && e.key.toLowerCase() === "h") { e.preventDefault(); nav("home"); }
+      if (e.shiftKey && e.key.toLowerCase() === "g") { e.preventDefault(); nav("project"); }
+      if (e.shiftKey && e.key.toLowerCase() === "f") { e.preventDefault(); $(".filter")?.focus(); }
+      if (e.key === "?") toast("Shortcuts: Shift+J jump, Shift+S sidebar, Shift+H home, Shift+G project, Shift+F filter.");
+      if (["1","2","3","4"].includes(e.key) && $("#jump").classList.contains("open")) { nav(["activity","schedule","reports","everything"][Number(e.key)-1]); closeJump(); }
+      if (e.key === "Escape") { closeJump(); closeSidebar(); closeTray(); }
+    });
+    document.addEventListener("keyup", (e) => { if (e.key === "Shift") document.body.classList.remove("show-hints"); });
+    window.addEventListener("hashchange", () => { state.query = ""; save(); render(); });
+    render();
+    setTimeout(() => toast("Content review call starts in 15 minutes"), 900);
+  </script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "track": "be",
+  "submission_id": "id-e747ba1f",
+  "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "architecture_domain": {
+      "score": 8.0,
+      "notes": "Strong shared recording and tool primitives with coherent relationships, weakened by monolithic coupling and missing hierarchy/cross-bucket invariants.",
+      "evidence": [
+        "submission/server.js:224-293 centralizes recording identity, lifecycle, visibility, creator, bucket, and parent state.",
+        "submission/server.js:363-532 centralizes type paths and shared parent, bucket, comment, subscription, and boost projections.",
+        "Live project trash left child messages reachable, and submission/server.js:2535-2549 permits card moves without a same-bucket/table check."
+      ]
+    },
+    "endpoint_coverage": {
+      "score": 10.0,
+      "notes": "All 203 OpenAPI operations are registered and reachable with their specified methods and concrete paths.",
+      "evidence": [
+        "Static extraction counted 131 OpenAPI paths with 203 operations and 204 unique server route registrations.",
+        "Parameter-normalized comparison found no missing specified method/path; submission/server.js:3490-3493 correctly handles the embedded .json progress-report parameter.",
+        "submission/server.js:1222-1227 adds one extra attachment-download route."
+      ]
+    },
+    "behavioral_depth": {
+      "score": 7.5,
+      "notes": "Broad CRUD and lifecycle mutations persist in process, but parent lifecycle, bucket invariants, durability, and several partial subsystems are incomplete.",
+      "evidence": [
+        "Live project create/get/update/list/delete and message/comment/archive/reactivate flows persisted expected state and statuses.",
+        "Live todo create/complete/uncomplete persisted, and reset removed created state and invalidated old tokens.",
+        "Trashing a project did not hide or cascade to its message board children; template construction and several personal/webhook surfaces are shallow."
+      ]
+    },
+    "http_contract": {
+      "score": 6.8,
+      "notes": "Core shapes and success statuses broadly conform, with material pagination, query, nullable-schema, and URL fidelity defects.",
+      "evidence": [
+        "All 203 implemented operations expose a success status matching a declared OpenAPI 2xx response.",
+        "Only 26 of 44 OpenAPI-paginated operations call paginate; examples missing it are submission/server.js:1538-1550, :1931-1934, :2794-2801, and :3811-3824.",
+        "submission/server.js:406-410 and :1410-1423 emit .json individual-resource URLs that do not match registered canonical routes; following a returned project URL produced 400.",
+        "Runtime schema checks found invalid null string fields in seeded todos, cards, uploads, and account logo output."
+      ]
+    },
+    "seed_fidelity": {
+      "score": 7.5,
+      "notes": "The required account, cast, project, tools, and rich linked content exist, with several exact inventory and determinism mismatches.",
+      "evidence": [
+        "Runtime seed contained one account, 10 people, the exact eight-person sample cast, one all-access sample project, six required dock tools, and 85 recordings.",
+        "Seed counts included five messages, two todo lists/10 todos, 13 cards, one document/two uploads, two schedule entries, and 16 chat lines.",
+        "The required analytics subtask, second triage step, on-hold card placement, and Docs row color are absent; chat uses eight people rather than five.",
+        "submission/server.js:214-217 leaves the global ID counter unchanged on reset, so reset IDs drift."
+      ]
+    },
+    "request_hardening": {
+      "score": 4.5,
+      "notes": "Authentication, parsing, validation, limits, and safe errors work, but default credential exposure and verified client project mutation are critical failures.",
+      "evidence": [
+        "Live malformed auth/JSON/IDs/fields/methods returned 401/400/422/405; body and rate limits returned 400 and 429 with Retry-After.",
+        "A client bearer could rename and DELETE the sample project because submission/server.js:1481-1499 requires access but no employee/admin capability.",
+        "submission/server.js:39 and :744-755 enable unauthenticated raw-token disclosure and full reset by default; startup logs raw tokens at :4284-4298.",
+        "A JSON project create sent as text/plain succeeded with 201, demonstrating absent media-type enforcement."
+      ]
+    },
+    "operability": {
+      "score": 7.5,
+      "notes": "Dependency-free startup, health, configuration, logs, request IDs, CORS, limits, reset, and shutdown are present, with unsafe defaults and no durable/test packaging.",
+      "evidence": [
+        "submission/server.js passes Node syntax checking and uses only built-in modules.",
+        "submission/server.js:25-69, :653-809, and :4278-4323 implement environment config, structured logs, health, request IDs, CORS, rate limiting, and graceful signals.",
+        "Live handler probes verified health/no-store, configured CORS, rate limits, reset isolation, ALLOW_RESET=false, and shutdown callbacks.",
+        "State is process-memory only, no test/conformance package is supplied, and debug credentials/reset are enabled by default."
+      ]
+    },
+    "code_quality": {
+      "score": 6.5,
+      "notes": "Readable helpers and shared abstractions support a large surface, but the single mutable 4,325-line module has mixed concerns, repeated scans, and fragile invariants.",
+      "evidence": [
+        "Validation, authentication, projections, route registration, recording envelopes, and tool factories are clearly named and reused.",
+        "The entire delta is submission/server.js, combining transport, storage, authorization, domain logic, serialization, seed fixtures, and bootstrap.",
+        "Repeated full-map scans and duplicated handler mutations contribute to pagination, URL, null-shape, and seed comment/behavior drift."
+      ]
+    },
+    "scope_honesty": {
+      "score": 5.0,
+      "notes": "Some limitations are disclosed, but production/full-contract claims and successful empty or fabricated-complete partial surfaces are misleading.",
+      "evidence": [
+        "submission/server.js:9-10 discloses process-lifetime storage and :4292-4295 warns when debug endpoints are enabled.",
+        "submission/server.js:5 and :736-742 claim a production server and full OpenAPI contract despite material fidelity and security gaps.",
+        "The unused 501 helper at submission/server.js:114 contrasts with successful empty question-reminder/readings responses and shallow webhook/template behavior."
+      ]
+    }
+  },
+  "summary": "A very broad, genuinely stateful in-process implementation with complete declared route coverage and a strong shared recording model. Material deductions come from critical default credential/reset exposure, client-authorized project mutation, non-cascading lifecycle invariants, incomplete pagination and query behavior, schema-invalid nulls, and emitted resource URLs that do not match registered paths."
+}

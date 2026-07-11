@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "track": "fe",
+  "submission_id": "id-68357f11",
+  "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "reference_fidelity": {
+      "score": 6.5,
+      "notes": "All required screenshot-backed anatomies and many canonical tokens are present, with material Home geometry, icon, avatar, and secondary-state mismatches.",
+      "evidence": [
+        "submission/index.html:634-853 implements Home, project dock, Message Board, To-dos, Card Table, Docs & Files, Chat, and Jump surfaces.",
+        "submission/index.html:8-120 copies the 10px rem convention and core dark/light token ramps from seed/DESIGN.md.",
+        "submission/index.html:231-241 and 634-674 use a two-column sheet-based Home rather than the reference screenshot's three-zone composition."
+      ]
+    },
+    "visual_craft": {
+      "score": 7.5,
+      "notes": "A coherent tokenized dark/light system and consistent components are weakened by inline styling, glyph icons, small targets, and missing theme/motion refinements.",
+      "evidence": [
+        "submission/index.html:122-387 defines reusable typography, buttons, pills, sheets, cards, overlays, shadows, and focus styling.",
+        "submission/index.html:634-849 repeatedly uses inline styles and emoji/text glyphs instead of a coherent icon asset system.",
+        "submission/index.html:223-226 and 282-285 include 18-32px avatars and 20px checkbox targets."
+      ]
+    },
+    "product_model": {
+      "score": 8.0,
+      "notes": "Basecamp concepts, terminology, people, and cross-screen sample data are rich and coherent, but several specified relationships and recording types are reduced or absent.",
+      "evidence": [
+        "submission/index.html:455-521 seeds eight sample people, five messages, ten to-dos, card columns, three docs, and ten chat lines.",
+        "submission/index.html:570-572 shares to-do and card records across list/detail renderers.",
+        "submission/index.html:501-507 represents Done/Not now as counts and Docs as three metadata rows without full recordings or details."
+      ]
+    },
+    "surface_coverage": {
+      "score": 7.5,
+      "notes": "Every mandatory top-level surface plus three detail families and several optional summaries are reachable; administrative, search, Docs-detail, Pings-detail, and many secondary states are missing.",
+      "evidence": [
+        "submission/index.html:539-555 declares 14 route keys covering all mandatory screens and message, to-do, and card details.",
+        "submission/index.html:844-881 adds Jump, notification sidebar, and five My Bar trays.",
+        "submission/index.html:554 aliases search to Everything, while no Docs detail, Adminland, settings, trash, or Pings conversation route exists."
+      ]
+    },
+    "functional_depth": {
+      "score": 3.5,
+      "notes": "A small set of todo and personal-state mutations works, while nearly all create, edit, comment, post, move, and delete workflows are inert or toast-only.",
+      "evidence": [
+        "submission/index.html:893-925 implements todo completion, theme, bookmark, notes, read-state, bubble-up, and archived-toggle mutations.",
+        "submission/index.html:749, 780, and 823 show comment and chat Post buttons that only display toasts and never read or append input.",
+        "submission/index.html:802 has an unhandled card-movement select, and submission/index.html:789 exposes a card filter that never filters the board."
+      ]
+    },
+    "interaction_quality": {
+      "score": 4.0,
+      "notes": "Shortcuts, Escape handling, autofocus, and live toasts help, but filter focus loss, shallow Jump keyboard behavior, pointer-only cards, and misleading success feedback materially impair use.",
+      "evidence": [
+        "submission/index.html:918-938 implements global shortcuts, numbered Jump routes, and Escape closure.",
+        "submission/index.html:883-905 replaces the app and focuses main on every filter input event, losing the input focus.",
+        "submission/index.html:918-920 makes Jump Enter choose the first fixed nav tile regardless of the filtered result."
+      ]
+    },
+    "state_persistence": {
+      "score": 4.5,
+      "notes": "Implemented personal and todo mutations persist across fresh execution, but most product actions store nothing and malformed or outdated state is unrecoverable.",
+      "evidence": [
+        "Runtime harness confirmed a completed todo and edited My Notes survived serialization and fresh execution.",
+        "submission/index.html:523-537 stores the implemented state in bc5-state localStorage.",
+        "Runtime harness confirmed malformed JSON stops boot and valid wrong-shaped completed/bubbled values throw TypeError; submission/index.html:535-536 has no validation or recovery."
+      ]
+    },
+    "responsive_adaptation": {
+      "score": 5.5,
+      "notes": "Explicit tablet/mobile reflow and board scrolling preserve core content, with substantial navigation loss, touch-size weakness, and narrow calendar overflow risk.",
+      "evidence": [
+        "submission/index.html:391-413 collapses grids, stacks fields, widens filters, reduces Jump columns, and simplifies Chat.",
+        "submission/index.html:294-301 gives the fixed-width Card Table a local horizontal scroller.",
+        "submission/index.html:325-329 and 828-830 retain a seven-column, tall-cell calendar with nowrap pills at phone widths."
+      ]
+    },
+    "accessibility": {
+      "score": 4.0,
+      "notes": "Some strong landmarks, labels, focus styling, keyboard shortcuts, and live announcements exist, but critical flows and overlays have major naming and focus-management gaps.",
+      "evidence": [
+        "submission/index.html:417-424 provides a skip link, labeled overlays, and a polite live-status toast.",
+        "submission/index.html:584-631 uses semantic nav, main, and footer, and submission/index.html:771 names main todo toggles.",
+        "submission/index.html:646-662 makes project cards pointer-only; many icon buttons at 683-723, 791, 812, 823, and 862 lack accessible names or focus management."
+      ]
+    },
+    "code_architecture": {
+      "score": 5.5,
+      "notes": "Centralized data, routes, helpers, and dependency-free delivery are understandable, but the 86KB monolith mixes all concerns, rerenders wholesale, and has no tests or state schema.",
+      "evidence": [
+        "submission/index.html:426-632 centralizes seed/state helpers, routes, shell, breadcrumbs, and footer reuse.",
+        "submission/index.html:883-906 manually replaces the full app and rebinds listeners after each render.",
+        "The complete delta is one 944-line submission/index.html with no package manifest or tests."
+      ]
+    },
+    "reliability": {
+      "score": 5.0,
+      "notes": "Default-state routes execute, escaping is careful, and dependencies are absent; malformed persistence, filter rerender behavior, compatibility risk, and lack of browser proof prevent a stronger score.",
+      "evidence": [
+        "Runtime harness executed clean boot and every declared route; unknown routes returned Home.",
+        "submission/index.html:431 and 565-569 escape dynamic HTML and regex filter input.",
+        "submission/index.html:535-536 performs unguarded parse/write, and direct malformed/wrong-shape state tests produced startup or render exceptions."
+      ]
+    }
+  },
+  "summary": "Broad, visually disciplined, and product-aware Basecamp prototype with all mandatory screens, but most visible workflows are stubs; persistence hardening, focus behavior, responsive edge cases, and production-shaped functional depth remain substantial gaps."
+}
