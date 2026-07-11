@@ -629,6 +629,14 @@ def _parse_raw_attempt(
     harness: str,
     path: str,
 ) -> Mapping[str, object]:
+    """Validate and freeze one raw attempt within its leaderboard identity.
+
+    Track, contract, harness, and model fields must match the enclosing entry.
+    Success flags also determine whether score, dimensions, and judge spread
+    must be populated or absent. The returned mapping is deeply immutable so
+    later report construction cannot mutate validated source evidence.
+    """
+
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: expected object")
     _exact_keys(raw, _RAW_ATTEMPT_KEYS, path)
@@ -794,6 +802,14 @@ def _parse_entry(
     provenance: Mapping[str, str],
     section_meta: Mapping[str, Any] | None = None,
 ) -> ReportPoint:
+    """Validate one leaderboard entry and convert it to a report point.
+
+    Distribution summaries and identity relationships are checked before raw
+    attempts are parsed. A zero-success entry is forced ineligible even when a
+    source artifact claims otherwise; subsequent loading recomputes comparable
+    aggregates from the validated raw attempts.
+    """
+
     epath = f"{path}:entries[{index}]"
     if not isinstance(entry, dict):
         raise ValueError(f"{epath}: expected object")
