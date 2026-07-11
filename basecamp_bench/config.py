@@ -41,6 +41,12 @@ _PRICE_KEYS = frozenset({"input", "output", "cache_read", "cache_write"})
 
 @dataclass(frozen=True)
 class HarnessSpec:
+    """Validated configuration for one selectable implementation harness.
+
+    ``id`` is the benchmark-facing identity; ``adapter`` selects the registered
+    CLI integration. ``binary`` may override that adapter's default executable.
+    """
+
     id: str
     adapter: str
     model: str
@@ -53,6 +59,12 @@ class HarnessSpec:
 
 @dataclass(frozen=True)
 class EvaluatorSpec:
+    """Validated evaluator identity and the harness/model used to run it.
+
+    ``harness`` references a configured :class:`HarnessSpec`; evaluator IDs are
+    stable provenance identifiers and must remain distinct when enabled.
+    """
+
     id: str
     harness: str
     model: str
@@ -63,6 +75,8 @@ class EvaluatorSpec:
 
 @dataclass(frozen=True)
 class TrackSpec:
+    """Resolved implementation prompt, evaluator rubric, and contract for one track."""
+
     id: str
     prompt_file: Path
     rubric_file: Path
@@ -71,6 +85,14 @@ class TrackSpec:
 
 @dataclass(frozen=True)
 class BenchConfig:
+    """Immutable effective configuration consumed by the benchmark runner.
+
+    All filesystem paths are resolved and validated beneath ``root`` before an
+    instance is returned. Harness and track mappings are read-only, evaluator
+    order is preserved, and explicit pricing overrides contain normalized
+    nonnegative rates.
+    """
+
     root: Path
     mode: Mode
     run_root: Path
@@ -410,7 +432,13 @@ def load_config(
     repetitions_override: int | None = None,
     timeout_override: int | None = None,
 ) -> BenchConfig:
-    """Load defaults, strict TOML, then explicit overrides and selections."""
+    """Return the validated effective configuration.
+
+    Precedence is built-in defaults, strict TOML values, explicit scalar
+    overrides, then harness/track selections. Unknown fields, unsafe paths,
+    invalid cross-references, and missing selected inputs raise ``ValueError``;
+    the returned paths are resolved relative to the validated project root.
+    """
     if root is None:
         root = (
             Path(path).expanduser().absolute().parent
