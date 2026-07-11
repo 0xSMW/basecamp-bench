@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "track": "fe",
+  "submission_id": "id-4b548d44",
+  "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "reference_fidelity": {
+      "score": 6.5,
+      "notes": "All screenshot-backed anatomies and much of the token system are represented, but geometry, density, avatars, icons, and signature details diverge materially.",
+      "evidence": [
+        "submission/index.html:9-49 reproduces the 10px scale, dark palette, fixed shell, dock, list, board, file, chat, and modal structures from seed/DESIGN.md and seed/reference/screens/.",
+        "submission/index.html:125-141 implements Home, project dock, Message Board, To-dos/detail, Card Table/detail, Docs & Files, Chat, and Jump anatomy.",
+        "People are gradient initials and emoji/text glyphs rather than photographic avatars and consistent icons; 44px headings, 18px rows, repeated chat identities, and generic file tiles diverge from reference density and details."
+      ]
+    },
+    "visual_craft": {
+      "score": 7.0,
+      "notes": "A coherent tokenized dark/light system and detailed micro-UI are offset by inline one-offs and inconsistent glyph-based iconography.",
+      "evidence": [
+        "submission/index.html:9-50 defines coordinated color, type, spacing, radius, shadow, motion, focus, responsive, and reduced-motion rules.",
+        "Cards, pills, badges, trays, notifications, empty states, and board columns share consistent treatments.",
+        "Extensive inline styles and emoji/text icons weaken systematic polish."
+      ]
+    },
+    "product_model": {
+      "score": 6.5,
+      "notes": "The required cast, launch narrative, tools, and key Basecamp concepts are rich, while relationships and shared-recording behavior remain shallow.",
+      "evidence": [
+        "submission/index.html:91-117 defines 8 people, 5 messages, 10 todos in 2 lists, 6 active cards, three file types, and 11 seeded chat lines.",
+        "submission/index.html:125-140 uses All-access, pins, categories, assignments, due dates, steps, boosts, on hold, watchers, notifications, and My Bar terminology.",
+        "submission/index.html:130,134,137 reuse generic detail content; Done/Not now counts lack records, both home projects share one target, and no shared Recording/event model exists."
+      ]
+    },
+    "surface_coverage": {
+      "score": 7.0,
+      "notes": "Every required screenshot-backed surface and several secondary layers are reachable, but optional/account-wide destinations are generic stubs.",
+      "evidence": [
+        "The router at submission/index.html:141 provides ten substantive hash route shapes covering all required primary and detail surfaces.",
+        "submission/index.html:54-89 and 147-153 add Jump, five My Bar trays, notification sidebar, theme control, and filter empty states.",
+        "Activity, Calendar, Reports, Everything, admin, and all other unknown routes resolve to the same stubPage at submission/index.html:140-141."
+      ]
+    },
+    "functional_depth": {
+      "score": 4.0,
+      "notes": "Navigation, filtering, todo completion, chat posting, notes, theme, and overlays work, while most create/edit/comment/move/delete flows are stubbed or inert.",
+      "evidence": [
+        "Executable harness checks passed for message/todo filtering, empty states, chat escaping, persisted initialization, and todo persistence; submission/index.html:142-157 contains their handlers.",
+        "Twelve data-stub actions cover creation, adding tools/content, boosts, moving cards, and notifications.",
+        "Card filter, notification controls, category/sort controls, comments, detail steps, profile, bookmark/options, editing, and deletion have no handlers."
+      ]
+    },
+    "interaction_quality": {
+      "score": 5.0,
+      "notes": "Live feedback and keyboard support are useful, but numerous inert controls, incomplete focus management, and no recovery make interactions only moderately trustworthy.",
+      "evidence": [
+        "submission/index.html:31-32,145-157 provides focus rings, live-filter behavior, toasts, shortcuts, Escape handling, jump autofocus, and jump/sidebar trigger focus restoration.",
+        "submission/index.html:89 makes toast feedback a polite live region.",
+        "Jump/sidebar lack focus traps or background inerting, trays lack focus restore, and invalid IDs silently show the first record."
+      ]
+    },
+    "state_persistence": {
+      "score": 4.5,
+      "notes": "Four narrow features persist, but most state is ephemeral and malformed/outdated storage has no validation, migration, reset, or recovery.",
+      "evidence": [
+        "submission/index.html:111-115,142-154 persists todos, chat, theme, and My Notes; harness execution verified initialization and todo writes.",
+        "Completed expansion, Do Today, steps, comments, filters, and most displayed state are not persisted.",
+        "Harness tests confirmed malformed JSON aborts initialization and wrong-shaped todos/chat later throw; no reset or schema guard exists."
+      ]
+    },
+    "responsive_adaptation": {
+      "score": 6.5,
+      "notes": "Two substantial breakpoints preserve core layouts with reflow and horizontal board scrolling, though mobile hides destinations and badges.",
+      "evidence": [
+        "submission/index.html:48-50 reflows home, dock, content, jump tiles, message/file rows, metadata, chat, and sheets below 1000px and 700px.",
+        "submission/index.html:42 keeps Card Table usable through explicit horizontal overflow.",
+        "At 1000px My Bar hides its third through fifth destinations; mobile also hides row badges and reduces the notification pill to a dot."
+      ]
+    },
+    "accessibility": {
+      "score": 6.0,
+      "notes": "Landmarks, skip/focus support, dialog labeling, keyboard shortcuts, announcements, and reduced motion are solid partial coverage with material naming and focus gaps.",
+      "evidence": [
+        "submission/index.html:2,31-32,50,54-89 includes language, skip link, landmarks, focus-visible, labeled modal semantics, inert closed layers, and a live status region.",
+        "submission/index.html:147-157 supports autofocus, Escape, shortcuts, route focus, and focus restoration for jump/sidebar.",
+        "No focus trap/background inerting exists; trays lack dialog/focus management; several glyph buttons and comment textboxes lack accessible names."
+      ]
+    },
+    "code_architecture": {
+      "score": 5.0,
+      "notes": "Reusable helpers and a dependency-free router make the prototype understandable, but all concerns are compressed into one untested mutable innerHTML monolith.",
+      "evidence": [
+        "submission/index.html:118-157 has reusable avatar, escaping, breadcrumb, sheet, row, route, and event-wiring helpers.",
+        "The complete implementation is one 56,750-byte HTML file with CSS, data, persistence, routing, templates, and controllers mixed together.",
+        "There are no tests, modules, model validators, or explicit error seams; large string templates and full-main innerHTML replacement dominate rendering."
+      ]
+    },
+    "reliability": {
+      "score": 5.0,
+      "notes": "The dependency-free script parses and escapes chat input, but malformed storage/routes and unescaped persisted todo fields create serious startup and safety failures.",
+      "evidence": [
+        "submission/index.html inline JavaScript passed node --check; it has no external runtime dependencies.",
+        "submission/index.html:120,139,142 escapes posted chat before immediate and persisted rendering.",
+        "Harness tests confirmed malformed JSON and wrong-shaped stored data crash; submission/index.html:141 can throw on malformed percent encoding, and stored todo titles are emitted into innerHTML unescaped."
+      ]
+    }
+  },
+  "summary": "A visually strong, broad single-file Basecamp prototype with faithful shell anatomy and several real persistent interactions. Its product graph and primary surfaces are convincing, but most creation/editing/commenting/movement/deletion controls are stubbed or inert, persistence is narrow and brittle, and the monolithic innerHTML architecture lacks production-grade validation and recovery."
+}

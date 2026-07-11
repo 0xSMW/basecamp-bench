@@ -1,0 +1,450 @@
+{
+  "artifacts": {
+    "attempts/be-claude-anthropic-claude-fable-5-r1--066754ef.json": "66f0c460df5b1cc4cb2250e70184e8f0d545c974f733f3d75ac2f448bd3c8ec6",
+    "attempts/be-codex-openai-gpt-5-6-sol-r1--4d93e09d.json": "e7c0d8f10e77aa879ce6e2a04c15ea96e1d8abed8726fd2174ce174bf8ef73f4",
+    "attempts/fe-claude-anthropic-claude-fable-5-r1--0b1ef122.json": "432fb521471266b4e8e88b269b8e720590f0689942f6e2e37b39a68c37894224",
+    "evaluations/be-claude-anthropic-claude-fable-5-r1--066754ef/judge-codex-openai-gpt-5-6-sol--a4caab04/output/report.md": "54ab685a5d142b6adfc8819fc799842b282043c42ed733ac9ef54312c1de7eca",
+    "evaluations/be-claude-anthropic-claude-fable-5-r1--066754ef/judge-codex-openai-gpt-5-6-sol--a4caab04/output/result.json": "2206a8adf8f2100e947aa58c651df6e685e5f50dd867d3241e4a6bca22507736",
+    "evaluations/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/judge-codex-openai-gpt-5-6-sol--43efe948/output/report.md": "793a68d8c334958ce2d82b4acb085fffb4c97a2aba19ae395cc30e5f74c9fcab",
+    "evaluations/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/judge-codex-openai-gpt-5-6-sol--43efe948/output/result.json": "fa565634d8395aa292d917d6230c80c985556f819a87d386da4fb10d6d1076f9",
+    "evaluations/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/judge-codex-openai-gpt-5-6-sol--7886ff58/output/report.md": "9976f34ad5a7589d49f10eda39545446b5048f1225a451863e8965d2abdfd4fd",
+    "evaluations/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/judge-codex-openai-gpt-5-6-sol--7886ff58/output/result.json": "4bdd8397d3d73e0ac1760db0fa10af88b153971ed10661ef601092b7bd461be0",
+    "layout.json": "bae73eb134aa17c161cd05d6a3cfcf5eaf6cd4d09d2758dec4da4c5f1e96eff3",
+    "leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.csv": "ab31cb004124fe28b936f6c30a45296a3b07ceb43273331559fcd451b5f74e56",
+    "leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json": "c5e8e90375c1b0de49c02314a4018a4a7b95bd16712f700717aea6f166792183",
+    "leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.md": "3d1bae0d91eb260f10b02c3882269f338c1df47f41b72ddd664953d2347fbbd0",
+    "leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.csv": "044b805a3324f75a0a3ee78255bc4e7280d48f09aa7810e4ae98163533b9a580",
+    "leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json": "0cabb6d0b08f79e6787a7bafcb4dcbcd01890b6c5951e74939976b98995d2c7e",
+    "leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.md": "e9f3308f5ac9c3778d14a233e32fd43e06ac19826d4c3bd18fabd173d441d17a",
+    "report.html": "d411dfbde06665a57bd1328d43a708f99af173c9538395e7257d73e93656b005",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/AGENTS.md": "19441be5d9ba24753ec07c4dd4252a651edc00c75ef260755ed41aeb4b2e99de",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/DESIGN.md": "75f5cda5d4499972ca685dde9c1a00b4d995b78be1adff9f634518c629934546",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/INIT.md": "e026f4e891e450383e1ee5b1d854a6721fa56d54ea93ac1c60b221f155163a10",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/.DS_Store": "d00051527a3b18209835927d6566ed976beadf0e981631d4ffa2fff97509df46",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/basecamp-sdk/README.md": "80ba4d861b4a7b41bc61fb60254377625a42e6e856189189400f205a50c0dec9",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/basecamp-sdk/SPEC.md": "4c5fc2f6833692ac6d774ea5d383c8044d6dc32b9e67e3dda61bd00e5382bd79",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/basecamp-sdk/behavior-model.json": "fad16ecf28d662e9c17c129c14df77092cc77c1e15ec82be152f411e4cdfb11e",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/basecamp-sdk/openapi.json": "a82395b8fd661f97bd33c24f9a861d3120189d91214577dc7d016c1af881fe87",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/.DS_Store": "a576af057c69f47175449d1dce84005e03963621dee8a3aacb1bc2abe4bf7ad2",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/home.png": "21e24e1dfa6aea04537bf1bad5d3e2d3cec4f36d476118963740d6a9586cf90d",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/jump-menu.png": "54c34b00468a509d4d1d5b55d1e349a4c20adb9b0543a02c4bd340b9d62f2b7c",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/sample-card-table.png": "bf9536ac12e3b30a03b9e1ccfc4058f39abe6283d14b8defce395d882e79f4aa",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/sample-chat.png": "983f6ebe229d0d6688aee318df079bf14141925d63e0609de75b8c16cac10f90",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/sample-docs-files.png": "02a3ede93f21ced9d9f9ea53887e7df24408a039a2b3e70a766b13525bf6ba02",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/sample-message-board.png": "036e20576ded8ac00823b1581d7d7371cb47e26bba12298902b36dc1a52248d4",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/sample-project-dock.png": "eab6e28a77921f7b40c5415da9f44a79aef567aad0ba37239bfc395e4321b832",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/sample-todo-page.png": "fc8509fc5361e05ec92357810910ac47198de0077f6cb563b0b9f41e5336e2d0",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/reference/screens/sample-todos.png": "a2721d634211ef538bbc801d2d562f3999c5c541732d746462e7f4112b1bb3b6",
+    "snapshots/be-claude-anthropic-claude-fable-5-r1--066754ef/server.js": "cc169600f63bb127bf96c73d95b403825955789b5185c64855080dde952f5aba",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/AGENTS.md": "19441be5d9ba24753ec07c4dd4252a651edc00c75ef260755ed41aeb4b2e99de",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/DESIGN.md": "75f5cda5d4499972ca685dde9c1a00b4d995b78be1adff9f634518c629934546",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/INIT.md": "e026f4e891e450383e1ee5b1d854a6721fa56d54ea93ac1c60b221f155163a10",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/.DS_Store": "d00051527a3b18209835927d6566ed976beadf0e981631d4ffa2fff97509df46",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/basecamp-sdk/README.md": "80ba4d861b4a7b41bc61fb60254377625a42e6e856189189400f205a50c0dec9",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/basecamp-sdk/SPEC.md": "4c5fc2f6833692ac6d774ea5d383c8044d6dc32b9e67e3dda61bd00e5382bd79",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/basecamp-sdk/behavior-model.json": "fad16ecf28d662e9c17c129c14df77092cc77c1e15ec82be152f411e4cdfb11e",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/basecamp-sdk/openapi.json": "a82395b8fd661f97bd33c24f9a861d3120189d91214577dc7d016c1af881fe87",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/.DS_Store": "a576af057c69f47175449d1dce84005e03963621dee8a3aacb1bc2abe4bf7ad2",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/home.png": "21e24e1dfa6aea04537bf1bad5d3e2d3cec4f36d476118963740d6a9586cf90d",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/jump-menu.png": "54c34b00468a509d4d1d5b55d1e349a4c20adb9b0543a02c4bd340b9d62f2b7c",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/sample-card-table.png": "bf9536ac12e3b30a03b9e1ccfc4058f39abe6283d14b8defce395d882e79f4aa",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/sample-chat.png": "983f6ebe229d0d6688aee318df079bf14141925d63e0609de75b8c16cac10f90",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/sample-docs-files.png": "02a3ede93f21ced9d9f9ea53887e7df24408a039a2b3e70a766b13525bf6ba02",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/sample-message-board.png": "036e20576ded8ac00823b1581d7d7371cb47e26bba12298902b36dc1a52248d4",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/sample-project-dock.png": "eab6e28a77921f7b40c5415da9f44a79aef567aad0ba37239bfc395e4321b832",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/sample-todo-page.png": "fc8509fc5361e05ec92357810910ac47198de0077f6cb563b0b9f41e5336e2d0",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/reference/screens/sample-todos.png": "a2721d634211ef538bbc801d2d562f3999c5c541732d746462e7f4112b1bb3b6",
+    "snapshots/be-codex-openai-gpt-5-6-sol-r1--4d93e09d/server.js": "970555d3f5aa5500b810eb5214413d39789b1b7bb6484000b67a5fdc7298418b",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/AGENTS.md": "19441be5d9ba24753ec07c4dd4252a651edc00c75ef260755ed41aeb4b2e99de",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/DESIGN.md": "75f5cda5d4499972ca685dde9c1a00b4d995b78be1adff9f634518c629934546",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/INIT.md": "e026f4e891e450383e1ee5b1d854a6721fa56d54ea93ac1c60b221f155163a10",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/prototype.html": "b8d34688632d293d4c2bdcb51dfe5ce091773862cf0126ca0f9c7dde1211f7c9",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/.DS_Store": "d00051527a3b18209835927d6566ed976beadf0e981631d4ffa2fff97509df46",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/basecamp-sdk/README.md": "80ba4d861b4a7b41bc61fb60254377625a42e6e856189189400f205a50c0dec9",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/basecamp-sdk/SPEC.md": "4c5fc2f6833692ac6d774ea5d383c8044d6dc32b9e67e3dda61bd00e5382bd79",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/basecamp-sdk/behavior-model.json": "fad16ecf28d662e9c17c129c14df77092cc77c1e15ec82be152f411e4cdfb11e",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/basecamp-sdk/openapi.json": "a82395b8fd661f97bd33c24f9a861d3120189d91214577dc7d016c1af881fe87",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/.DS_Store": "a576af057c69f47175449d1dce84005e03963621dee8a3aacb1bc2abe4bf7ad2",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/home.png": "21e24e1dfa6aea04537bf1bad5d3e2d3cec4f36d476118963740d6a9586cf90d",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/jump-menu.png": "54c34b00468a509d4d1d5b55d1e349a4c20adb9b0543a02c4bd340b9d62f2b7c",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/sample-card-table.png": "bf9536ac12e3b30a03b9e1ccfc4058f39abe6283d14b8defce395d882e79f4aa",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/sample-chat.png": "983f6ebe229d0d6688aee318df079bf14141925d63e0609de75b8c16cac10f90",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/sample-docs-files.png": "02a3ede93f21ced9d9f9ea53887e7df24408a039a2b3e70a766b13525bf6ba02",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/sample-message-board.png": "036e20576ded8ac00823b1581d7d7371cb47e26bba12298902b36dc1a52248d4",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/sample-project-dock.png": "eab6e28a77921f7b40c5415da9f44a79aef567aad0ba37239bfc395e4321b832",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/sample-todo-page.png": "fc8509fc5361e05ec92357810910ac47198de0077f6cb563b0b9f41e5336e2d0",
+    "snapshots/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/reference/screens/sample-todos.png": "a2721d634211ef538bbc801d2d562f3999c5c541732d746462e7f4112b1bb3b6"
+  },
+  "config": {
+    "evaluators": [
+      {
+        "effort": "high",
+        "enabled": true,
+        "harness": "codex",
+        "id": "eval-sol",
+        "model": "gpt-5.6-sol",
+        "provider_family": "openai"
+      }
+    ],
+    "full_access": false,
+    "harnesses": {
+      "claude": {
+        "adapter": "claude",
+        "display_name": "Claude",
+        "effort": "high",
+        "enabled": true,
+        "model": "claude-fable-5",
+        "provider_family": "anthropic"
+      },
+      "codex": {
+        "adapter": "codex",
+        "display_name": "Codex",
+        "effort": "high",
+        "enabled": true,
+        "model": "gpt-5.6-sol",
+        "provider_family": "openai"
+      },
+      "grok": {
+        "adapter": "grok",
+        "display_name": "Grok",
+        "effort": "high",
+        "enabled": true,
+        "model": "grok-4.5",
+        "provider_family": "xai"
+      },
+      "pi-glm": {
+        "adapter": "pi",
+        "display_name": "GLM 5.2 via OpenRouter",
+        "effort": "high",
+        "enabled": true,
+        "model": "glm-5.2",
+        "provider_family": "zai"
+      }
+    },
+    "mode": "local",
+    "pricing": {
+      "glm-5.2": {
+        "cache_read": 0.078,
+        "cache_write": 0.42,
+        "input": 0.42,
+        "output": 1.32
+      }
+    },
+    "reference_manifest": "benchmarks/reference-pack.json",
+    "reference_root": "Repo/reference",
+    "repetitions": 1,
+    "run_root": "runs",
+    "seed_root": "Repo",
+    "timeout_s": 14400,
+    "tracks": {
+      "be": {
+        "contract": "benchmarks/be/contract.json",
+        "prompt": "benchmarks/be/prompt.md",
+        "rubric": "benchmarks/be/eval.md"
+      },
+      "fe": {
+        "contract": "benchmarks/fe/contract.json",
+        "prompt": "benchmarks/fe/prompt.md",
+        "rubric": "benchmarks/fe/eval.md"
+      }
+    }
+  },
+  "costs": {
+    "complete": true,
+    "known_evaluation_usd": 6.538877,
+    "known_implementation_usd": 86.50150025,
+    "known_total_usd": 93.04037725,
+    "unknown_job_count": 0
+  },
+  "environment": {
+    "locale_encoding": "UTF-8",
+    "locale_language": "C",
+    "platform_architecture": "64bit",
+    "platform_machine": "arm64",
+    "platform_release": "24.6.0",
+    "platform_system": "Darwin",
+    "platform_version": "Darwin Kernel Version 24.6.0: Mon Jul 14 11:30:30 PDT 2025; root:xnu-11417.140.69~1/RELEASE_ARM64_T6020",
+    "python_compiler": "Clang 14.0.6 ",
+    "python_implementation": "CPython",
+    "python_version": "3.12.4",
+    "timezone_name": "+07",
+    "timezone_offset": "+0700"
+  },
+  "inputs": {
+    "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+    "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+    "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+    "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+    "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+    "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+    "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+    "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+    "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+    "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+    "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+    "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+    "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+    "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+    "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+    "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+    "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b",
+    "source_run_manifest:20260711t161255z-843ef2": "ccbc1a61c3e7f5e78716d38d9384bac2c6bed051f8dfa6a69b104df8969bcd8f"
+  },
+  "jobs": [
+    {
+      "command_preview": "claude -p --model claude-fable-5 --effort high --output-format json --no-session-persistence --settings '{\"permissions\":{\"deny\":[]},\"sandbox\":{\"allowUnsandboxedCommands\":false,\"autoAllowBashIfSandboxed\":true,\"enabled\":true,\"excludedCommands\":[],\"failIfUnavailable\":true,\"filesystem\":{\"allowRead\":[\"<root>\",\"/System\",\"/Library\",\"/bin\",\"/sbin\",\"/usr/bin\",\"/usr/sbin\",\"/usr/lib\",\"/etc\",\"/dev\",\"<home>/.local/share/mise/installs/ruby/3/bin\",\"<home>/.antigravity-ide/antigravity-ide/bin\",\"<home>/.grok/bin\",\"<home>/.opencode/bin\",\"<home>/.antigravity/antigravity/bin\",\"<home>/.codeium/windsurf/bin\",\"/opt/homebrew/opt/postgresql@15/bin\",\"<home>/.volta/bin\",\"<home>/.local/bin\",\"/opt/homebrew/bin\",\"/opt/homebrew/sbin\",\"/usr/local/bin\",\"/System/Cryptexes/App/usr/bin\",\"//Applications/Topaz Gigapixel AI.app/Contents/Resources/bin\",\"//Applications/Topaz Photo AI.app/Contents/Resources/bin\",\"/Library/Apple/usr/bin\",\"/Library/TeX/texbin\",\"/usr/local/share/dotnet\",\"/opt/podman/bin\",\"<home>/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex-path\",\"<home>/.codex/tmp/arg0/codex-arg0DRXGZP\",\"<home>/.volta/tools/image/npm/11.8.0/bin\",\"<home>/.volta/tools/image/node/22.23.1/bin\",\"<home>/anaconda3/bin\",\"<home>/anaconda3/condabin\",\"<home>/Code/projects/acrm/bin\",\"<home>/Library/pnpm\",\"/Applications/Ghostty.app/Contents/MacOS\"],\"allowWrite\":[\"<root>\"],\"denyRead\":[\"/**\"],\"denyWrite\":[]},\"network\":{\"allowAllUnixSockets\":true,\"allowLocalBinding\":true,\"allowedDomains\":[\"*\"]}}}' --permission-mode dontAsk --allowedTools Bash,Edit,Glob,Grep,Read,Write",
+      "cost_usd": 51.30838425,
+      "duration_s": 3378.885978459002,
+      "error": null,
+      "harness": "claude",
+      "id": "implement-id-066754ef",
+      "interrupted": false,
+      "kind": "implement",
+      "repetition": 1,
+      "reported_cost_usd": 51.30838425,
+      "returncode": 0,
+      "submission_id": "id-066754ef",
+      "timed_out": false,
+      "track": "be",
+      "usage": {
+        "cache_write_tokens": 903125,
+        "cached_input_tokens": 31572143,
+        "input_tokens": 29057,
+        "output_tokens": 310965
+      }
+    },
+    {
+      "command_preview": "codex exec -m gpt-5.6-sol -c model_reasoning_effort=high -C '<root>' -s workspace-write --skip-git-repo-check --json -o '<root>/20260711t161255z-843ef2/evaluations/id-066754ef/id-a4caab04/last.md' --add-dir '<root>/20260711t161255z-843ef2/evaluations/id-066754ef/id-a4caab04/seed' --add-dir '<root>/20260711t161255z-843ef2/evaluations/id-066754ef/id-a4caab04/submission' -",
+      "cost_usd": 2.162177,
+      "duration_s": 487.5824509160011,
+      "error": null,
+      "eval_attempt_id": "id-a4caab04",
+      "evaluator_id": "eval-sol",
+      "harness": "codex",
+      "id": "evaluate-id-a4caab04",
+      "interrupted": false,
+      "invalid_reasons": [],
+      "kind": "evaluate",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-066754ef",
+      "timed_out": false,
+      "track": "be",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 1830144,
+        "input_tokens": 120241,
+        "output_tokens": 21530
+      },
+      "valid": true
+    },
+    {
+      "command_preview": "claude -p --model claude-fable-5 --effort high --output-format json --no-session-persistence --settings '{\"permissions\":{\"deny\":[]},\"sandbox\":{\"allowUnsandboxedCommands\":false,\"autoAllowBashIfSandboxed\":true,\"enabled\":true,\"excludedCommands\":[],\"failIfUnavailable\":true,\"filesystem\":{\"allowRead\":[\"<root>\",\"/System\",\"/Library\",\"/bin\",\"/sbin\",\"/usr/bin\",\"/usr/sbin\",\"/usr/lib\",\"/etc\",\"/dev\",\"<home>/.local/share/mise/installs/ruby/3/bin\",\"<home>/.antigravity-ide/antigravity-ide/bin\",\"<home>/.grok/bin\",\"<home>/.opencode/bin\",\"<home>/.antigravity/antigravity/bin\",\"<home>/.codeium/windsurf/bin\",\"/opt/homebrew/opt/postgresql@15/bin\",\"<home>/.volta/bin\",\"<home>/.local/bin\",\"/opt/homebrew/bin\",\"/opt/homebrew/sbin\",\"/usr/local/bin\",\"/System/Cryptexes/App/usr/bin\",\"//Applications/Topaz Gigapixel AI.app/Contents/Resources/bin\",\"//Applications/Topaz Photo AI.app/Contents/Resources/bin\",\"/Library/Apple/usr/bin\",\"/Library/TeX/texbin\",\"/usr/local/share/dotnet\",\"/opt/podman/bin\",\"<home>/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex-path\",\"<home>/.codex/tmp/arg0/codex-arg0DRXGZP\",\"<home>/.volta/tools/image/npm/11.8.0/bin\",\"<home>/.volta/tools/image/node/22.23.1/bin\",\"<home>/anaconda3/bin\",\"<home>/anaconda3/condabin\",\"<home>/Code/projects/acrm/bin\",\"<home>/Library/pnpm\",\"/Applications/Ghostty.app/Contents/MacOS\"],\"allowWrite\":[\"<root>\"],\"denyRead\":[\"/**\"],\"denyWrite\":[]},\"network\":{\"allowAllUnixSockets\":true,\"allowLocalBinding\":true,\"allowedDomains\":[\"*\"]}}}' --permission-mode dontAsk --allowedTools Bash,Edit,Glob,Grep,Read,Write",
+      "cost_usd": 29.387052,
+      "duration_s": 3228.710708999999,
+      "error": null,
+      "harness": "claude",
+      "id": "implement-id-0b1ef122",
+      "interrupted": false,
+      "kind": "implement",
+      "repetition": 1,
+      "reported_cost_usd": 29.387052,
+      "returncode": 0,
+      "submission_id": "id-0b1ef122",
+      "timed_out": false,
+      "track": "fe",
+      "usage": {
+        "cache_write_tokens": 423754,
+        "cached_input_tokens": 11834728,
+        "input_tokens": 5599,
+        "output_tokens": 244114
+      }
+    },
+    {
+      "command_preview": "codex exec -m gpt-5.6-sol -c model_reasoning_effort=high -C '<root>' -s workspace-write --skip-git-repo-check --json -o '<root>/20260711t161255z-843ef2/evaluations/id-0b1ef122/id-7886ff58/last.md' --add-dir '<root>/20260711t161255z-843ef2/evaluations/id-0b1ef122/id-7886ff58/seed' --add-dir '<root>/20260711t161255z-843ef2/evaluations/id-0b1ef122/id-7886ff58/submission' -",
+      "cost_usd": 3.009368,
+      "duration_s": 505.5467840409983,
+      "error": null,
+      "eval_attempt_id": "id-7886ff58",
+      "evaluator_id": "eval-sol",
+      "harness": "codex",
+      "id": "evaluate-id-7886ff58",
+      "interrupted": false,
+      "invalid_reasons": [],
+      "kind": "evaluate",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-0b1ef122",
+      "timed_out": false,
+      "track": "fe",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 3351296,
+        "input_tokens": 170012,
+        "output_tokens": 16122
+      },
+      "valid": true
+    },
+    {
+      "command_preview": "codex exec -m gpt-5.6-sol -c model_reasoning_effort=high -C '<root>' -s workspace-write --skip-git-repo-check --json -o '<root>/20260711t161255z-843ef2/private/implement-id-4d93e09d.last.md' -",
+      "cost_usd": 5.806064,
+      "duration_s": 1530.9099519999945,
+      "error": null,
+      "harness": "codex",
+      "id": "implement-id-4d93e09d",
+      "interrupted": false,
+      "kind": "implement",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-4d93e09d",
+      "timed_out": false,
+      "track": "be",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 5299968,
+        "input_tokens": 170344,
+        "output_tokens": 76812
+      }
+    },
+    {
+      "command_preview": "codex exec -m gpt-5.6-sol -c model_reasoning_effort=high -C '<root>' -s workspace-write --skip-git-repo-check --json -o '<root>/20260711t161255z-843ef2/evaluations/id-4d93e09d/id-43efe948/last.md' --add-dir '<root>/20260711t161255z-843ef2/evaluations/id-4d93e09d/id-43efe948/seed' --add-dir '<root>/20260711t161255z-843ef2/evaluations/id-4d93e09d/id-43efe948/submission' -",
+      "cost_usd": 1.367332,
+      "duration_s": 511.6940060000052,
+      "error": null,
+      "eval_attempt_id": "id-43efe948",
+      "evaluator_id": "eval-sol",
+      "harness": "codex",
+      "id": "evaluate-id-43efe948",
+      "interrupted": false,
+      "invalid_reasons": [],
+      "kind": "evaluate",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-4d93e09d",
+      "timed_out": false,
+      "track": "be",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 1064704,
+        "input_tokens": 87298,
+        "output_tokens": 13283
+      },
+      "valid": true
+    }
+  ],
+  "pricing": {
+    "cache_path": ".pricing-cache.json",
+    "complete": true,
+    "error": null,
+    "limitations": [],
+    "retrieved_at": "2026-07-11T11:12:36Z",
+    "source": "cache",
+    "stale": false,
+    "url": "https://models.dev/api.json"
+  },
+  "run": {
+    "finished_at": "2026-07-11T17:17:24Z",
+    "id": "20260711t161255z-843ef2",
+    "mode": "local",
+    "started_at": "2026-07-11T16:12:55Z"
+  },
+  "runner": {
+    "commit": "bfd6144bd0b95e3f34078a815b42e3d5309cebcf",
+    "dirty": false,
+    "error": null,
+    "version": "1.0.0a1"
+  },
+  "schema_version": "1.0",
+  "status": "complete",
+  "tooling": [
+    {
+      "adapter": "claude",
+      "adapter_version": "1.0.0a1",
+      "config_id": "claude",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": null,
+      "executable_version": "2.1.206 (Claude Code)",
+      "model_id": "claude-fable-5",
+      "provider_family": "anthropic",
+      "role": "implementation",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    },
+    {
+      "adapter": "codex",
+      "adapter_version": "1.0.0a1",
+      "config_id": "codex",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": null,
+      "executable_version": "2.1.206 (Claude Code)",
+      "model_id": "gpt-5.6-sol",
+      "provider_family": "openai",
+      "role": "implementation",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    },
+    {
+      "adapter": "grok",
+      "adapter_version": "1.0.0a1",
+      "config_id": "grok",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": null,
+      "executable_version": "grok 0.2.93 (f00f96316d4b)",
+      "model_id": "grok-4.5",
+      "provider_family": "xai",
+      "role": "implementation",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    },
+    {
+      "adapter": "pi",
+      "adapter_version": "1.0.0a1",
+      "config_id": "pi-glm",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": null,
+      "executable_version": "2.1.206 (Claude Code)",
+      "model_id": "glm-5.2",
+      "provider_family": "zai",
+      "role": "implementation",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    },
+    {
+      "adapter": "codex",
+      "adapter_version": "1.0.0a1",
+      "config_id": "codex",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": "eval-sol",
+      "executable_version": "2.1.206 (Claude Code)",
+      "model_id": "gpt-5.6-sol",
+      "provider_family": "openai",
+      "role": "evaluator",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    }
+  ]
+}

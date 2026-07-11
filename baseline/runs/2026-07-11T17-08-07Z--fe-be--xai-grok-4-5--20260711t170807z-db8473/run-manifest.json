@@ -1,0 +1,324 @@
+{
+  "artifacts": {
+    "attempts/be-grok-xai-grok-4-5-r1--8cb2e796.json": "23304ca4f0b2931201769ead1d34e19834f512caff1b9680c0cdb55a112437dd",
+    "attempts/fe-grok-xai-grok-4-5-r1--5bc128c8.json": "6a19e78d2908ef228770f0f4f22c467c77d0185b4a49a5690609ce0f94c6c26a",
+    "evaluations/be-grok-xai-grok-4-5-r1--8cb2e796/judge-codex-openai-gpt-5-6-sol--589aab95/output/report.md": "1c5b39e5aa3fb00a11c75f7beb7344b6c83c5a528281aa2b310b8e39bdefbb12",
+    "evaluations/be-grok-xai-grok-4-5-r1--8cb2e796/judge-codex-openai-gpt-5-6-sol--589aab95/output/result.json": "bad0ddf68fc76ca7b0bbb2da5fdae4396d62343ca12e86d6d65b5dd2c8a3907c",
+    "evaluations/fe-grok-xai-grok-4-5-r1--5bc128c8/judge-codex-openai-gpt-5-6-sol--d7969ce9/output/report.md": "879de4b331d91b9e8f858ef14fe90fc6d5f66d36416afa4588fd00002da3bf0e",
+    "evaluations/fe-grok-xai-grok-4-5-r1--5bc128c8/judge-codex-openai-gpt-5-6-sol--d7969ce9/output/result.json": "5b995965f370d851e09dd3fb4a7934161a06cdeb4a1fcd40539040e0c0756509",
+    "layout.json": "c372c72c0e160dca6103ddefa7e2acc97d2a8d9150efc2daae256bf0b69e20a7",
+    "leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.csv": "7581996b9b85408ba4c0da7254daf7040b5198c217780466f003eff0c7a43a12",
+    "leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json": "b145fa82c6329163ac835d1c5cdf0cc3e799f682e4970c221b07e7617548ff24",
+    "leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.md": "de517f0c80a1e209f672a51cd12be1c1ce697086d4bbacb368e194dd3957f71c",
+    "leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.csv": "6f03df7e4a6b5c6ba908c72ac234bf45ce0da5c69506a6a43b4b63f5648654f9",
+    "leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json": "81b5b582d09085ce37ad6c78331125f65a70552d404d703b6d54c6e56a00a9bd",
+    "leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.md": "7291531536c6a70ebcf16cbc4ea8b7f7f6a524cad0bdb2b47b62832fdbb5f880",
+    "report.html": "41f389613939b127ccd91b4c57349f7e03ed4ccf7c8a3757eb83d432d287cfe6",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/AGENTS.md": "19441be5d9ba24753ec07c4dd4252a651edc00c75ef260755ed41aeb4b2e99de",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/DESIGN.md": "75f5cda5d4499972ca685dde9c1a00b4d995b78be1adff9f634518c629934546",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/INIT.md": "e026f4e891e450383e1ee5b1d854a6721fa56d54ea93ac1c60b221f155163a10",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/basecamp-sdk/README.md": "80ba4d861b4a7b41bc61fb60254377625a42e6e856189189400f205a50c0dec9",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/basecamp-sdk/SPEC.md": "4c5fc2f6833692ac6d774ea5d383c8044d6dc32b9e67e3dda61bd00e5382bd79",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/basecamp-sdk/behavior-model.json": "fad16ecf28d662e9c17c129c14df77092cc77c1e15ec82be152f411e4cdfb11e",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/basecamp-sdk/openapi.json": "a82395b8fd661f97bd33c24f9a861d3120189d91214577dc7d016c1af881fe87",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/screens/home.png": "21e24e1dfa6aea04537bf1bad5d3e2d3cec4f36d476118963740d6a9586cf90d",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/screens/jump-menu.png": "54c34b00468a509d4d1d5b55d1e349a4c20adb9b0543a02c4bd340b9d62f2b7c",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/screens/sample-card-table.png": "bf9536ac12e3b30a03b9e1ccfc4058f39abe6283d14b8defce395d882e79f4aa",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/screens/sample-chat.png": "983f6ebe229d0d6688aee318df079bf14141925d63e0609de75b8c16cac10f90",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/screens/sample-docs-files.png": "02a3ede93f21ced9d9f9ea53887e7df24408a039a2b3e70a766b13525bf6ba02",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/screens/sample-message-board.png": "036e20576ded8ac00823b1581d7d7371cb47e26bba12298902b36dc1a52248d4",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/screens/sample-project-dock.png": "eab6e28a77921f7b40c5415da9f44a79aef567aad0ba37239bfc395e4321b832",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/screens/sample-todo-page.png": "fc8509fc5361e05ec92357810910ac47198de0077f6cb563b0b9f41e5336e2d0",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/reference/screens/sample-todos.png": "a2721d634211ef538bbc801d2d562f3999c5c541732d746462e7f4112b1bb3b6",
+    "snapshots/be-grok-xai-grok-4-5-r1--8cb2e796/server.py": "97231b143af97b15834187a4160d313c73662792451cf6f9631612020a3c4280",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/AGENTS.md": "19441be5d9ba24753ec07c4dd4252a651edc00c75ef260755ed41aeb4b2e99de",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/DESIGN.md": "75f5cda5d4499972ca685dde9c1a00b4d995b78be1adff9f634518c629934546",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/INIT.md": "e026f4e891e450383e1ee5b1d854a6721fa56d54ea93ac1c60b221f155163a10",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/index.html": "7728e12cd44e200fe47d51885396f6a306b1daa3aec381df91b985250d1f5b83",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/basecamp-sdk/README.md": "80ba4d861b4a7b41bc61fb60254377625a42e6e856189189400f205a50c0dec9",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/basecamp-sdk/SPEC.md": "4c5fc2f6833692ac6d774ea5d383c8044d6dc32b9e67e3dda61bd00e5382bd79",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/basecamp-sdk/behavior-model.json": "fad16ecf28d662e9c17c129c14df77092cc77c1e15ec82be152f411e4cdfb11e",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/basecamp-sdk/openapi.json": "a82395b8fd661f97bd33c24f9a861d3120189d91214577dc7d016c1af881fe87",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/screens/home.png": "21e24e1dfa6aea04537bf1bad5d3e2d3cec4f36d476118963740d6a9586cf90d",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/screens/jump-menu.png": "54c34b00468a509d4d1d5b55d1e349a4c20adb9b0543a02c4bd340b9d62f2b7c",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/screens/sample-card-table.png": "bf9536ac12e3b30a03b9e1ccfc4058f39abe6283d14b8defce395d882e79f4aa",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/screens/sample-chat.png": "983f6ebe229d0d6688aee318df079bf14141925d63e0609de75b8c16cac10f90",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/screens/sample-docs-files.png": "02a3ede93f21ced9d9f9ea53887e7df24408a039a2b3e70a766b13525bf6ba02",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/screens/sample-message-board.png": "036e20576ded8ac00823b1581d7d7371cb47e26bba12298902b36dc1a52248d4",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/screens/sample-project-dock.png": "eab6e28a77921f7b40c5415da9f44a79aef567aad0ba37239bfc395e4321b832",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/screens/sample-todo-page.png": "fc8509fc5361e05ec92357810910ac47198de0077f6cb563b0b9f41e5336e2d0",
+    "snapshots/fe-grok-xai-grok-4-5-r1--5bc128c8/reference/screens/sample-todos.png": "a2721d634211ef538bbc801d2d562f3999c5c541732d746462e7f4112b1bb3b6"
+  },
+  "config": {
+    "evaluators": [
+      {
+        "effort": "high",
+        "enabled": true,
+        "harness": "codex",
+        "id": "eval-sol",
+        "model": "gpt-5.6-sol",
+        "provider_family": "openai"
+      }
+    ],
+    "full_access": false,
+    "harnesses": {
+      "claude": {
+        "adapter": "claude",
+        "display_name": "Claude Fable 5",
+        "effort": "high",
+        "enabled": false,
+        "model": "claude-fable-5",
+        "provider_family": "anthropic"
+      },
+      "codex": {
+        "adapter": "codex",
+        "display_name": "GPT-5.6 Sol",
+        "effort": "high",
+        "enabled": false,
+        "model": "gpt-5.6-sol",
+        "provider_family": "openai"
+      },
+      "grok": {
+        "adapter": "grok",
+        "display_name": "Grok 4.5",
+        "effort": "high",
+        "enabled": true,
+        "model": "grok-4.5",
+        "provider_family": "xai"
+      },
+      "pi-glm": {
+        "adapter": "pi",
+        "display_name": "GLM 5.2 via OpenRouter",
+        "effort": "high",
+        "enabled": false,
+        "model": "glm-5.2",
+        "provider_family": "zai"
+      }
+    },
+    "mode": "local",
+    "pricing": {
+      "glm-5.2": {
+        "cache_read": 0.078,
+        "cache_write": 0.42,
+        "input": 0.42,
+        "output": 1.32
+      }
+    },
+    "reference_manifest": "benchmarks/reference-pack.json",
+    "reference_root": "Repo/reference",
+    "repetitions": 1,
+    "run_root": "runs",
+    "seed_root": "Repo",
+    "timeout_s": 14400,
+    "tracks": {
+      "be": {
+        "contract": "benchmarks/be/contract.json",
+        "prompt": "benchmarks/be/prompt.md",
+        "rubric": "benchmarks/be/eval.md"
+      },
+      "fe": {
+        "contract": "benchmarks/fe/contract.json",
+        "prompt": "benchmarks/fe/prompt.md",
+        "rubric": "benchmarks/fe/eval.md"
+      }
+    }
+  },
+  "costs": {
+    "complete": true,
+    "known_evaluation_usd": 6.083599,
+    "known_implementation_usd": 3.218248,
+    "known_total_usd": 9.301847,
+    "unknown_job_count": 0
+  },
+  "environment": {
+    "locale_encoding": "UTF-8",
+    "locale_language": "C",
+    "platform_architecture": "64bit",
+    "platform_machine": "arm64",
+    "platform_release": "24.6.0",
+    "platform_system": "Darwin",
+    "platform_version": "Darwin Kernel Version 24.6.0: Mon Jul 14 11:30:30 PDT 2025; root:xnu-11417.140.69~1/RELEASE_ARM64_T6020",
+    "python_compiler": "Clang 14.0.6 ",
+    "python_implementation": "CPython",
+    "python_version": "3.12.4",
+    "timezone_name": "+07",
+    "timezone_offset": "+0700"
+  },
+  "inputs": {
+    "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+    "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+    "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+    "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+    "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+    "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+    "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+    "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+    "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+    "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+    "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+    "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+    "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+    "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+    "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+    "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+    "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+  },
+  "jobs": [
+    {
+      "command_preview": "grok --prompt-file '<root>/.grok/.basecamp-bench-prompt.md' --cwd '<root>' -m grok-4.5 --reasoning-effort high --output-format json --no-memory --verbatim --sandbox basecamp_bench --permission-mode dontAsk --disallowed-tools ask_user_question,image_edit,image_gen,lsp,memory_get,memory_search,monitor,scheduler_create,scheduler_delete,scheduler_list,search_tool,todo_write,use_tool,video_gen,web_fetch,web_search --allow 'Read(<root>)' --allow 'Read(<root>/**)' --allow 'Grep(<root>/**)' --allow 'Bash(*)' --allow 'Write(<root>)' --allow 'Write(<root>/**)' --allow 'Edit(<root>)' --allow 'Edit(<root>/**)'",
+      "cost_usd": 1.103158,
+      "duration_s": 427.1316058750017,
+      "error": null,
+      "harness": "grok",
+      "id": "implement-id-5bc128c8",
+      "interrupted": false,
+      "kind": "implement",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-5bc128c8",
+      "timed_out": false,
+      "track": "fe",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 935296,
+        "input_tokens": 107584,
+        "output_tokens": 70057
+      }
+    },
+    {
+      "command_preview": "codex exec -m gpt-5.6-sol -c model_reasoning_effort=high -C '<root>' -s workspace-write --skip-git-repo-check --json -o '<root>/20260711t170807z-db8473/evaluations/id-5bc128c8/id-d7969ce9/last.md' --add-dir '<root>/20260711t170807z-db8473/evaluations/id-5bc128c8/id-d7969ce9/seed' --add-dir '<root>/20260711t170807z-db8473/evaluations/id-5bc128c8/id-d7969ce9/submission' -",
+      "cost_usd": 2.848819,
+      "duration_s": 495.16556149999815,
+      "error": null,
+      "eval_attempt_id": "id-d7969ce9",
+      "evaluator_id": "eval-sol",
+      "harness": "codex",
+      "id": "evaluate-id-d7969ce9",
+      "interrupted": false,
+      "invalid_reasons": [],
+      "kind": "evaluate",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-5bc128c8",
+      "timed_out": false,
+      "track": "fe",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 2588928,
+        "input_tokens": 210815,
+        "output_tokens": 16676
+      },
+      "valid": true
+    },
+    {
+      "command_preview": "grok --prompt-file '<root>/.grok/.basecamp-bench-prompt.md' --cwd '<root>' -m grok-4.5 --reasoning-effort high --output-format json --no-memory --verbatim --sandbox basecamp_bench --permission-mode dontAsk --disallowed-tools ask_user_question,image_edit,image_gen,lsp,memory_get,memory_search,monitor,scheduler_create,scheduler_delete,scheduler_list,search_tool,todo_write,use_tool,video_gen,web_fetch,web_search --allow 'Read(<root>)' --allow 'Read(<root>/**)' --allow 'Grep(<root>/**)' --allow 'Bash(*)' --allow 'Write(<root>)' --allow 'Write(<root>/**)' --allow 'Edit(<root>)' --allow 'Edit(<root>/**)'",
+      "cost_usd": 2.11509,
+      "duration_s": 534.7380889580018,
+      "error": null,
+      "harness": "grok",
+      "id": "implement-id-8cb2e796",
+      "interrupted": false,
+      "kind": "implement",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-8cb2e796",
+      "timed_out": false,
+      "track": "be",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 2658176,
+        "input_tokens": 154636,
+        "output_tokens": 79455
+      }
+    },
+    {
+      "command_preview": "codex exec -m gpt-5.6-sol -c model_reasoning_effort=high -C '<root>' -s workspace-write --skip-git-repo-check --json -o '<root>/20260711t170807z-db8473/evaluations/id-8cb2e796/id-589aab95/last.md' --add-dir '<root>/20260711t170807z-db8473/evaluations/id-8cb2e796/id-589aab95/seed' --add-dir '<root>/20260711t170807z-db8473/evaluations/id-8cb2e796/id-589aab95/submission' -",
+      "cost_usd": 3.23478,
+      "duration_s": 750.9869810829987,
+      "error": null,
+      "eval_attempt_id": "id-589aab95",
+      "evaluator_id": "eval-sol",
+      "harness": "codex",
+      "id": "evaluate-id-589aab95",
+      "interrupted": false,
+      "invalid_reasons": [],
+      "kind": "evaluate",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-8cb2e796",
+      "timed_out": false,
+      "track": "be",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 3540480,
+        "input_tokens": 137736,
+        "output_tokens": 25862
+      },
+      "valid": true
+    }
+  ],
+  "pricing": {
+    "cache_path": ".pricing-cache.json",
+    "complete": true,
+    "error": null,
+    "limitations": [],
+    "retrieved_at": "2026-07-11T11:12:36Z",
+    "source": "cache",
+    "stale": false,
+    "url": "https://models.dev/api.json"
+  },
+  "run": {
+    "finished_at": "2026-07-11T17:29:33Z",
+    "id": "20260711t170807z-db8473",
+    "mode": "local",
+    "started_at": "2026-07-11T17:08:07Z"
+  },
+  "runner": {
+    "commit": "51dd8844e0794d81282ba3a3772f5235486690ce",
+    "dirty": false,
+    "error": null,
+    "version": "1.0.0a1"
+  },
+  "schema_version": "1.0",
+  "status": "complete",
+  "tooling": [
+    {
+      "adapter": "grok",
+      "adapter_version": "1.0.0a1",
+      "config_id": "grok",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": null,
+      "executable_version": "grok 0.2.93 (f00f96316d4b)",
+      "model_id": "grok-4.5",
+      "provider_family": "xai",
+      "role": "implementation",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    },
+    {
+      "adapter": "codex",
+      "adapter_version": "1.0.0a1",
+      "config_id": "codex",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": "eval-sol",
+      "executable_version": "codex-cli 0.144.1",
+      "model_id": "gpt-5.6-sol",
+      "provider_family": "openai",
+      "role": "evaluator",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    }
+  ]
+}

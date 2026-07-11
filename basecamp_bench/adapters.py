@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping
@@ -983,6 +984,40 @@ PI_MODEL_ALIASES: Mapping[str, str] = {
     "glm-5.2": "z-ai/glm-5.2",
 }
 
+# Pi lanes authenticate via $OPENROUTER_API_KEY in the generated catalog. The
+# variable is only forwarded when the process launching the benchmark has it,
+# which silently breaks runs started outside an interactive shell. This file
+# is the durable fallback; the env var still wins when both are present.
+OPENROUTER_KEY_FILE: Path = Path.home() / ".config" / "basecamp-bench" / "openrouter-api-key"
+
+
+def _read_openrouter_key_file() -> str | None:
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(OPENROUTER_KEY_FILE, flags)
+    except OSError:
+        return None
+    try:
+        info = os.fstat(fd)
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_uid != os.geteuid()
+            or info.st_nlink != 1
+            or stat.S_IMODE(info.st_mode) & 0o077
+        ):
+            return None
+        with os.fdopen(fd, "r", encoding="utf-8") as handle:
+            fd = -1
+            value = handle.read(16_385)
+    except (OSError, UnicodeError):
+        return None
+    finally:
+        if fd >= 0:
+            os.close(fd)
+    if len(value) > 16_384:
+        return None
+    return value.strip() or None
+
 
 @register_harness
 class PiHarness(Harness):
@@ -1036,6 +1071,11 @@ class PiHarness(Harness):
             raise ValueError("run private directory contains a reserved Pi adapter path")
         if any(not path.is_dir() for path in job.evidence_dirs):
             raise ValueError("Pi evidence paths must be directories")
+        if not os.environ.get("OPENROUTER_API_KEY") and _read_openrouter_key_file() is None:
+            raise ValueError(
+                "Pi lane needs an OpenRouter key: export OPENROUTER_API_KEY in the "
+                f"launching shell or write the key to {OPENROUTER_KEY_FILE}"
+            )
 
         native_model = self._native_model(job.model.model)
         config_dir.mkdir(parents=True)
@@ -1057,6 +1097,28 @@ class PiHarness(Harness):
                                         "input": ["text"],
                                         "contextWindow": 1_048_576,
                                         "maxTokens": 131_072,
+                                        # OpenRouter's default (price-ordered) routing
+                                        # re-rolls the provider on every turn, and some
+                                        # hosts (Z.AI, Venice, partially Novita) buffer
+                                        # whole responses instead of streaming. A long
+                                        # write turn on a buffering host emits no bytes
+                                        # for its entire generation, which reads as a
+                                        # hang and previously tripped Pi's idle timeout.
+                                        # Pin to hosts verified to stream tool-call
+                                        # deltas, serve fp8, and allow >=128k completion
+                                        # tokens.
+                                        "compat": {
+                                            "openRouterRouting": {
+                                                "order": [
+                                                    "baidu",
+                                                    "atlas-cloud",
+                                                    "akashml",
+                                                    "siliconflow",
+                                                    "streamlake",
+                                                ],
+                                                "allow_fallbacks": False,
+                                            }
+                                        },
                                     }
                                 ],
                             }
@@ -1067,11 +1129,12 @@ class PiHarness(Harness):
                 + "\n",
                 encoding="utf-8",
             )
-            # Long reasoning turns can legitimately emit no bytes for more
-            # than Pi's five-minute default. Pi still runs under the benchmark's
-            # outer process timeout, so disable only its stream-idle cutoff.
+            # The pinned providers above stream continuously (observed
+            # inter-chunk gaps of a few seconds), so a genuine multi-minute
+            # silence means the stream is dead. Fail the turn at ten minutes
+            # instead of hanging until the benchmark's outer timeout.
             settings_path.write_text(
-                json.dumps({"httpIdleTimeoutMs": 0}, sort_keys=True) + "\n",
+                json.dumps({"httpIdleTimeoutMs": 600_000}, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
             yield
@@ -1090,6 +1153,10 @@ class PiHarness(Harness):
         if self._active_config_dir is not None:
             env["PI_CODING_AGENT_DIR"] = str(self._active_config_dir)
         env["PI_TELEMETRY"] = "0"
+        if not env.get("OPENROUTER_API_KEY"):
+            key = _read_openrouter_key_file()
+            if key is not None:
+                env["OPENROUTER_API_KEY"] = key
         return env
 
     def build_command(self, job: AgentJob) -> list[str]:

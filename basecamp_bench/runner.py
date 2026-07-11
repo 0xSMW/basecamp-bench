@@ -43,6 +43,11 @@ from basecamp_bench.execution import (
 from basecamp_bench.execution import (
     secret_env_values as _secret_env_values,
 )
+from basecamp_bench.layout import (
+    finalize_readable_layout,
+    recover_pending_layouts,
+    validate_planned_layout,
+)
 from basecamp_bench.leaderboard import Attempt, aggregate_attempts, write_leaderboards
 from basecamp_bench.locks import acquire_lane_locks
 from basecamp_bench.manifest import (
@@ -52,6 +57,7 @@ from basecamp_bench.manifest import (
     verify_run,
     write_manifest,
 )
+from basecamp_bench.naming import run_path_name, submission_path_name
 from basecamp_bench.pricing import find_exact_rates, load_pricing_snapshot, normalize_model_id
 from basecamp_bench.processes import ProcessResult, run_managed
 from basecamp_bench.prompts import build_evaluator_prompt, implementation_prompt_bytes
@@ -280,13 +286,14 @@ def run_benchmark(
     locks reject overlapping processes before run creation, pricing access, or
     provider invocation, while disjoint benchmark processes may run together.
     """
+    recover_pending_layouts(config.run_root)
     lanes = (
         (harness.id, track.id)
         for harness in config.harnesses.values()
         if harness.enabled
         for track in config.tracks.values()
     )
-    with acquire_lane_locks(config.run_root, lanes):
+    with acquire_lane_locks(config.root, lanes):
         return _run_benchmark_once(
             config,
             options=options,
@@ -351,6 +358,32 @@ def _run_benchmark_once(
                             evaluator_attempts=evaluator_attempts,
                         )
                     )
+        validate_planned_layout(
+            run_root=config.run_root,
+            run_id=ctx.run_id,
+            submissions=[
+                (
+                    task.submission_id,
+                    task.track.id,
+                    task.harness.id,
+                    task.harness.provider_family,
+                    task.harness.model,
+                    task.repetition,
+                )
+                for task in tasks
+            ],
+            judges=[
+                (
+                    task.submission_id,
+                    eval_attempt_id,
+                    evaluator.harness,
+                    evaluator.provider_family,
+                    evaluator.model,
+                )
+                for task in tasks
+                for evaluator, eval_attempt_id in task.evaluator_attempts
+            ],
+        )
         _emit_progress(
             options,
             "run.planned",
@@ -428,7 +461,18 @@ def reevaluate_run(
     Evaluator failures use the same checkpoint-and-reraise behavior as a
     normal benchmark run.
     """
-    prior = _require_prior_run_dir(config, prior_run_dir)
+    requested_prior = Path(prior_run_dir)
+    recovered = recover_pending_layouts(config.run_root)
+    if not requested_prior.exists():
+        for candidate in recovered:
+            try:
+                layout = json.loads((candidate / "layout.json").read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if isinstance(layout, dict) and layout.get("run_id") == requested_prior.name:
+                requested_prior = candidate
+                break
+    prior = _require_prior_run_dir(config, requested_prior)
     errs = verify_run(prior)
     if errs:
         raise ValueError(f"prior run verification failed: {errs[0]}")
@@ -437,6 +481,32 @@ def reevaluate_run(
     if not reusable:
         raise ValueError("prior run has no reusable verified snapshots")
     reusable = _select_reusable_submissions(reusable, submission_ids)
+    lanes = {(str(item["attempt"]["harness"]), str(item["attempt"]["track"])) for item in reusable}
+    with acquire_lane_locks(config.root, lanes):
+        return _reevaluate_reserved(
+            config,
+            prior,
+            prior_man,
+            reusable,
+            options=options,
+            id_factory=id_factory,
+            pricing_data=pricing_data,
+            now=now,
+        )
+
+
+def _reevaluate_reserved(
+    config: BenchConfig,
+    prior: Path,
+    prior_man: Mapping[str, Any],
+    reusable: Sequence[dict[str, Any]],
+    *,
+    options: RunOptions,
+    id_factory: Callable[[], str] | None,
+    pricing_data: Mapping[str, Any] | None,
+    now: datetime | None,
+) -> Path:
+    """Evaluate prevalidated snapshots while their paid-work lanes are reserved."""
     ctx = _open_run(config, options, id_factory, pricing_data, now)
     jobs: list[dict[str, Any]] = []
     attempts: list[Attempt] = []
@@ -476,6 +546,32 @@ def reevaluate_run(
             )
             for item in reusable
         ]
+        validate_planned_layout(
+            run_root=config.run_root,
+            run_id=ctx.run_id,
+            submissions=[
+                (
+                    str(item["submission_id"]),
+                    str(item["attempt"]["track"]),
+                    str(item["attempt"]["harness"]),
+                    config.harnesses[str(item["attempt"]["harness"])].provider_family,
+                    str(item["attempt"]["model_id"]),
+                    int(item["attempt"]["repetition"]),
+                )
+                for item, _ in planned
+            ],
+            judges=[
+                (
+                    str(item["submission_id"]),
+                    eval_attempt_id,
+                    evaluator.harness,
+                    evaluator.provider_family,
+                    evaluator.model,
+                )
+                for item, evaluator_attempts in planned
+                for evaluator, eval_attempt_id in evaluator_attempts
+            ],
+        )
         _emit_progress(
             options,
             "reevaluate.planned",
@@ -687,22 +783,38 @@ def _finalize_run(
         )
         else _final_status(config, ctx.ineligible, attempts)
     )
-    _write_manifest(
-        config,
-        run_dir,
-        ctx.run_id,
-        ctx.started,
-        final_status,
-        _public_pricing(ctx.pricing_prov, ctx.pricing_ok, ctx.pricing_reasons),
-        job_records,
-        artifact_hashes,
-        dict(ctx.input_hashes),
-        list(ctx.tooling),
-        finished=_utc_now(now),
-        runner_git=ctx.runner_git,
+    final_run_dir = finalize_readable_layout(
+        run_dir=run_dir,
+        run_id=ctx.run_id,
+        attempts=attempts,
+        jobs=job_records,
+        provider_by_harness={spec.id: spec.provider_family for spec in config.harnesses.values()},
+        evaluator_specs={
+            evaluator.id: (
+                evaluator.harness,
+                evaluator.provider_family,
+                evaluator.model,
+            )
+            for evaluator in config.evaluators
+            if evaluator.enabled
+        },
+        artifacts=artifact_hashes,
+        manifest_factory=lambda rewritten: _manifest_payload(
+            config,
+            ctx.run_id,
+            ctx.started,
+            final_status,
+            _public_pricing(ctx.pricing_prov, ctx.pricing_ok, ctx.pricing_reasons),
+            job_records,
+            rewritten,
+            dict(ctx.input_hashes),
+            list(ctx.tooling),
+            finished=_utc_now(now),
+            runner_git=ctx.runner_git,
+        ),
     )
     _emit_progress(options, "run.finished", run_id=ctx.run_id, status=final_status)
-    return run_dir
+    return final_run_dir
 
 
 def _require_prior_run_dir(config: BenchConfig, prior_run_dir: Path) -> Path:
@@ -718,7 +830,6 @@ def _require_prior_run_dir(config: BenchConfig, prior_run_dir: Path) -> Path:
         raise ValueError(f"prior run path is not resolvable: {exc}") from exc
     if resolved == run_root or resolved.parent != run_root:
         raise ValueError("prior run directory must be a direct child of config.run_root")
-    validate_identifier(resolved.name, field="prior_run_id")
     if prior.name != resolved.name:
         raise ValueError("prior run directory basename is unsafe")
     return resolved
@@ -735,18 +846,52 @@ def _load_prior_manifest(prior: Path) -> dict[str, Any]:
     if not isinstance(run_id, str):
         raise ValueError("prior run id is missing")
     validate_identifier(run_id, field="prior_run_id")
-    if run_id != prior.name:
-        raise ValueError("prior run id does not match directory name")
-    prior_status = data.get("status")
-    if prior_status not in {"complete", "ineligible", "failed"}:
-        raise ValueError(f"prior run status is not reusable: {data.get('status')!r}")
+    config = data.get("config")
+    if not isinstance(config, dict):
+        raise ValueError("prior run config is missing")
+    harnesses = config.get("harnesses")
     jobs, artifacts, inputs = data.get("jobs"), data.get("artifacts"), data.get("inputs")
+    if not isinstance(config.get("tracks"), dict) or not isinstance(harnesses, dict):
+        raise ValueError("prior run config path identity is invalid")
     if (
         not isinstance(jobs, list)
         or not isinstance(artifacts, dict)
         or not isinstance(inputs, dict)
     ):
         raise ValueError("prior run-manifest.json jobs/artifacts shape is invalid")
+    implementation_jobs = [
+        job
+        for job in jobs
+        if isinstance(job, dict) and job.get("kind") == "implement"
+    ]
+    used_harnesses = {job.get("harness") for job in implementation_jobs}
+    used_tracks = {job.get("track") for job in implementation_jobs}
+    if (
+        not implementation_jobs
+        or any(not isinstance(value, str) or not value for value in used_harnesses | used_tracks)
+    ):
+        raise ValueError("prior run implementation path identity is invalid")
+    contestants: list[tuple[str, str]] = []
+    provider_by_harness: dict[str, str] = {}
+    for harness_id in sorted(cast(set[str], used_harnesses)):
+        spec = harnesses.get(harness_id)
+        if not isinstance(spec, dict):
+            raise ValueError(f"prior run harness config is missing: {harness_id}")
+        provider, model = spec.get("provider_family"), spec.get("model")
+        if not isinstance(provider, str) or not provider or not isinstance(model, str) or not model:
+            raise ValueError("prior run config contestant identity is invalid")
+        contestants.append((provider, model))
+        provider_by_harness[harness_id] = provider
+    expected_name = run_path_name(
+        run_id,
+        tracks=cast(set[str], used_tracks),
+        contestants=contestants,
+    )
+    if prior.name != expected_name:
+        raise ValueError("prior run directory name does not match manifest identity")
+    prior_status = data.get("status")
+    if prior_status not in {"complete", "ineligible", "failed"}:
+        raise ValueError(f"prior run status is not reusable: {data.get('status')!r}")
     prior_mode = data["run"].get("mode")
     if prior_mode not in {"local", "publication"}:
         raise ValueError("prior run mode is invalid")
@@ -757,6 +902,7 @@ def _load_prior_manifest(prior: Path) -> dict[str, Any]:
         "jobs": jobs,
         "artifacts": artifacts,
         "inputs": inputs,
+        "provider_by_harness": provider_by_harness,
     }
 
 
@@ -824,33 +970,26 @@ def _tree_hash(file_hashes: Mapping[str, str]) -> str:
 
 def _prior_reusable_submissions(prior: Path, prior_man: Mapping[str, Any]) -> list[dict[str, Any]]:
     artifacts, jobs, prior_run_id = prior_man["artifacts"], prior_man["jobs"], prior_man["run_id"]
-    sids = sorted(
-        {
-            rel.split("/")[1]
-            for rel in artifacts
-            if isinstance(rel, str) and rel.startswith("snapshots/") and rel.count("/") >= 2
-        }
-    )
+    attempt_dir = prior / "attempts"
+    if attempt_dir.is_symlink() or not attempt_dir.is_dir():
+        raise ValueError("prior attempts path must be a real directory")
     out: list[dict[str, Any]] = []
-    for sid in sids:
-        validate_identifier(sid, field="submission_id")
-        rel = f"attempts/{sid}.json"
-        digest = artifacts.get(rel)
-        if not isinstance(digest, str):
-            raise ValueError(f"prior attempt artifact is undeclared: {rel}")
-        path = prior / "attempts" / f"{sid}.json"
-        if path.is_symlink() or not path.is_file() or sha256_file(path) != digest:
-            raise ValueError(f"prior attempt is missing or hash-mismatched: {rel}")
+    seen: set[str] = set()
+    for path in sorted(attempt_dir.glob("*.json"), key=lambda item: item.name):
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f"prior attempt must be a regular file: {path.name}")
         try:
             attempt = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise ValueError(f"prior attempt JSON is unreadable: {exc}") from exc
         if not isinstance(attempt, dict):
-            raise ValueError(f"prior attempt JSON must be an object: {rel}")
-        if attempt.get("submission_id") != sid or attempt.get("run_id") != prior_run_id:
+            raise ValueError(f"prior attempt JSON must be an object: {path.name}")
+        sid = validate_identifier(attempt.get("submission_id"), field="submission_id")
+        if sid in seen:
+            raise ValueError(f"duplicate prior submission ID: {sid}")
+        seen.add(sid)
+        if attempt.get("run_id") != prior_run_id:
             raise ValueError("prior attempt identity mismatch")
-        if attempt.get("implementation_success") is not True:
-            raise ValueError(f"prior attempt is not implementation-successful: {sid}")
         for field in (
             "track",
             "harness",
@@ -867,7 +1006,29 @@ def _prior_reusable_submissions(prior: Path, prior_man: Mapping[str, Any]) -> li
             or attempt["repetition"] < 1
         ):
             raise ValueError("prior attempt repetition is invalid")
-        prefix, declared = f"snapshots/{sid}/", {}
+        readable = submission_path_name(
+            track=attempt["track"],
+            harness=attempt["harness"],
+            provider=prior_man["provider_by_harness"][attempt["harness"]],
+            model=attempt["model_id"],
+            repetition=attempt["repetition"],
+            submission_id=sid,
+        )
+        if path.name == f"{readable}.json":
+            stored_name = readable
+        elif path.name == f"{sid}.json":
+            stored_name = sid
+        else:
+            raise ValueError(f"prior attempt filename does not match identity: {path.name}")
+        rel = f"attempts/{stored_name}.json"
+        digest = artifacts.get(rel)
+        if not isinstance(digest, str):
+            raise ValueError(f"prior attempt artifact is undeclared: {rel}")
+        if sha256_file(path) != digest:
+            raise ValueError(f"prior attempt is hash-mismatched: {rel}")
+        if attempt.get("implementation_success") is not True:
+            continue
+        prefix, declared = f"snapshots/{stored_name}/", {}
         for a_rel, a_dig in artifacts.items():
             if not isinstance(a_rel, str) or not a_rel.startswith(prefix):
                 continue
@@ -884,7 +1045,7 @@ def _prior_reusable_submissions(prior: Path, prior_man: Mapping[str, Any]) -> li
             declared[file_rel] = a_dig
         if not declared:
             raise ValueError(f"empty or undeclared snapshot for submission {sid}")
-        snap = prior / "snapshots" / sid
+        snap = prior / "snapshots" / stored_name
         if snap.is_symlink() or not snap.is_dir():
             raise ValueError(f"prior snapshot is not a real directory: {sid}")
         try:
@@ -1645,21 +1806,50 @@ def _write_manifest(
 ) -> None:
     write_manifest(
         run_dir / "run-manifest.json",
-        build_manifest(
-            runner_version=__version__,
-            run_id=run_id,
-            mode=config.mode,
-            config=config_to_public_dict(config),
-            inputs=inputs,
-            pricing=dict(pricing),
-            jobs=jobs,
-            artifacts=artifacts,
-            tooling=tooling,
-            status=status,
-            started_at=started,
-            finished_at=finished,
+        _manifest_payload(
+            config,
+            run_id,
+            started,
+            status,
+            pricing,
+            jobs,
+            artifacts,
+            inputs,
+            tooling,
+            finished=finished,
             runner_git=runner_git,
         ),
+    )
+
+
+def _manifest_payload(
+    config: BenchConfig,
+    run_id: str,
+    started: str,
+    status: str,
+    pricing: Mapping[str, Any],
+    jobs: list[dict[str, Any]],
+    artifacts: dict[str, str],
+    inputs: dict[str, str],
+    tooling: list[dict[str, Any]],
+    *,
+    finished: str | None = None,
+    runner_git: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    return build_manifest(
+        runner_version=__version__,
+        run_id=run_id,
+        mode=config.mode,
+        config=config_to_public_dict(config),
+        inputs=inputs,
+        pricing=dict(pricing),
+        jobs=jobs,
+        artifacts=artifacts,
+        tooling=tooling,
+        status=status,
+        started_at=started,
+        finished_at=finished,
+        runner_git=runner_git,
     )
 
 

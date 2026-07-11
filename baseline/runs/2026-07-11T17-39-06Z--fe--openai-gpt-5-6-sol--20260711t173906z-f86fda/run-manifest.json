@@ -1,0 +1,300 @@
+{
+  "artifacts": {
+    "attempts/fe-codex-openai-gpt-5-6-sol-r1--4b548d44.json": "0f75a4f547f633b0e1647f8e75cb6737e9d6cf53db4c3205dfb27bac7f4c2a61",
+    "evaluations/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/judge-codex-openai-gpt-5-6-sol--4c5ff05c/output/report.md": "fcf30fbb76eb269993dc7c1c3d9e5390f808acb04c266d6d5fb4faa421d53416",
+    "evaluations/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/judge-codex-openai-gpt-5-6-sol--4c5ff05c/output/result.json": "04c94bcf6ad13b273c1db7d61116aaf862b973c87bf587d8fb99b0af2673e1e7",
+    "layout.json": "07c4779d544c1ea59a235c60133b02820a68cd411820f9d350f6ecf00673c01c",
+    "leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.csv": "e2a3cbe7e25e9ea6d78e9f84be10f51791f277b524a84ac9f6b9207fa555628a",
+    "leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json": "e61d4e154e688453a2cbf68f2c8fb0f9b5f42945e74b81fc103167e8da03d4a3",
+    "leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.md": "dc69d64786cb2c630aa37cc6b2990f3d4cf879f959f617c850f9057b31a73f32",
+    "report.html": "13ab64ddfa32853f892203f0b2edd4a5a1c4756a2ca49a9bc1ba0cf1ac3bb9a4",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/AGENTS.md": "19441be5d9ba24753ec07c4dd4252a651edc00c75ef260755ed41aeb4b2e99de",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/DESIGN.md": "75f5cda5d4499972ca685dde9c1a00b4d995b78be1adff9f634518c629934546",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/INIT.md": "e026f4e891e450383e1ee5b1d854a6721fa56d54ea93ac1c60b221f155163a10",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/index.html": "ba2a48747449da755af6d70212699f8351c0e44d927791fe06c14a5701eb16fc",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/.DS_Store": "d00051527a3b18209835927d6566ed976beadf0e981631d4ffa2fff97509df46",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/basecamp-sdk/README.md": "80ba4d861b4a7b41bc61fb60254377625a42e6e856189189400f205a50c0dec9",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/basecamp-sdk/SPEC.md": "4c5fc2f6833692ac6d774ea5d383c8044d6dc32b9e67e3dda61bd00e5382bd79",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/basecamp-sdk/behavior-model.json": "fad16ecf28d662e9c17c129c14df77092cc77c1e15ec82be152f411e4cdfb11e",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/basecamp-sdk/openapi.json": "a82395b8fd661f97bd33c24f9a861d3120189d91214577dc7d016c1af881fe87",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/.DS_Store": "a576af057c69f47175449d1dce84005e03963621dee8a3aacb1bc2abe4bf7ad2",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/home.png": "21e24e1dfa6aea04537bf1bad5d3e2d3cec4f36d476118963740d6a9586cf90d",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/jump-menu.png": "54c34b00468a509d4d1d5b55d1e349a4c20adb9b0543a02c4bd340b9d62f2b7c",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/sample-card-table.png": "bf9536ac12e3b30a03b9e1ccfc4058f39abe6283d14b8defce395d882e79f4aa",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/sample-chat.png": "983f6ebe229d0d6688aee318df079bf14141925d63e0609de75b8c16cac10f90",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/sample-docs-files.png": "02a3ede93f21ced9d9f9ea53887e7df24408a039a2b3e70a766b13525bf6ba02",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/sample-message-board.png": "036e20576ded8ac00823b1581d7d7371cb47e26bba12298902b36dc1a52248d4",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/sample-project-dock.png": "eab6e28a77921f7b40c5415da9f44a79aef567aad0ba37239bfc395e4321b832",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/sample-todo-page.png": "fc8509fc5361e05ec92357810910ac47198de0077f6cb563b0b9f41e5336e2d0",
+    "snapshots/fe-codex-openai-gpt-5-6-sol-r1--4b548d44/reference/screens/sample-todos.png": "a2721d634211ef538bbc801d2d562f3999c5c541732d746462e7f4112b1bb3b6"
+  },
+  "config": {
+    "evaluators": [
+      {
+        "effort": "high",
+        "enabled": true,
+        "harness": "codex",
+        "id": "eval-sol",
+        "model": "gpt-5.6-sol",
+        "provider_family": "openai"
+      }
+    ],
+    "full_access": false,
+    "harnesses": {
+      "claude": {
+        "adapter": "claude",
+        "display_name": "Claude Fable 5",
+        "effort": "high",
+        "enabled": true,
+        "model": "claude-fable-5",
+        "provider_family": "anthropic"
+      },
+      "codex": {
+        "adapter": "codex",
+        "display_name": "GPT-5.6 Sol",
+        "effort": "high",
+        "enabled": true,
+        "model": "gpt-5.6-sol",
+        "provider_family": "openai"
+      },
+      "grok": {
+        "adapter": "grok",
+        "display_name": "Grok 4.5",
+        "effort": "high",
+        "enabled": true,
+        "model": "grok-4.5",
+        "provider_family": "xai"
+      },
+      "pi-glm": {
+        "adapter": "pi",
+        "display_name": "GLM 5.2 via OpenRouter",
+        "effort": "high",
+        "enabled": true,
+        "model": "glm-5.2",
+        "provider_family": "zai"
+      }
+    },
+    "mode": "local",
+    "pricing": {
+      "glm-5.2": {
+        "cache_read": 0.078,
+        "cache_write": 0.42,
+        "input": 0.42,
+        "output": 1.32
+      }
+    },
+    "reference_manifest": "benchmarks/reference-pack.json",
+    "reference_root": "Repo/reference",
+    "repetitions": 1,
+    "run_root": "runs",
+    "seed_root": "Repo",
+    "timeout_s": 14400,
+    "tracks": {
+      "fe": {
+        "contract": "benchmarks/fe/contract.json",
+        "prompt": "benchmarks/fe/prompt.md",
+        "rubric": "benchmarks/fe/eval.md"
+      }
+    }
+  },
+  "costs": {
+    "complete": true,
+    "known_evaluation_usd": 3.4055,
+    "known_implementation_usd": 0.0,
+    "known_total_usd": 3.4055,
+    "unknown_job_count": 0
+  },
+  "environment": {
+    "locale_encoding": "UTF-8",
+    "locale_language": "C",
+    "platform_architecture": "64bit",
+    "platform_machine": "arm64",
+    "platform_release": "24.6.0",
+    "platform_system": "Darwin",
+    "platform_version": "Darwin Kernel Version 24.6.0: Mon Jul 14 11:30:30 PDT 2025; root:xnu-11417.140.69~1/RELEASE_ARM64_T6020",
+    "python_compiler": "Clang 14.0.6 ",
+    "python_implementation": "CPython",
+    "python_version": "3.12.4",
+    "timezone_name": "+07",
+    "timezone_offset": "+0700"
+  },
+  "inputs": {
+    "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+    "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+    "prior_run:20260711t161255z-843ef2": "ccbc1a61c3e7f5e78716d38d9384bac2c6bed051f8dfa6a69b104df8969bcd8f",
+    "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+    "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+    "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+    "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+    "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+    "reuse_snapshot_tree:id-4b548d44": "c02d8e52279ef3690e7b79363d2dee3a3df2639d6aaef0f4afa50d92ed0a96f9",
+    "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+    "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+    "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+    "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+    "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+    "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+    "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+  },
+  "jobs": [
+    {
+      "command_preview": "reuse prior_run=20260711t161255z-843ef2 snapshot_tree_sha256=c02d8e52279ef3690e7b79363d2dee3a3df2639d6aaef0f4afa50d92ed0a96f9 prior_contract_version=2026-07-11.2 prior_contract_sha256=ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1 current_contract_version=2026-07-11.2 current_contract_sha256=ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+      "cost_usd": 4.550144,
+      "duration_s": 989.830539124996,
+      "error": null,
+      "harness": "codex",
+      "id": "implement-id-4b548d44",
+      "interrupted": false,
+      "kind": "implement",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-4b548d44",
+      "timed_out": false,
+      "track": "fe",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 4012288,
+        "input_tokens": 271926,
+        "output_tokens": 39479
+      }
+    },
+    {
+      "command_preview": "codex exec -m gpt-5.6-sol -c model_reasoning_effort=high -C '<root>' -s workspace-write --skip-git-repo-check --json -o '<root>/20260711t173906z-f86fda/evaluations/id-4b548d44/id-4c5ff05c/last.md' --add-dir '<root>/20260711t173906z-f86fda/evaluations/id-4b548d44/id-4c5ff05c/seed' --add-dir '<root>/20260711t173906z-f86fda/evaluations/id-4b548d44/id-4c5ff05c/submission' -",
+      "cost_usd": 3.4055,
+      "duration_s": 555.4462332080002,
+      "error": null,
+      "eval_attempt_id": "id-4c5ff05c",
+      "evaluator_id": "eval-sol",
+      "harness": "codex",
+      "id": "evaluate-id-4c5ff05c",
+      "interrupted": false,
+      "invalid_reasons": [],
+      "kind": "evaluate",
+      "repetition": 1,
+      "reported_cost_usd": null,
+      "returncode": 0,
+      "submission_id": "id-4b548d44",
+      "timed_out": false,
+      "track": "fe",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 3243520,
+        "input_tokens": 259350,
+        "output_tokens": 16233
+      },
+      "valid": true
+    }
+  ],
+  "pricing": {
+    "cache_path": ".pricing-cache.json",
+    "complete": true,
+    "error": null,
+    "limitations": [],
+    "retrieved_at": "2026-07-11T11:12:36Z",
+    "source": "cache",
+    "stale": false,
+    "url": "https://models.dev/api.json"
+  },
+  "run": {
+    "finished_at": "2026-07-11T17:48:22Z",
+    "id": "20260711t173906z-f86fda",
+    "mode": "local",
+    "started_at": "2026-07-11T17:39:06Z"
+  },
+  "runner": {
+    "commit": "bfd6144bd0b95e3f34078a815b42e3d5309cebcf",
+    "dirty": true,
+    "error": null,
+    "version": "1.0.0a1"
+  },
+  "schema_version": "1.0",
+  "status": "complete",
+  "tooling": [
+    {
+      "adapter": "claude",
+      "adapter_version": "1.0.0a1",
+      "config_id": "claude",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": null,
+      "executable_version": "2.1.206 (Claude Code)",
+      "model_id": "claude-fable-5",
+      "provider_family": "anthropic",
+      "role": "implementation",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    },
+    {
+      "adapter": "codex",
+      "adapter_version": "1.0.0a1",
+      "config_id": "codex",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": null,
+      "executable_version": "codex-cli 0.144.1",
+      "model_id": "gpt-5.6-sol",
+      "provider_family": "openai",
+      "role": "implementation",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    },
+    {
+      "adapter": "grok",
+      "adapter_version": "1.0.0a1",
+      "config_id": "grok",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": null,
+      "executable_version": "grok 0.2.93 (f00f96316d4b)",
+      "model_id": "grok-4.5",
+      "provider_family": "xai",
+      "role": "implementation",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    },
+    {
+      "adapter": "pi",
+      "adapter_version": "1.0.0a1",
+      "config_id": "pi-glm",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": null,
+      "executable_version": "0.80.6",
+      "model_id": "glm-5.2",
+      "provider_family": "zai",
+      "role": "implementation",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    },
+    {
+      "adapter": "codex",
+      "adapter_version": "1.0.0a1",
+      "config_id": "codex",
+      "deterministic_seed": {
+        "limitation": "Agent CLI exposes no deterministic seed control.",
+        "supported": false
+      },
+      "effort": "high",
+      "evaluator_id": "eval-sol",
+      "executable_version": "codex-cli 0.144.1",
+      "model_id": "gpt-5.6-sol",
+      "provider_family": "openai",
+      "role": "evaluator",
+      "runner_version": "1.0.0a1",
+      "version_error": null
+    }
+  ]
+}

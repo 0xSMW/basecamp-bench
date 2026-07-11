@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "track": "be",
+  "submission_id": "id-4d93e09d",
+  "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "architecture_domain": {
+      "score": 7.0,
+      "notes": "A coherent shared Recording graph and reusable lifecycle primitives exist, but generic ID routing does not enforce resource types, parents, buckets, or inherited lifecycle state.",
+      "evidence": [
+        "submission/server.js:111-139 and 325-369 centralize Recording, parent/bucket, event, lifecycle, pagination, and update behavior.",
+        "The deterministic state contains 85 recordings across 20 types with project, tool, content, comment, and step relationships.",
+        "Runtime: GET /999999/todos/2001 returned a Message, and creating under /todolists/2001 produced a Todo with a Message parent.",
+        "Runtime: archiving Message 2001 left child Comment 3000 active and readable despite inherits_status=true."
+      ]
+    },
+    "endpoint_coverage": {
+      "score": 10.0,
+      "notes": "The complete canonical method/path surface is registered and reachable; implementation depth is separately limited by explicit stubs.",
+      "evidence": [
+        "submission/server.js:69-83 compiles routes directly from the unchanged canonical OpenAPI and asserts 203 operations.",
+        "Independent enumeration found 131 paths and 203 operations: 100 GET, 41 POST, 42 PUT, and 20 DELETE.",
+        "All 203 concrete templates matched; 132 dispatch to handlers and 71 reach explicit 501 not_implemented responses.",
+        "submission/server.js:640-651 returns 405 with Allow when a path exists under another method."
+      ]
+    },
+    "behavioral_depth": {
+      "score": 6.0,
+      "notes": "Core CRUD, lifecycle, search, events, idempotency, and request-to-request state work, but 71 operations are stubbed and important parent/status/count invariants fail.",
+      "evidence": [
+        "Runtime Todo create, update, complete, read, and event history persisted coherently within the running handler state.",
+        "Runtime idempotency replay returned the same created ID; reuse with a different payload returned 409.",
+        "71 of 203 operations have no behavioral handler and return explicit 501.",
+        "Runtime accepted a Todo under a Message, kept trashed Todos in normal lists, allowed mutation after project trash, and did not cascade archive state.",
+        "submission/server.js:264-279 provides optional atomic JSON-file persistence, while in-process mutation persistence was directly verified."
+      ]
+    },
+    "http_contract": {
+      "score": 6.0,
+      "notes": "Baseline HTTP behavior is strong, but typed-resource responses, several request/response schemas, nested identifiers, and operation semantics materially diverge from OpenAPI.",
+      "evidence": [
+        "Runtime verified structured errors, empty 204s, 201 creation, pagination Link and X-Total-Count, request IDs, ETag/304, and rate-limit headers.",
+        "submission/server.js:653-701 validates required fields, primitive types, maxLength, patterns, and enums from OpenAPI.",
+        "Typed GET /todos/2001 returned a Message; nested parent IDs are not enforced.",
+        "Subscription handlers use non-contract keys/shapes and statuses; card-column on_hold is a boolean and enable/disable returns only an enabled flag.",
+        "Project access returns numeric IDs instead of Person objects, and Todo content updates can leave title stale."
+      ]
+    },
+    "seed_fidelity": {
+      "score": 8.0,
+      "notes": "The required sample account/project graph is rich, deterministic, and navigable, with targeted discrepancies in assignments, boosts, completion events, chat authorship, and shared steps.",
+      "evidence": [
+        "submission/server.js:142-261 seeds the exact project name/description, 8 sample people plus owner, all-access, and the six required tools.",
+        "Verified counts: 5 messages, 2 lists, 10 Todos, 7 columns, 13 cards, 3 file items, 2 schedule entries, 16 chat lines, 15 comments, 70 events, and 8 boosts.",
+        "Kickoff is pinned with 4 comments, 7 boosts, and 5 subscribers; the pitch has 7 comments; IDs and timestamps are fixed.",
+        "The Review card has no assignees, boosted comments and card completion/move events are absent, Chat uses 8 authors, and the Todo subtask is not a stored shared Step."
+      ]
+    },
+    "request_hardening": {
+      "score": 6.5,
+      "notes": "Bearer auth, rate limiting, media/body/error controls, and idempotency are solid; role authorization and type, relationship, date, and identifier validation remain incomplete.",
+      "evidence": [
+        "Runtime verified 401 for missing/invalid bearer tokens, 404 wrong account, 400 malformed JSON, 413 oversized body, 415 media type, 422 validation, and 429 with Retry-After.",
+        "submission/server.js:26-28 rejects the default token in production; 281-293 uses timing-safe token comparison and rate limiting.",
+        "The only token always authenticates as owner Person 1, so collaborator/client/employee authorization cannot be exercised through HTTP.",
+        "Runtime accepted due_on=garbage, nonexistent category_id, a wrong parent type, and returned 200 [] for people on a nonexistent project.",
+        "Runtime rejected a present streamed JSON body with 422 solely because Content-Length was absent."
+      ]
+    },
+    "operability": {
+      "score": 8.5,
+      "notes": "The server is production-shaped and dependency-free with strong configuration, health, logging, CORS, shutdown, reset, and persistence seams, but lacks authored packaging/docs/tests.",
+      "evidence": [
+        "node --check submission/server.js passed; the executable targets dependency-free Node 22.",
+        "submission/server.js:4-28 validates host, port, URL, token, persistence, body, rate, and CORS configuration.",
+        "submission/server.js:703-839 implements health/readiness/OpenAPI, structured logs and request IDs, CORS, ETags, timeouts, graceful signals, and gated reset.",
+        "submission/server.js:264-279 uses mode-0600 temporary files and atomic rename for optional persistence.",
+        "No package manifest, submission-authored tests, run guide, or conformance harness was added."
+      ]
+    },
+    "code_quality": {
+      "score": 7.0,
+      "notes": "Readable helpers and centralized infrastructure clarify substantial behavior, while dense global handlers and type-erasing generic routing reduce safety and maintainability.",
+      "evidence": [
+        "The implementation has clear helper layers for schemas, recordings, persistence, auth, pagination, HTTP responses, and dispatch.",
+        "submission/server.js:372-633 is a large dense handler object over global mutable STATE with many one-line operations.",
+        "submission/server.js:315-320 reduces routing duplication by discarding expected type and parent context, directly causing cross-resource correctness defects.",
+        "The single file is syntax-valid, dependency-free, and exports useful test seams at submission/server.js:840-843."
+      ]
+    },
+    "scope_honesty": {
+      "score": 8.0,
+      "notes": "Most unsupported behavior is clearly fail-closed with 501, though several nominal handlers return shallow or misleading 2xx responses.",
+      "evidence": [
+        "submission/server.js:802-805 explicitly identifies every missing operation as registered but not implemented.",
+        "Runtime GET /999999/buckets/1000/webhooks.json returned 501 with not_implemented and the operation name.",
+        "submission/server.js:683-687 explicitly rejects registered binary/multipart behavior as 501.",
+        "Misleading successes include wrong-type typed getters, fabricated one-item upload version history, arbitrary schedule occurrences, and no-op/malformed subscription and on-hold responses."
+      ]
+    }
+  },
+  "summary": "A broad, production-shaped dependency-free API with complete route registration, a rich deterministic seed, and meaningful stateful core behavior. Its ceiling is set by 71 explicit stubs plus serious type/parent/lifecycle invariant gaps and several OpenAPI request/response mismatches."
+}

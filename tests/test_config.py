@@ -55,6 +55,14 @@ class DefaultsTests(unittest.TestCase):
         self.assertEqual(config.repetitions, 1)
         self.assertFalse(config.full_access)
         self.assertEqual(set(config.harnesses), {"codex", "claude", "grok"})
+        self.assertEqual(
+            {key: config.harnesses[key].display_name for key in ("codex", "claude", "grok")},
+            {
+                "codex": "GPT-5.6 Sol",
+                "claude": "Claude Fable 5",
+                "grok": "Grok 4.5",
+            },
+        )
         self.assertEqual(set(config.tracks), {"fe", "be"})
         self.assertEqual(config.evaluators[0].id, "eval-sol")
         self.assertEqual(config.run_root, repo / "runs")

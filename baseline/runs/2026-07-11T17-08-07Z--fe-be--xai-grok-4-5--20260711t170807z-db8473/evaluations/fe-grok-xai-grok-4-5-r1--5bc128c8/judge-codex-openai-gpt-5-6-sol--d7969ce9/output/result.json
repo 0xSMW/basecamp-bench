@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "track": "fe",
+  "submission_id": "id-5bc128c8",
+  "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "reference_fidelity": {
+      "score": 7.0,
+      "notes": "Strong reproduction of the reference shell and required screen anatomy, with compressed page geometry, placeholder avatars, and emoji icons reducing fidelity.",
+      "evidence": [
+        "submission/index.html:1894-2188 recreates the persistent shell, three-column Home, project dock, and Message Board anatomy shown in seed/reference/screens/.",
+        "submission/index.html:585-586 caps the central page shell at 92rem, materially narrower than the supplied detail-screen references.",
+        "submission/index.html:1826-1831 uses colored initials instead of the reference portrait avatars, while submission/index.html:2677-2694 uses emoji/text icon approximations."
+      ]
+    },
+    "visual_craft": {
+      "score": 7.2,
+      "notes": "A coherent Basecamp-derived light/dark design system supports detailed surfaces, but prototype placeholders, native prompts, and inert affordances weaken finish.",
+      "evidence": [
+        "submission/index.html:7-441 implements the supplied color ramps, typography, spacing, radius, shadow, component, and motion tokens.",
+        "submission/index.html:442-1280 applies the token system consistently across shell, panels, forms, tool views, overlays, and micro-UI.",
+        "submission/index.html:3187-3235 uses native prompt flows, and several rendered controls in submission/index.html:2177-2622 have no action handlers."
+      ]
+    },
+    "product_model": {
+      "score": 8.0,
+      "notes": "The required Basecamp graph and launch narrative are richly represented across tools, though shared Recording semantics and account-wide relationships are shallow.",
+      "evidence": [
+        "submission/index.html:1354-1720 seeds the exact eight-person sample cast plus categorized messages, boosts, comments, subscribers, to-dos, cards, docs, events, chat, activity, pings, and readings.",
+        "Executed seed counts were 5 messages, 2 lists/10 to-dos, 7 columns/13 cards, 3 docs, 2 events, and 16 chat lines.",
+        "submission/index.html:2968-3003 hardcodes Everything/Search to proj_launch and does not model the shared Recording envelope specified by seed/INIT.md."
+      ]
+    },
+    "surface_coverage": {
+      "score": 7.5,
+      "notes": "All screenshot-backed screens and many optional destinations are reachable, while several administrative and secondary tools are absent or explicit stubs.",
+      "evidence": [
+        "submission/index.html:1766-1802 and 2934-3004 define reachable primary routes plus Schedule, Activity, Calendar, Reports, Everything, Adminland, Assignments, and Search.",
+        "Controlled execution produced non-empty output for every primary list/detail route and the optional account routes with valid IDs.",
+        "submission/index.html:2961-2965 labels major Reports areas stubbed; submission/index.html:3114-3137 rejects Check-ins, Forwards, and Doors as not fully wired."
+      ]
+    },
+    "functional_depth": {
+      "score": 6.5,
+      "notes": "Many create, completion, comment, movement, filtering, and navigation paths work and persist, but edit/delete and numerous secondary controls are missing or inert.",
+      "evidence": [
+        "submission/index.html:3029-3385 implements project/tool/message/to-do/card/comment/boost/doc/chat/star/theme/bookmark/note mutations.",
+        "A controlled completion test changed td_dns from false to true, serialized it, and reloaded it as true; a posted unsafe-looking comment rendered escaped.",
+        "Bubble Up only toasts, comment boosts and sidebar filtering are inert, edit/delete are absent, and enabled-looking category/sort/view/tab/options/notify controls have no working actions."
+      ]
+    },
+    "interaction_quality": {
+      "score": 6.1,
+      "notes": "Keyboard shortcuts, live filtering, focus feedback, and toasts are strong, but modal focus, native prompts, inert controls, and recovery paths remain weak.",
+      "evidence": [
+        "submission/index.html:3388-3458 implements Jump, sidebar, My Bar, Shhh, help, and numeric keyboard shortcuts with Escape dismissal.",
+        "submission/index.html:3000-3015 and 3362-3373 provide Jump autofocus and caret-preserving live filters.",
+        "Standard modals lack focus trapping/restoration, Jump has no arrow-key selection, and several click-only divs and inert buttons are presented as interactive."
+      ]
+    },
+    "state_persistence": {
+      "score": 6.0,
+      "notes": "Core mutations persist in one localStorage graph, but malformed-state handling, migrations, ID stability, and Bubble Up persistence are inadequate.",
+      "evidence": [
+        "submission/index.html:1748-1757 and 3029-3385 save most state transitions; a tested to-do completion survived simulated reload.",
+        "A stored same-version object with missing fields crashed rendering because submission/index.html:1738-1747 accepts it without schema validation or default merging.",
+        "submission/index.html:1307 resets the UID counter on reload; direct testing produced duplicate proj_1001 IDs, and Bubble Up made no readings change."
+      ]
+    },
+    "responsive_adaptation": {
+      "score": 4.0,
+      "notes": "Home and dock columns adapt, but the desktop-shaped fixed footer/sidebar and absence of mobile navigation create serious narrow-screen usability risk.",
+      "evidence": [
+        "submission/index.html:622-625 stacks Home and submission/index.html:721-722 changes the dock from three to two to one column.",
+        "submission/index.html:957-974 gives the Card Table a horizontal scrolling model.",
+        "submission/index.html:486-525 and 1908-1923 retain a three-part fixed footer with five nowrap center actions at every width; no mobile media rule exists."
+      ]
+    },
+    "accessibility": {
+      "score": 4.8,
+      "notes": "Landmarks, focus styling, live announcements, and shortcuts provide a useful baseline, but modal semantics/focus, control naming, reduced motion, and valid interaction structure are materially incomplete.",
+      "evidence": [
+        "submission/index.html:1-5, 442-461, 1288-1291, and 1868-1925 provide language/viewport metadata, skip link, focus ring, main/breadcrumb landmarks, and a polite live region.",
+        "submission/index.html:2674-2815 names Jump/sidebar/tray dialogs, but standard modals at submission/index.html:2820-2930 lack dialog roles and modal state.",
+        "Click-only div controls, inconsistent labels, unnamed step checkboxes, nested button-in-anchor markup, and no prefers-reduced-motion rule limit keyboard and assistive-technology use."
+      ]
+    },
+    "code_architecture": {
+      "score": 5.5,
+      "notes": "Clear internal sections and reusable helpers make the single-file SPA understandable, but routing, state, templates, and a large dispatcher remain tightly coupled and untested.",
+      "evidence": [
+        "submission/index.html:1294-3476 is organized into Seed, State, Router, helpers, views, rendering, actions, and keyboard sections with delegated events.",
+        "submission/index.html:2934-3007 replaces the entire app shell and overlay DOM on updates, while some renderers persist visit side effects.",
+        "The complete delta is one 3,478-line HTML file with no modules, tests, schema, migration layer, or injectable test seams."
+      ]
+    },
+    "reliability": {
+      "score": 6.0,
+      "notes": "The dependency-free SPA executes, escapes common user input, and handles unknown records, but direct tests exposed malformed-state, malformed-route, and duplicate-ID failures.",
+      "evidence": [
+        "The extracted inline JavaScript parsed and executed, and valid primary routes generated non-empty output without runtime exceptions.",
+        "submission/index.html:1306, 1844-1856, 2532-2537, and 3068-3355 escape common user input and use rel=noopener for external links.",
+        "Direct tests reproduced a same-version malformed-state crash, an unguarded decodeURIComponent URI malformed crash, and duplicate project IDs after reload."
+      ]
+    }
+  },
+  "summary": "A substantial and recognizable Basecamp 5 SPA with rich sample data, broad required-surface coverage, coherent styling, and many persistent workflows. It remains prototype-shaped in edit/delete depth, mobile usability, accessibility, state validation, and maintainability, with numerous inert controls and concrete reload/malformed-state failures."
+}

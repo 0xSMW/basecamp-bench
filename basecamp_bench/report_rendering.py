@@ -239,6 +239,7 @@ def _models_table(models: Sequence[Mapping[str, Any]]) -> str:
         "Implementation cost max",
         "Implementation cost range",
         "Evaluation overhead per attempt",
+        "Total cost per attempt",
         "Success rate",
         "Repetitions",
         "Judge spread",
@@ -247,11 +248,11 @@ def _models_table(models: Sequence[Mapping[str, Any]]) -> str:
         "Tokens min",
         "Tokens max",
         "Tokens range",
-        "Duration median (s)",
-        "Duration mean (s)",
-        "Duration min (s)",
-        "Duration max (s)",
-        "Duration range (s)",
+        "End-to-end agent duration median (s)",
+        "End-to-end agent duration mean (s)",
+        "End-to-end agent duration min (s)",
+        "End-to-end agent duration max (s)",
+        "End-to-end agent duration range (s)",
         "Classification",
         "Dominator",
         "Marginal cost/quality",
@@ -281,6 +282,7 @@ def _models_table(models: Sequence[Mapping[str, Any]]) -> str:
             _escape(_fmt_num(m.get("cost_max"))),
             _escape(_fmt_num(m.get("cost_range"))),
             _escape(_fmt_num(m.get("evaluation_cost_per_attempt"))),
+            _escape(_fmt_num(m.get("total_cost_per_attempt"))),
             _escape(_fmt_num(m.get("success_rate"))),
             _escape(m.get("repetitions")),
             _escape(_fmt_num(m.get("judge_spread"))),
@@ -325,7 +327,7 @@ def _raw_attempts_table(models: Sequence[Mapping[str, Any]]) -> str:
         "Evaluation cost",
         "Evaluator count",
         "Tokens",
-        "Duration",
+        "End-to-end agent duration (s)",
         "Reason labels",
     ]
     thead = "".join(f'<th scope="col">{_escape(h)}</th>' for h in headers)
@@ -383,6 +385,17 @@ def _methodology_html() -> str:
       (<code>evaluation_cost_per_attempt</code>) is reported for transparency
       only. It never changes Pareto membership or expected implementation
       cost.</li>
+    <li><strong>Total cost per attempt</strong> is observed implementation cost
+      plus evaluator overhead. The frontier continues to use implementation
+      cost so evaluator routing does not change contestant cost ranking.</li>
+    <li><strong>End-to-end agent duration</strong> is implementation process
+      time plus the critical-path evaluator process time. Parallel evaluators
+      contribute their maximum duration rather than their sum; queueing,
+      snapshot copying, aggregation, and report rendering are excluded.</li>
+    <li><strong>Runner compatibility</strong>: local exploratory reports may
+      combine matching benchmark evidence from different runner revisions and
+      list every source hash. Publication reports keep runner revisions in
+      separate comparison sections.</li>
     <li><strong>Success handling</strong>: a success rate of zero forces the
       entry ineligible even if the source marked it eligible. Ineligible and
       failed attempts remain visible in tables and denominators.</li>
@@ -461,6 +474,11 @@ def render_report_html(payload: Mapping[str, Any]) -> str:
         ):
             body_parts.append(
                 f"<dt>{name}</dt><dd><code>{_escape(section.get(name, 'null'))}</code></dd>"
+            )
+        runner_sources = section.get("runner_source_sha256_values") or []
+        if len(runner_sources) > 1:
+            body_parts.append(
+                f"<dt>source runner hashes</dt><dd>{_escape(', '.join(runner_sources))}</dd>"
             )
         body_parts.append(
             f"<dt>source timestamps</dt><dd>{_escape(', '.join(section.get('generated_at_values') or []) or '—')}</dd>"

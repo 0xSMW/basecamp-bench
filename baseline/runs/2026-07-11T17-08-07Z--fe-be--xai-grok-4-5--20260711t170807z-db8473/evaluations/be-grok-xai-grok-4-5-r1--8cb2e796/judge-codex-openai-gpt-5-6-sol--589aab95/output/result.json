@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "track": "be",
+  "submission_id": "id-8cb2e796",
+  "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "architecture_domain": {
+      "score": 7.5,
+      "notes": "A real shared Recording store, hierarchy, serializers, and generic events/comments/boosts/subscriptions support many resource types, but lifecycle propagation stops at immediate children and dictionary models weakly enforce parent/bucket invariants.",
+      "evidence": [
+        "submission/server.py:230-276 and 382-428 centralize recordings and cross-cutting state in shared primitives.",
+        "submission/server.py:559-579 cascades status only to direct children; a live board archive left a grandchild comment active."
+      ]
+    },
+    "endpoint_coverage": {
+      "score": 9.7,
+      "notes": "All 203 canonical operations are registered with exact methods/templates; 202 reach their intended handlers and one canonical GET is shadowed by an earlier generic route.",
+      "evidence": [
+        "AST comparison found 203/203 OpenAPI operations registered across 131 paths, plus 80 extra routes.",
+        "The 203-operation HTTP sweep found one 500: GET /{accountId}/projects/recordings.json, shadowed by submission/server.py:2335-2340 before its intended handler at 2451-2476."
+      ]
+    },
+    "behavioral_depth": {
+      "score": 7.5,
+      "notes": "Process-lifetime CRUD and cross-cutting behavior are substantial and demonstrably stateful, with gaps in recursive lifecycle invariants and shallow clone/template workflows.",
+      "evidence": [
+        "Live project create/get/update/trash and todo create/complete/uncomplete/trash persisted and changed subsequent reads/lists.",
+        "Live message comment, boost, subscription, event, archive, and activate flows updated counts and status.",
+        "submission/server.py:2009-2014 shallow-clones only a tool root, and 4694-4729 reports completed template construction without materializing template content."
+      ]
+    },
+    "http_contract": {
+      "score": 7.0,
+      "notes": "Core schemas, URLs, errors, creation/deletion statuses, and pagination are strong, but a shadowed route, success-status mismatches, permissive required bodies, and regex path matching create material contract defects.",
+      "evidence": [
+        "Live pagination returned 15 items, X-Total-Count 21, a rel=next Link, and six items on page 2.",
+        "PUT /{accountId}/my/profile.json returned 200 although openapi.json:8620-8647 requires 204; question-answer update has the same 200-versus-204 defect at server.py:4469-4479.",
+        "A live malformed path /1/projects/1000Xjson matched project 1000 because server.py:2066-2071 does not escape route literals."
+      ]
+    },
+    "seed_fidelity": {
+      "score": 9.0,
+      "notes": "The required owner, eight-person sample cast, project, six tools, and rich linked content are stable and navigable; current-time touches make some seeded updated_at values nondeterministic.",
+      "evidence": [
+        "server.py --check reported 9 people, 1 project, 87 recordings, 5 messages, 10 todos, 13 cards, and 16 chat lines.",
+        "Live traversal found Launch the new website, all eight named sample people, dock IDs 2001-2006, 5 messages, 2 todo lists, docs/uploads, schedule entries, and paginated chat.",
+        "Two fresh runs gave recording 3001 identical fixed created_at but different current-time updated_at values due to server.py:283-284 and 466-540."
+      ]
+    },
+    "request_hardening": {
+      "score": 5.0,
+      "notes": "Bearer auth, tenancy checks, permissions, malformed JSON, limits, and structured errors work, while identifier safety, media types, required bodies, route parsing, and reset security have serious gaps.",
+      "evidence": [
+        "Live requests returned 401 for missing/bad auth, 404 for the wrong account, and 400 for malformed JSON.",
+        "An invalid project ID returned 500; text/plain JSON returned 422; missing bodies returned 200 for out-of-office, gauge, and question-answer update.",
+        "POST /admin/reset is unauthenticated and enabled by default at submission/server.py:2137-2152; a live call erased mutations and reseeded the store."
+      ]
+    },
+    "operability": {
+      "score": 6.5,
+      "notes": "The dependency-free server has health/readiness, environment configuration, logging, request IDs, CORS, shutdown, reset, and check seams, but global volatile state and insecure defaults limit production shape.",
+      "evidence": [
+        "python3 server.py --check completed successfully with route and seed counts.",
+        "submission/server.py:4816-4843 and 5042-5127 implement request IDs, CORS, threading, signal shutdown, CLI configuration, and smoke checking.",
+        "State is process-only; wildcard CORS, unauthenticated reset, and owner-token disclosure are defaults."
+      ]
+    },
+    "code_quality": {
+      "score": 6.5,
+      "notes": "Clear sections and reusable helpers make the required single-file package understandable, but stringly typed global dictionaries, repetition, and concrete router/lifecycle bugs make extension risky.",
+      "evidence": [
+        "Errors, store operations, serializers, pagination, routing, and transport are centralized in named sections.",
+        "The 5,131-line module mixes all layers and repeats many handler patterns; the first-match regex router caused a real canonical endpoint failure."
+      ]
+    },
+    "scope_honesty": {
+      "score": 4.5,
+      "notes": "The submission claims production-shaped completeness, yet several partial or hollow operations return successful responses instead of explicit unsupported/partial failures.",
+      "evidence": [
+        "submission/server.py:3-18 claims no hollow OpenAPI surface.",
+        "Question reminders always return [] at server.py:4027-4029; tool cloning is root-only at 2009-2014; template construction reports completed for an empty project at 4694-4729.",
+        "Missing required bodies still produced successful mutations for multiple canonical operations."
+      ]
+    }
+  },
+  "summary": "A highly complete, process-stateful single-file prototype with full route registration, rich deterministic seed data, and broad working CRUD/cross-cutting behavior. It falls short of production-grade fidelity through one shadowed canonical endpoint, shallow lifecycle propagation, several HTTP/request-validation violations, insecure reset/credential defaults, and successful responses for partial behavior."
+}

@@ -24,7 +24,8 @@ with acquire_lane_locks(root, lanes):
 class LaneLockTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
-        self.run_root = Path(self.temp.name) / "runs"
+        self.run_root = Path(self.temp.name)
+        self.lock_dir = self.run_root / ".basecamp-bench-locks"
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -74,14 +75,13 @@ class LaneLockTests(unittest.TestCase):
     def test_disjoint_lanes_can_run_concurrently(self) -> None:
         self.holder(("grok", "fe"), ("grok", "be"))
         with acquire_lane_locks(self.run_root, [("pi-glm", "fe"), ("pi-glm", "be")]):
-            self.assertTrue((self.run_root / ".locks" / "pi-glm--fe.lock").is_file())
+            metadata = [path.read_text() for path in self.lock_dir.glob("lane-*.lock")]
+            self.assertTrue(any('"lane":"pi-glm--fe"' in value for value in metadata))
 
     def test_partial_conflict_releases_earlier_sorted_lane(self) -> None:
         self.holder(("zeta", "fe"))
         with self.assertRaisesRegex(ValueError, "zeta--fe"):
-            with acquire_lane_locks(
-                self.run_root, [("alpha", "fe"), ("zeta", "fe")]
-            ):
+            with acquire_lane_locks(self.run_root, [("alpha", "fe"), ("zeta", "fe")]):
                 self.fail("partially overlapping lanes were admitted")
         with acquire_lane_locks(self.run_root, [("alpha", "fe")]):
             pass
@@ -92,6 +92,26 @@ class LaneLockTests(unittest.TestCase):
         process.wait(timeout=5)
         with acquire_lane_locks(self.run_root, [("codex", "be")]):
             pass
+
+    def test_lane_components_are_validated_before_path_creation(self) -> None:
+        for lane in (("../escape", "fe"), ("grok", "/tmp"), ("a/b", "fe")):
+            with self.assertRaisesRegex(ValueError, "lane (harness|track)"):
+                with acquire_lane_locks(self.run_root, [lane]):
+                    self.fail("unsafe lane was admitted")
+
+    def test_delimiter_bearing_identifiers_do_not_alias(self) -> None:
+        self.holder(("a--b", "c"))
+        with acquire_lane_locks(self.run_root, [("a", "b--c")]):
+            metadata = [path.read_text() for path in self.lock_dir.glob("lane-*.lock")]
+            self.assertTrue(any('"lane":"a--b--c"' in value for value in metadata))
+            self.assertEqual(len(metadata), 2)
+
+    def test_rejects_preexisting_public_lock_directory(self) -> None:
+        self.lock_dir.mkdir(mode=0o755)
+        self.lock_dir.chmod(0o755)
+        with self.assertRaisesRegex(ValueError, "lock path is unsafe"):
+            with acquire_lane_locks(self.run_root, [("grok", "fe")]):
+                self.fail("unsafe lock directory was admitted")
 
 
 if __name__ == "__main__":

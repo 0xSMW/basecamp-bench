@@ -417,6 +417,32 @@ class ExpectedCostTests(unittest.TestCase):
                 )
                 self.assertIsNone(expected_cost(point))
 
+    def test_unknown_implementation_cost_is_not_plotted_at_zero(self) -> None:
+        point = _point(
+            cost_per_attempt=0.0,
+            ineligible_reasons=("implementation_cost_unknown",),
+            eligible=False,
+        )
+        payload = build_report_payload([point])
+        model = payload["sections"][0]["models"][0]
+        self.assertIsNone(model["expected_cost"])
+        html_out = render_report_html(payload)
+        self.assertIn("No plottable points", html_out)
+        self.assertNotIn('class="ineligible-point"', html_out)
+
+    def test_report_exposes_total_observed_cost(self) -> None:
+        payload = build_report_payload(
+            [
+                _point(
+                    cost_per_attempt=2.0,
+                    implementation_cost_per_attempt=2.0,
+                    evaluation_cost_per_attempt=0.25,
+                )
+            ]
+        )
+        model = payload["sections"][0]["models"][0]
+        self.assertEqual(model["total_cost_per_attempt"], 2.25)
+
     def test_invalid_non_finite_and_negative(self) -> None:
         self.assertIsNone(expected_cost(_point(cost_per_attempt=float("nan"))))
         self.assertIsNone(expected_cost(_point(cost_per_attempt=float("inf"))))
@@ -867,6 +893,10 @@ class RenderReportHtmlTests(unittest.TestCase):
         self.assertIn("Expected implementation cost per valid result", html_out)
         self.assertIn("Implementation cost median per attempt", html_out)
         self.assertIn("Evaluation overhead per attempt", html_out)
+        self.assertIn("Total cost per attempt", html_out)
+        self.assertIn("End-to-end agent duration median (s)", html_out)
+        self.assertIn("End-to-end agent duration (s)", html_out)
+        self.assertIn("critical-path evaluator process time", html_out)
         self.assertIn("Judge spread", html_out)
         self.assertIn("report-payload", html_out)
         self.assertIn("<caption>", html_out)
@@ -1286,6 +1316,7 @@ class EnrichedReportBehaviorTests(TempDirTestCase):
         model = payload["sections"][0]["models"][0]
         self.assertIsNone(model["implementation_cost_per_attempt"])
         self.assertEqual(model["evaluation_cost_per_attempt"], 0.25)
+        self.assertIsNone(model["total_cost_per_attempt"])
         self.assertIsNone(model["expected_cost"])
         self.assertIn("implementation_cost_incomplete", model["ineligible_reasons"])
         for key in (
@@ -1369,6 +1400,50 @@ class CompatibilityAggregationTests(TempDirTestCase):
         )
         b["prompt_sha256"] = "8" * 64
         points = load_leaderboards([self.write_json("a.json", a), self.write_json("b.json", b)])
+        self.assertEqual(len(build_report_payload(points)["sections"]), 2)
+
+    def test_local_runs_with_different_runner_sources_share_exploratory_section(self) -> None:
+        first = _leaderboard([_entry("m1")])
+        second = _leaderboard(
+            [
+                _entry(
+                    "m2",
+                    raw_attempts=[
+                        _raw_attempt(run_id="run-two", submission_id="sub-two", model_id="m2")
+                    ],
+                )
+            ]
+        )
+        first["mode"] = "local"
+        second["mode"] = "local"
+        second["runner_source_sha256"] = "9" * 64
+        points = load_leaderboards(
+            [self.write_json("runner-a.json", first), self.write_json("runner-b.json", second)]
+        )
+        sections = build_report_payload(points)["sections"]
+        self.assertEqual(len(sections), 1)
+        self.assertEqual(
+            sections[0]["runner_source_sha256_values"],
+            ["1" * 64, "9" * 64],
+        )
+        self.assertEqual({row["model_id"] for row in sections[0]["models"]}, {"m1", "m2"})
+
+    def test_publication_runs_with_different_runner_sources_stay_separate(self) -> None:
+        first = _leaderboard([_entry("m1")])
+        second = _leaderboard(
+            [
+                _entry(
+                    "m2",
+                    raw_attempts=[
+                        _raw_attempt(run_id="run-two", submission_id="sub-two", model_id="m2")
+                    ],
+                )
+            ],
+        )
+        second["runner_source_sha256"] = "9" * 64
+        points = load_leaderboards(
+            [self.write_json("publication-a.json", first), self.write_json("publication-b.json", second)]
+        )
         self.assertEqual(len(build_report_payload(points)["sections"]), 2)
 
     def test_same_model_through_two_harnesses_is_two_points(self) -> None:

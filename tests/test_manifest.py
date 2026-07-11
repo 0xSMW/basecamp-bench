@@ -336,6 +336,13 @@ class RedactConfigTests(unittest.TestCase):
 
 
 class ScanSecretsTests(TempDirTestCase):
+    def test_documented_credential_placeholders_are_not_secrets(self) -> None:
+        (self.root / "example.md").write_text(
+            "client_secret={client_secret}\napi_key=<api-key>\ntoken=${TOKEN}\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(scan_secrets(self.root), [])
+
     def test_risky_name_and_content_without_leaking_values(self) -> None:
         secret_value = "SUPER_SECRET_VALUE_9f3a2b1c"
         env_file = self.root / ".env"
@@ -862,6 +869,17 @@ class ExportRunTests(TempDirTestCase):
                 self._replace_artifacts(run_dir, {"results/judge-result.json": payload})
                 with self.assertRaisesRegex(ValueError, "host_absolute_path"):
                     export_run(run_dir, self.root / f"windows-path-{index}.zip")
+
+    def test_allows_javascript_regexes_and_macos_application_paths(self) -> None:
+        run_dir = self._ready_run()
+        payload = (
+            b'let source = template.replace(/[|\\\\()[\\]^$+*?.]/g, "\\\\$&");\n'
+            b"binary=//Applications/Example.app/Contents/MacOS/example\n"
+        )
+        self._replace_artifacts(run_dir, {"results/evidence.js": payload})
+        out = self.root / "portable-system-paths.zip"
+        export_run(run_dir, out)
+        self.assertTrue(out.is_file())
 
     def test_rejects_json_escaped_host_paths(self) -> None:
         cases = (

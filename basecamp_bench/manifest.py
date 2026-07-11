@@ -225,8 +225,14 @@ _HOST_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
     # Direct text and JSON-escaped Windows drive paths are both rejected.
     re.compile(r"(?<![A-Za-z0-9_])\b[A-Za-z]:[\\/]+[^\s\"'<>]+"),
     # Backslash and forward-slash UNC forms, excluding URL-style ``://``.
-    re.compile(r"(?<![A-Za-z0-9_:])\\{2,}[^\\/\s\"'<>]+\\+[^\\/\s\"'<>]+"),
-    re.compile(r"(?<![:/])//[A-Za-z0-9_.-]+/[A-Za-z0-9$_.-]+(?:/[^\s\"'<>]+)?"),
+    re.compile(
+        r"(?<![A-Za-z0-9_:])\\{2,}[A-Za-z0-9$_.-]+\\+[A-Za-z0-9$_.-]+"
+        r"(?:\\+[^\\/\s\"'<>]+)?"
+    ),
+    re.compile(
+        r"(?<![:/])//(?!Applications/)[A-Za-z0-9_.-]+/[A-Za-z0-9$_.-]+"
+        r"(?:/[^\s\"'<>]+)?"
+    ),
 )
 
 
@@ -732,8 +738,17 @@ def _secret_findings(rel: str, text: str, *, line: int | None) -> list[dict[str,
     for pattern, reason in _CONTENT_SECRET_PATTERNS:
         if REDACTED in text and reason in {"credential_assignment", "password_assignment"}:
             continue
-        if pattern.search(text):
-            findings.append({"path": rel, "line": line, "reason": reason})
+        match = pattern.search(text)
+        if match is None:
+            continue
+        if reason in {"credential_assignment", "password_assignment"}:
+            assigned = match.group(2)
+            if re.fullmatch(
+                r"(?:\{[A-Za-z0-9_.-]+\}|<[^<>]+>|\$\{[A-Za-z0-9_.-]+\})",
+                assigned,
+            ):
+                continue
+        findings.append({"path": rel, "line": line, "reason": reason})
     return findings
 
 
@@ -1672,6 +1687,10 @@ def verify_run(
                 max_artifact_bytes=max_artifact_bytes,
             )
         )
+
+    from basecamp_bench.layout import verify_readable_layout
+
+    errors.extend(verify_readable_layout(root, data))
 
     return sorted(set(errors))
 

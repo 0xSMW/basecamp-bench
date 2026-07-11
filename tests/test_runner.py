@@ -29,8 +29,10 @@ from basecamp_bench.adapters import (
     registered_harnesses,
 )
 from basecamp_bench.config import BenchConfig, EvaluatorSpec, HarnessSpec, TrackSpec
+from basecamp_bench.layout import recover_pending_layouts
 from basecamp_bench.locks import acquire_lane_locks
 from basecamp_bench.manifest import verify_run
+from basecamp_bench.naming import submission_path_name
 from basecamp_bench.processes import ProcessResult
 from basecamp_bench.runner import (
     AgentExecution,
@@ -426,6 +428,16 @@ class Fixture(unittest.TestCase):
     def attempt_json(self, run_dir: Path) -> dict:
         return json.loads(next((run_dir / "attempts").glob("*.json")).read_text(encoding="utf-8"))
 
+    def submission_path(self, attempt: Mapping[str, Any]) -> str:
+        return submission_path_name(
+            track=str(attempt["track"]),
+            harness=str(attempt["harness"]),
+            provider="test",
+            model=str(attempt["model_id"]),
+            repetition=int(attempt["repetition"]),
+            submission_id=str(attempt["submission_id"]),
+        )
+
     def read_run_manifest(self, run_dir: Path) -> dict:
         return json.loads((run_dir / "run-manifest.json").read_text(encoding="utf-8"))
 
@@ -580,7 +592,7 @@ class ExecuteTests(Fixture):
 
 class PipelineTests(Fixture):
     def test_overlapping_process_is_rejected_before_run_creation(self) -> None:
-        with acquire_lane_locks(self.run_root, [("agent-x", "fe")]):
+        with acquire_lane_locks(self.root, [("agent-x", "fe")]):
             with (
                 mock.patch("basecamp_bench.runner._open_run") as open_run,
                 self.assertRaisesRegex(ValueError, "benchmark lane already active: agent-x--fe"),
@@ -591,27 +603,64 @@ class PipelineTests(Fixture):
             [path.name for path in self.run_root.iterdir() if not path.name.startswith(".")], []
         )
 
+    def test_different_run_roots_share_project_lane_locks(self) -> None:
+        other = replace(self.config(), run_root=self.root / "other-runs")
+        with acquire_lane_locks(self.root, [("agent-x", "fe")]):
+            with self.assertRaisesRegex(ValueError, "benchmark lane already active: agent-x--fe"):
+                self.run_bench(config=other)
+        self.assertFalse(other.run_root.exists())
+
+    def test_interrupted_terminal_rename_rolls_forward_from_durable_journal(self) -> None:
+        from basecamp_bench import layout as layout_module
+
+        original = layout_module._apply_moves
+        crashed = False
+
+        def interrupt_once(moves):  # type: ignore[no-untyped-def]
+            nonlocal crashed
+            if not crashed:
+                crashed = True
+                source, target = moves[0]
+                source.rename(target)
+                raise KeyboardInterrupt("simulated terminal-layout interruption")
+            return original(moves)
+
+        with (
+            mock.patch("basecamp_bench.layout._apply_moves", side_effect=interrupt_once),
+            self.assertRaisesRegex(KeyboardInterrupt, "terminal-layout interruption"),
+        ):
+            self.run_bench(id_factory=_Ids("layout-crash"))
+        opaque = self.run_root / "layout-crash001"
+        self.assertTrue((opaque / "private" / "layout-finalization.json").is_file())
+
+        recovered = recover_pending_layouts(self.run_root)
+        self.assertEqual(len(recovered), 1)
+        self.assertFalse(opaque.exists())
+        self.assertEqual(verify_run(recovered[0]), [])
+        self.assertEqual(self.read_run_manifest(recovered[0])["status"], "complete")
+        self.assertTrue((recovered[0] / "layout.json").is_file())
+
     def test_happy_path(self) -> None:
         run_dir = self.run_bench(id_factory=_Ids("s"))
         prompts = list((run_dir / "prompts").glob("implement-*.md"))
         self.assertEqual(len(prompts), 1)
         self.assertEqual(prompts[0].read_bytes(), _PROMPT_BYTES)
-        sid = "s002"
-        self.assertTrue((run_dir / "snapshots" / sid / "app.py").is_file())
-        for path in (run_dir / "snapshots").iterdir():
-            n = path.name.lower()
-            self.assertNotIn("agent-x", n)
-            self.assertNotIn("contestant-model", n)
-        evals = list((run_dir / "evaluations" / sid).iterdir())
+        attempt = self.attempt_json(run_dir)
+        sid = str(attempt["submission_id"])
+        readable = self.submission_path(attempt)
+        self.assertTrue((run_dir / "snapshots" / readable / "app.py").is_file())
+        self.assertIn("agent-x", readable)
+        self.assertIn("contestant-model", readable)
+        evals = list((run_dir / "evaluations" / readable).iterdir())
         self.assertEqual(len(evals), 2)
         for d in evals:
-            self.assertNotIn("agent-x", d.name)
+            self.assertIn("judge-agent-x", d.name)
             self.assertTrue((d / "output" / "report.md").is_file())
             self.assertTrue((d / "output" / "result.json").is_file())
             prompt = (d / "prompt.md").read_text(encoding="utf-8")
             self.assertNotIn("contestant-model", prompt)
             self.assertIn(sid, prompt)
-        self.assertTrue((run_dir / "attempts" / f"{sid}.json").is_file())
+        self.assertTrue((run_dir / "attempts" / f"{readable}.json").is_file())
         self.assertTrue((run_dir / "report.html").is_file())
         man = self.read_run_manifest(run_dir)
         self.assertEqual(man["status"], "complete")
@@ -802,10 +851,10 @@ class PipelineTests(Fixture):
         with mock.patch("basecamp_bench.runner._write_manifest", side_effect=recording):
             run_dir = self.run_bench(id_factory=_Ids("state"))
         self.assertEqual(statuses[:2], ["planned", "running"])
-        self.assertIn("running", statuses[2:-1])
-        self.assertEqual(statuses[-1], "complete")
+        self.assertTrue(all(status == "running" for status in statuses[1:]))
         self.assertTrue(transition_errors)
         self.assertTrue(all(not errors for errors in transition_errors))
+        self.assertEqual(self.read_run_manifest(run_dir)["status"], "complete")
         self.assertEqual(verify_run(run_dir), [])
 
     def test_git_provenance_is_frozen_before_manifest_checkpoints(self) -> None:
@@ -1532,9 +1581,10 @@ class ReevaluateTests(Fixture):
     def test_happy_path_no_impl_fresh_evals(self) -> None:
         prior = self.run_bench(id_factory=_Ids("p"))
         prior_tree = tree_manifest(prior)
-        prior_id = prior.name
+        prior_id = self.read_run_manifest(prior)["run"]["id"]
         prior_att = self.attempt_json(prior)
         prior_sid = prior_att["submission_id"]
+        prior_readable = self.submission_path(prior_att)
         prior_impl_cost = prior_att["implementation_cost_usd"]
         prior_impl_tokens = 15  # 10+5 from fake implement usage
         prior_impl_duration = 0.125
@@ -1545,7 +1595,7 @@ class ReevaluateTests(Fixture):
         self.assertEqual(self.agent_calls, 2)
         man = self.read_run_manifest(new_dir)
         self.assertEqual(man["status"], "complete")
-        self.assertEqual(man["run"]["id"], new_dir.name)
+        self.assertEqual(man["run"]["id"], "n001")
         impl_jobs = [j for j in man["jobs"] if j.get("kind") == "implement"]
         self.assertEqual(len(impl_jobs), 1)
         self.assertIn("reuse prior_run=", impl_jobs[0]["command_preview"])
@@ -1556,7 +1606,7 @@ class ReevaluateTests(Fixture):
             self.assertNotEqual(job.get("eval_attempt_id"), prior_sid)
         att = self.attempt_json(new_dir)
         self.assertEqual(att["submission_id"], prior_sid)
-        self.assertEqual(att["run_id"], new_dir.name)
+        self.assertEqual(att["run_id"], man["run"]["id"])
         self.assertTrue(att["implementation_success"])
         self.assertTrue(att["evaluation_success"])
         self.assertEqual(att["implementation_cost_usd"], prior_impl_cost)
@@ -1566,10 +1616,12 @@ class ReevaluateTests(Fixture):
         self.assertAlmostEqual(att["duration_s"], prior_impl_duration + 0.125)
         self.assertAlmostEqual(att["evaluation_cost_usd"], 0.004)
         self.assertEqual(set(att["evaluator_ids"]), {"judge-model-a", "judge-model-b"})
-        self.assertTrue((new_dir / "snapshots" / prior_sid / "app.py").is_file())
+        self.assertTrue((new_dir / "snapshots" / prior_readable / "app.py").is_file())
         self.assertTrue((new_dir / "report.html").is_file())
         self.assertGreaterEqual(len(list((new_dir / "leaderboards").glob("*.json"))), 1)
-        snap_keys = [k for k in man["artifacts"] if k.startswith(f"snapshots/{prior_sid}/")]
+        snap_keys = [
+            k for k in man["artifacts"] if k.startswith(f"snapshots/{prior_readable}/")
+        ]
         self.assertTrue(snap_keys)
         self.assertIn(f"reuse_snapshot_tree:{prior_sid}", man["inputs"])
         self.assertIn(f"prior_run:{prior_id}", man["inputs"])
@@ -1583,7 +1635,15 @@ class ReevaluateTests(Fixture):
     def test_selects_one_submission_without_evaluating_other_snapshots(self) -> None:
         config = self.config(repetitions=2)
         prior = self.run_bench(config=config, id_factory=_Ids("select-prior"))
-        submission_ids = sorted(path.stem for path in (prior / "attempts").glob("*.json"))
+        prior_attempts = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted((prior / "attempts").glob("*.json"))
+        ]
+        submission_ids = sorted(str(attempt["submission_id"]) for attempt in prior_attempts)
+        readable_by_id = {
+            str(attempt["submission_id"]): self.submission_path(attempt)
+            for attempt in prior_attempts
+        }
         self.assertEqual(len(submission_ids), 2)
         self.agent_calls = 0
         new_dir = self.reeval(
@@ -1593,12 +1653,22 @@ class ReevaluateTests(Fixture):
             submission_ids=(submission_ids[1],),
         )
         self.assertEqual(self.agent_calls, 2)
-        self.assertEqual(
-            [path.stem for path in (new_dir / "attempts").glob("*.json")],
-            [submission_ids[1]],
-        )
-        self.assertFalse((new_dir / "snapshots" / submission_ids[0]).exists())
-        self.assertTrue((new_dir / "snapshots" / submission_ids[1]).is_dir())
+        new_attempts = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in (new_dir / "attempts").glob("*.json")
+        ]
+        self.assertEqual([attempt["submission_id"] for attempt in new_attempts], [submission_ids[1]])
+        self.assertFalse((new_dir / "snapshots" / readable_by_id[submission_ids[0]]).exists())
+        self.assertTrue((new_dir / "snapshots" / readable_by_id[submission_ids[1]]).is_dir())
+
+    def test_reevaluation_reserves_selected_source_lane_before_new_run(self) -> None:
+        prior = self.run_bench(id_factory=_Ids("locked-source"))
+        submission_id = self.attempt_json(prior)["submission_id"]
+        existing_dirs = set(self.run_root.iterdir())
+        with acquire_lane_locks(self.root, [("agent-x", "fe")]):
+            with self.assertRaisesRegex(ValueError, "benchmark lane already active: agent-x--fe"):
+                self.reeval(prior, submission_ids=(submission_id,))
+        self.assertEqual(set(self.run_root.iterdir()), existing_dirs)
 
     def test_rejects_unknown_or_duplicate_submission_selection_before_new_run(self) -> None:
         prior = self.run_bench(id_factory=_Ids("select-source"))
@@ -1613,7 +1683,7 @@ class ReevaluateTests(Fixture):
 
     def test_failed_reevaluation_preserves_prior_lineage_inputs(self) -> None:
         prior = self.run_bench(id_factory=_Ids("lineage-prior"))
-        prior_id = prior.name
+        prior_id = self.read_run_manifest(prior)["run"]["id"]
         sid = self.attempt_json(prior)["submission_id"]
         self.raise_eval = True
         with self.assertRaisesRegex(RuntimeError, "evaluator exploded"):
@@ -1695,8 +1765,11 @@ class ReevaluateTests(Fixture):
 
     def test_undeclared_snapshot_file_rejects(self) -> None:
         prior = self.run_bench(id_factory=_Ids("u"))
-        sid = self.attempt_json(prior)["submission_id"]
-        (prior / "snapshots" / sid / "extra.txt").write_text("undeclared\n", encoding="utf-8")
+        attempt = self.attempt_json(prior)
+        readable = self.submission_path(attempt)
+        (prior / "snapshots" / readable / "extra.txt").write_text(
+            "undeclared\n", encoding="utf-8"
+        )
         prior_tree = tree_manifest(prior)
         self.agent_calls = 0
         with self.assertRaises(ValueError) as ctx:
@@ -1707,8 +1780,11 @@ class ReevaluateTests(Fixture):
 
     def test_hash_mismatched_snapshot_rejects(self) -> None:
         prior = self.run_bench(id_factory=_Ids("h"))
-        sid = self.attempt_json(prior)["submission_id"]
-        (prior / "snapshots" / sid / "app.py").write_text("mutated\n", encoding="utf-8")
+        attempt = self.attempt_json(prior)
+        readable = self.submission_path(attempt)
+        (prior / "snapshots" / readable / "app.py").write_text(
+            "mutated\n", encoding="utf-8"
+        )
         self.agent_calls = 0
         with self.assertRaises(ValueError) as ctx:
             self.reeval(prior, id_factory=_Ids("x"))

@@ -1,5 +1,6 @@
 # Generated benchmark runs and local execution ledger
-runs/
+/runs/
+.basecamp-bench-locks/
 TMP_PLAN.md
 
 # Python bytecode

@@ -1,0 +1,9 @@
+# Leaderboard (fe · 2026-07-11.2)
+
+- contract_sha256: `ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1`
+- generated_at: `2026-07-11T17:29:33Z`
+- schema_version: `1.0`
+
+| model_id | display_name | harness | score | score_mean | score_stdev | score_min | score_max | score_range | judge_spread | cost_per_attempt | cost_mean | cost_stdev | cost_min | cost_max | cost_range | success_rate | repetitions | dimensions | tokens | tokens_mean | tokens_min | tokens_max | tokens_range | duration_s | duration_mean_s | duration_min_s | duration_max_s | duration_range_s | eligible | ineligible_reasons | run_ids | implementation_cost_per_attempt | evaluation_cost_per_attempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| grok-4.5 | Grok 4.5 | grok | 6.384 | 6.384 | 0.0 | 6.384 | 6.384 | 0.0 | 0.0 | 1.103158 | 1.103158 | 0.0 | 1.103158 | 1.103158 | 0.0 | 1.0 | 1 | {"accessibility": 4.8, "code_architecture": 5.5, "functional_depth": 6.5, "interaction_quality": 6.1, "product_model": 8.0, "reference_fidelity": 7.0, "reliability": 6.0, "responsive_adaptation": 4.0, "state_persistence": 6.0, "surface_coverage": 7.5, "visual_craft": 7.2} | 3929356 | 3929356.0 | 3929356 | 3929356 | 0 | 922.2971673749998 | 922.2971673749998 | 922.2971673749998 | 922.2971673749998 | 0.0 | false | ["local_mode"] | ["20260711t170807z-db8473"] | 1.103158 | 2.848819 |

@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "track": "be",
+  "submission_id": "id-066754ef",
+  "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "architecture_domain": {
+      "score": 8.4,
+      "notes": "A coherent shared Recording tree, tool hierarchy, inherited lifecycle, visibility, events, subscriptions, and serializers support the domain; extensibility and invariant enforcement still depend on coordinated per-type/per-handler code.",
+      "evidence": [
+        "submission/server.js:439-469 defines the unified in-memory domain store and submission/server.js:566-661 defines shared recordings, parent ordering, traversal, and inherited status.",
+        "Runtime tests confirmed child status inheritance, archived mutation rejection, unarchive recovery, and persistent card reparenting.",
+        "submission/server.js:513-558 and 992-1497 require resource types to be repeated across sets, URL/title logic, and serializer dispatch."
+      ]
+    },
+    "endpoint_coverage": {
+      "score": 10,
+      "notes": "Every canonical OpenAPI operation is explicitly registered with the correct method, path template, and operation ID, with no missing or extra canonical routes.",
+      "evidence": [
+        "Machine comparison found 203 unique submission routes matching all 203 operations across 131 paths in seed/reference/basecamp-sdk/openapi.json; missing, extra, and operation-ID mismatch sets were empty.",
+        "submission/server.js:1785-1836 performs exact route and method matching and submission/server.js:1930-4887 contains the explicit handlers.",
+        "Direct execution reached representative operations across every major tool plus reports, search, assignments, timesheets, gauges, notifications, webhooks, inbox, and client collections."
+      ]
+    },
+    "behavioral_depth": {
+      "score": 8.6,
+      "notes": "Core CRUD, nested relationships, lifecycle, permissions, subscriptions, moves, uploads, and reset are real and process-persistent; recurrence, reachable inbound/client state, true upload versions, and complete reset isolation are missing.",
+      "evidence": [
+        "Direct tests verified create/read/update for projects and nested todos, completion toggles, inherited archive/unarchive, comments, boosts, subscriptions, card moves, attachment-to-upload materialization, and owner reset.",
+        "submission/server.js:3119-3135 and 3389-3421 enforce same-project todo moves and same-board card moves.",
+        "submission/server.js:3714-3720 returns only the current upload as its version list, and submission/server.js:4207-4309 exposes forward/client operations without seed or creator paths for their base records."
+      ]
+    },
+    "http_contract": {
+      "score": 8.2,
+      "notes": "Statuses, pagination, URLs, errors, request IDs, ETags, and headers are strong, but common serializers violate OpenAPI nullability for optional string fields.",
+      "evidence": [
+        "submission/server.js:1838-1862 and 4894-4929 implement 200/201/204 helpers, paging headers, JSON metadata, HEAD behavior, ETags, and 304 responses; direct tests confirmed them.",
+        "Schema validation passed 69 of 80 seeded GET operations; 11 failed because fields such as Todo/Card dates, column color, Campfire topic, account logo URL, and out-of-office dates were null where only string is allowed.",
+        "An entity-wide seeded check found 38 of 107 serialized entities invalid, overwhelmingly from the same nullability defect."
+      ]
+    },
+    "seed_fidelity": {
+      "score": 8.8,
+      "notes": "The required account, nine-person cast, named project, full dock, messages, todos, cards, docs/uploads, schedule, and chat are rich, deterministic when epoch-pinned, linked, and navigable, with a few documented adaptations.",
+      "evidence": [
+        "submission/server.js:5209-5677 constructs the named people/project and interconnected tool content; runtime reads confirmed one project, nine people, eight enabled tools, five categories, ten todos, and populated major tools.",
+        "Stable IDs/content are allocated in fixed order and BASECAMP_SEED_EPOCH makes timestamps reproducible.",
+        "Sample people receive tokens despite seed/INIT.md:161-163, the todo subtask is description text, and CloudFile is represented as Upload."
+      ]
+    },
+    "request_hardening": {
+      "score": 7.3,
+      "notes": "Central auth, visibility, bounded body parsing, typed validation, rate limiting, signed IDs, and safe errors work, but media-type/date/boolean validation, SSRF, CORS, upload accumulation, and production secret defaults have material gaps.",
+      "evidence": [
+        "Direct tests confirmed 401 authentication failures, 404 access isolation, 400 malformed input, 413 body cap, 422 validation, 403 reset authorization, 429 plus Retry-After, and literal private-webhook rejection.",
+        "A JSON request without Content-Type succeeded; due_on 2025-02-31 persisted; CreateWebhook coerced active string false to boolean true.",
+        "submission/server.js:100-125 and 5720-5727 print raw seed tokens by default even in production unless explicitly disabled."
+      ]
+    },
+    "operability": {
+      "score": 7.4,
+      "notes": "The zero-dependency executable has health, configuration, request IDs, logging, timeouts, graceful shutdown, deterministic seed controls, and reset, but lacks tests, a clean server seam, full reset isolation, and safe production defaults.",
+      "evidence": [
+        "node --check submission/server.js passed; submission/server.js:4955-4970 and 5731-5764 implement health/service metadata and graceful server lifecycle.",
+        "No package manifest, automated test, conformance harness, or test command was added, and the request handler/server close seam is not exported.",
+        "Direct testing demonstrated that reset does not clear module-global rate buckets, so requests remained rate-limited after reset."
+      ]
+    },
+    "code_quality": {
+      "score": 7.9,
+      "notes": "Naming, sections, reusable helpers, centralized serializers, and documentation make the implementation understandable, while the 5,769-line mutable-global monolith and lack of tests impose significant extension and isolation costs.",
+      "evidence": [
+        "submission/server.js:83-427 centralizes configuration, utilities, errors, body readers, and validators; submission/server.js:980-1497 centralizes serialization.",
+        "The complete delta is one added 5,769-line file containing domain, seed, routes, transport, integrations, and lifecycle with 158 top-level functions.",
+        "Only CONFIG, main, and resetAndSeed are exported at submission/server.js:5767-5769."
+      ]
+    },
+    "scope_honesty": {
+      "score": 7.9,
+      "notes": "Major limitations are prominently disclosed and unsupported inputs generally fail closed, though the claim that all operations are implemented overstates several registered operations whose prerequisite state is publicly unreachable.",
+      "evidence": [
+        "submission/server.js:53-68 discloses in-memory persistence, absent recurrence, missing inbound creation, empty client resources, CloudFile adaptation, and missing todo-step API.",
+        "No TODO/FIXME success stub was found, and unsupported comment types and invalid lifecycle targets return explicit errors.",
+        "submission/server.js:4207-4309 registers forward/client detail and reply behavior but exposes no seed or creator for the prerequisite forward, approval, or correspondence records."
+      ]
+    }
+  },
+  "summary": "A highly complete canonical API surface backed by a real shared Recording domain and substantial process-persistent behavior. The strongest results are exact 203-operation coverage, rich deterministic seed data, and verified nested lifecycle/cross-resource mutations. Main deductions are widespread optional-string nullability mismatches, unreachable state for some registered resources, validation and production-secret gaps, incomplete reset isolation, and a large untested single-file architecture."
+}

@@ -7,6 +7,7 @@ contract revisions are never mixed.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -161,6 +162,7 @@ class ReportPoint:
     schema_version: str | None = None
     generated_at_values: tuple[str, ...] = ()
     source_run_ids: tuple[str, ...] = ()
+    runner_source_sha256_values: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.mode not in {"local", "publication"}:
@@ -188,6 +190,11 @@ class ReportPoint:
                 tuple(_freeze_raw_attempt(item) for item in raw),
             )
         object.__setattr__(self, "generated_at_values", tuple(self.generated_at_values))
+        object.__setattr__(
+            self,
+            "runner_source_sha256_values",
+            tuple(self.runner_source_sha256_values),
+        )
         object.__setattr__(self, "source_run_ids", tuple(self.source_run_ids))
 
 
@@ -927,6 +934,9 @@ def _parse_entry(
         schema_version=cast(str | None, meta.get("schema_version")),
         generated_at_values=tuple(cast(Sequence[str], meta.get("generated_at_values", ()))),
         source_run_ids=tuple(cast(Sequence[str], meta.get("source_run_ids", ()))),
+        runner_source_sha256_values=tuple(
+            cast(Sequence[str], meta.get("runner_source_sha256_values", ()))
+        ),
     )
 
 
@@ -1006,12 +1016,19 @@ def load_leaderboards(paths: Sequence[Path]) -> list[ReportPoint]:
         if not isinstance(entries, list):
             raise ValueError(f"{label}.entries: expected list")
 
+        # Local reports are exploratory and may compare otherwise identical
+        # runs produced by different runner revisions. Publication reports keep
+        # runner source in the compatibility boundary so official comparisons
+        # cannot mix execution semantics.
+        runner_compatibility = (
+            provenance["runner_source_sha256"] if mode == "publication" else "local"
+        )
         section = (
             track,
             contract_version,
             contract_sha256,
             mode,
-            provenance["runner_source_sha256"],
+            runner_compatibility,
             provenance["seed_tree_sha256"],
             provenance["reference_manifest_sha256"],
             provenance["reference_tree_sha256"],
@@ -1028,10 +1045,12 @@ def load_leaderboards(paths: Sequence[Path]) -> list[ReportPoint]:
                 "attempts": {},
                 "model_identity": {},
                 "provenance": provenance,
+                "runner_source_hashes": set(),
                 "profile": profile,
             },
         )
         bucket["timestamps"].add(generated_at)
+        bucket["runner_source_hashes"].add(provenance["runner_source_sha256"])
 
         for index, entry in enumerate(entries):
             point = _parse_entry(
@@ -1066,8 +1085,16 @@ def load_leaderboards(paths: Sequence[Path]) -> list[ReportPoint]:
     for compat_key in sorted(collected):
         bucket = collected[compat_key]
         attempts = [item[1] for _, item in sorted(bucket["attempts"].items())]
-        provenance = bucket["provenance"]
+        provenance = dict(bucket["provenance"])
         mode = cast(Literal["local", "publication"], provenance["mode"])
+        runner_source_values = sorted(bucket["runner_source_hashes"])
+        if len(runner_source_values) > 1:
+            encoded_sources = json.dumps(
+                runner_source_values,
+                separators=(",", ":"),
+                ensure_ascii=True,
+            ).encode("ascii")
+            provenance["runner_source_sha256"] = hashlib.sha256(encoded_sources).hexdigest()
         roots = aggregate_attempts(
             attempts,
             mode=mode,
@@ -1086,6 +1113,7 @@ def load_leaderboards(paths: Sequence[Path]) -> list[ReportPoint]:
             "generated_at": max(bucket["timestamps"]),
             "generated_at_values": sorted(bucket["timestamps"]),
             "source_run_ids": sorted({attempt.run_id for attempt in attempts}),
+            "runner_source_sha256_values": runner_source_values,
             "mode": mode,
             "dimension_profile": bucket["profile"],
             **{k: provenance[k] for k in provenance if k not in {"mode", "dimension_profile_json"}},
@@ -1199,6 +1227,13 @@ def _point_payload(
     def implementation_cost(value: float) -> float | None:
         return value if implementation_cost_complete else None
 
+    implementation_per_attempt = implementation_cost(point.implementation_cost_per_attempt)
+    total_cost_per_attempt = (
+        None
+        if implementation_per_attempt is None
+        else implementation_per_attempt + point.evaluation_cost_per_attempt
+    )
+
     return {
         "point_id": _point_id(point),
         "model_id": point.model_id,
@@ -1213,10 +1248,9 @@ def _point_payload(
         "judge_spread": point.judge_spread,
         "cost_per_attempt": implementation_cost(point.cost_per_attempt),
         "cost_mean": implementation_cost(point.cost_mean),
-        "implementation_cost_per_attempt": implementation_cost(
-            point.implementation_cost_per_attempt
-        ),
+        "implementation_cost_per_attempt": implementation_per_attempt,
         "evaluation_cost_per_attempt": point.evaluation_cost_per_attempt,
+        "total_cost_per_attempt": total_cost_per_attempt,
         "cost_stdev": implementation_cost(point.cost_stdev),
         "cost_min": implementation_cost(point.cost_min),
         "cost_max": implementation_cost(point.cost_max),
@@ -1302,6 +1336,13 @@ def build_report_payload(points: Sequence[ReportPoint]) -> dict[str, Any]:
                 "source_run_ids": source_run_ids,
                 "mode": key[3],
                 "runner_source_sha256": key[4],
+                "runner_source_sha256_values": sorted(
+                    {
+                        value
+                        for point in group
+                        for value in point.runner_source_sha256_values
+                    }
+                ),
                 "seed_tree_sha256": key[5],
                 "reference_manifest_sha256": key[6],
                 "reference_tree_sha256": key[7],

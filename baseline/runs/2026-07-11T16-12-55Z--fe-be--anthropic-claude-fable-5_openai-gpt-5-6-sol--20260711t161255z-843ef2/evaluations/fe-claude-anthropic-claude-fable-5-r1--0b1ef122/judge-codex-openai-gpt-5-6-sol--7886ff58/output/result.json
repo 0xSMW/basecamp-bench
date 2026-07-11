@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "track": "fe",
+  "submission_id": "id-0b1ef122",
+  "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+  "judge_id": "eval-sol",
+  "dimensions": {
+    "reference_fidelity": {
+      "score": 8.0,
+      "notes": "All nine required screen anatomies, the persistent shell, dark-mode treatment, and dense Basecamp-specific content are represented; pixel-level rendering could not be verified because no browser process could launch in the evaluation environment.",
+      "evidence": [
+        "submission/prototype.html:2473-2528 routes the complete shell and account/project destinations.",
+        "submission/prototype.html:3186-4478 implements dedicated Home, project dock, Message Board, To-dos/detail, Card Table, Docs & Files, and Chat views.",
+        "submission/prototype.html:421-688 implements the canonical dark-mode token ramps seen in the supplied reference captures."
+      ]
+    },
+    "visual_craft": {
+      "score": 8.1,
+      "notes": "The source implements a comprehensive, coherent token and component system with strong micro-UI detail, theming, focus states, and motion; native prompts and hover-only affordances reduce consistency.",
+      "evidence": [
+        "submission/prototype.html:16-688 defines production-shaped color, typography, spacing, shadow, radius, motion, and dark/light tokens.",
+        "submission/prototype.html:703-1739 applies shared primitives across sheets, buttons, controls, dialogs, cards, lists, chat, and kanban.",
+        "submission/prototype.html:730-733 includes a reduced-motion override."
+      ]
+    },
+    "product_model": {
+      "score": 9.2,
+      "notes": "A shared Recording graph and unusually faithful deterministic sample narrative align concepts and relationships across the product, with only shallow enforcement in a few secondary concepts.",
+      "evidence": [
+        "submission/prototype.html:1944-2034 models common recordings, trees, events, readings, subscriptions, status, projects, tools, and URLs.",
+        "submission/prototype.html:2060-2338 seeds the exact eight-person website-launch narrative with messages, boosts, comments, to-dos, cards, files, events, and chat.",
+        "submission/prototype.html:2965-3166 implements shared comments, subscriptions, boosts, read state, bubbling, archive, trash, and restoration across record types."
+      ]
+    },
+    "surface_coverage": {
+      "score": 9.0,
+      "notes": "Every screenshot-backed surface and most optional account-wide, communication, calendar, reporting, search, and administrative destinations are reachable; several secondary integrations are explicit stubs.",
+      "evidence": [
+        "submission/prototype.html:2473-2528 routes Home, projects, Activity, Calendar, Reports, Everything, Search, Adminland, Trash, profiles, Pings, and My pages.",
+        "submission/prototype.html:3532-3559 dispatches all primary project tools and their detail/composer routes.",
+        "submission/prototype.html:4655 and submission/prototype.html:4796-4812 explicitly disclose the inbound-email and advanced-reporting stubs."
+      ]
+    },
+    "functional_depth": {
+      "score": 8.1,
+      "notes": "Most core workflows perform real end-to-end mutations with persistence, including creation, editing, completion, comments, filtering, moves, archive/trash/restore, and deletion; generic copying is broken and some secondary capabilities remain stubbed.",
+      "evidence": [
+        "submission/prototype.html:3230-3526 implements project, folder, people, settings, tool, and external-link workflows.",
+        "submission/prototype.html:3673-4644 implements message, to-do, card, file, chat, schedule, and check-in mutations.",
+        "submission/prototype.html:1964-1973 and submission/prototype.html:3085-3089 show that rec-copy overwrites the generated ID with undefined."
+      ]
+    },
+    "interaction_quality": {
+      "score": 7.2,
+      "notes": "Shortcuts, live filters, validation, toasts, confirmations, contextual trays, and recoverable trash are strong; modal/menu focus behavior, hover-only controls, and legacy prompt/execCommand editing are weaker.",
+      "evidence": [
+        "submission/prototype.html:2535-2610 implements a searchable keyboard-controlled Jump menu.",
+        "submission/prototype.html:2737-2796 and submission/prototype.html:5145-5156 implement extensive shortcuts and Enter-to-send behavior.",
+        "submission/prototype.html:2356-2400 focuses initial overlay content but has no focus trap or focus restoration."
+      ]
+    },
+    "state_persistence": {
+      "score": 6.8,
+      "notes": "The shared graph and nearly all mutations persist and reset coherently, but parseable malformed v1 state is not validated, record copying corrupts identity, and deletion leaves orphaned related state.",
+      "evidence": [
+        "submission/prototype.html:1927-1940 and submission/prototype.html:5160-5167 implement versioned localStorage load/save/reset and boot.",
+        "submission/prototype.html:1932-1937 accepts any parsed object with v equal to 1 without shape repair.",
+        "submission/prototype.html:3099-3103 deletes only the record and direct children, leaving deeper and cross-cutting references."
+      ]
+    },
+    "responsive_adaptation": {
+      "score": 6.5,
+      "notes": "Core pages reflow or scroll across responsive breakpoints, but multiple important actions remain hidden behind hover and the calendar retains a dense desktop grid on small screens.",
+      "evidence": [
+        "submission/prototype.html:1134-1140, submission/prototype.html:1314-1315, and submission/prototype.html:1739-1745 reflow Home, the dock, and general page content.",
+        "submission/prototype.html:1500-1501 provides horizontal kanban scrolling and submission/prototype.html:1647 stacks calendar sources.",
+        "submission/prototype.html:1118-1123, submission/prototype.html:1289-1290, and submission/prototype.html:1529-1530 keep star and add actions opacity-hidden until hover without a mobile override."
+      ]
+    },
+    "accessibility": {
+      "score": 5.0,
+      "notes": "The prototype has strong baseline landmarks, focus rings, keyboard shortcuts, a skip link, live region, and reduced motion, but mobile tray buttons lose their names, multiple controls are invalidly nested, forms/editors are weakly labeled, and overlays lack robust focus management.",
+      "evidence": [
+        "submission/prototype.html:703-733 and submission/prototype.html:1749-1769 provide focus-visible styling, a skip link, semantic regions, and a polite live region.",
+        "submission/prototype.html:1257-1261 and submission/prototype.html:2436-2440 hide mobile tray text while the icons are aria-hidden, leaving five fixed buttons unnamed.",
+        "submission/prototype.html:2374-2400 declares menu/dialog semantics but lacks menuitem keyboard behavior, focus trapping, and focus restoration.",
+        "submission/prototype.html:2867-2884 renders generic contenteditable editor bodies without a role or accessible label.",
+        "submission/prototype.html:2443-2448, submission/prototype.html:2622-2634, and submission/prototype.html:3191-3201 contain nested interactive controls."
+      ]
+    },
+    "code_architecture": {
+      "score": 7.5,
+      "notes": "Clear internal sections and reusable model, router, component, and delegated-action primitives handle the single-file constraint well, though global mutable state, mixed concerns, and absent automated tests limit safe extension.",
+      "evidence": [
+        "submission/prototype.html:1927-2034 centralizes persistence, lookup, tree, event, reading, and URL primitives.",
+        "submission/prototype.html:2451-2532 centralizes the sheet shell and hash routing.",
+        "submission/prototype.html:5105-5156 uses one delegated action/change/input/keyboard layer, but the entire application remains a 5,171-line global script."
+      ]
+    },
+    "reliability": {
+      "score": 6.2,
+      "notes": "The dependency-free script parses, provides 404/render fallbacks, escapes many labels, constrains paste and uploads, and confirms destructive actions; unsafe stored HTML/URLs plus identity and deletion defects are material risks.",
+      "evidence": [
+        "The inline JavaScript in submission/prototype.html compiled successfully with Node's JavaScript parser.",
+        "submission/prototype.html:2482-2528 catches route rendering failures and submission/prototype.html:3561-3570 provides a 404 state.",
+        "submission/prototype.html:2730, submission/prototype.html:2882-2914, and submission/prototype.html:4329-4420 persist and render rich innerHTML without sanitization.",
+        "submission/prototype.html:3490-3507 accepts and stores external Door URLs without scheme validation."
+      ]
+    }
+  },
+  "summary": "A high-effort, unusually complete Basecamp SPA with excellent product-model fidelity, broad real workflows, dense sample content, and a coherent design system. The main deductions are verified state-integrity defects, unsafe persisted rich content and URLs, incomplete overlay accessibility, and touch-hostile hover-only controls; browser-process restrictions prevented pixel-level rendered verification."
+}

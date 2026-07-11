@@ -81,9 +81,14 @@ basecamp-bench report runs --output model-performance.html
 
 The output is one deterministic, offline HTML file containing separate
 track/contract sections, Pareto frontier charts, expected implementation cost
-per valid result, evaluator overhead, uncertainty, dimension profiles, raw
-attempts, failures, eligibility reasons, and provenance hashes. Imported text
-is escaped and the underlying tables remain usable without SVG.
+per valid result, evaluator overhead, total observed cost, end-to-end agent
+duration, uncertainty, dimension profiles, raw attempts, failures, eligibility
+reasons, and provenance hashes. End-to-end agent duration is implementation
+process time plus the critical-path evaluator process time; it excludes
+queueing, copying, aggregation, and report rendering. Imported text is escaped
+and the underlying tables remain usable without SVG. Local reports combine
+matching benchmark evidence across runner revisions for exploratory comparison
+and list every source hash; publication reports keep those revisions separate.
 
 ## Re-evaluate immutable submissions
 
@@ -112,17 +117,16 @@ file. Workspaces and private logs are never exported.
 
 ## Official baseline
 
-The repository's [`baseline/`](baseline/) directory contains the verified,
-shareability-scanned reference run: model snapshots, evaluator reports and
-results, raw attempts, leaderboards, provenance manifest, and the self-contained
-HTML report. Private logs, prompts, credentials, and execution workspaces are
-excluded.
+The repository's [`baseline/`](baseline/) directory contains three verified,
+shareability-scanned reference runs and one combined self-contained HTML report.
+It preserves model snapshots, evaluator reports and results, raw attempts,
+leaderboards, and provenance manifests while excluding private logs, prompts,
+credentials, and execution workspaces.
 
 ```sh
-basecamp-bench verify-run baseline/<run-id>
-basecamp-bench report baseline/<run-id>/leaderboards \
-  --output /tmp/basecamp-bench-report.html
-cmp baseline/<run-id>/report.html /tmp/basecamp-bench-report.html
+for run in baseline/runs/*; do basecamp-bench verify-run "$run"; done
+basecamp-bench report baseline/runs --output /tmp/basecamp-bench-report.html
+cmp baseline/report.html /tmp/basecamp-bench-report.html
 ```
 
 New compatible model runs can be compared by regenerating a report from the

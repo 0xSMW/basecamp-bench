@@ -406,6 +406,14 @@ class GrokCommandTests(TempDirTestCase):
 
 
 class PiCommandTests(TempDirTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        # Key resolution is host-dependent; pin both sources so tests are
+        # hermetic on machines without OPENROUTER_API_KEY or a key file.
+        patcher = mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_glm_argv_and_transient_configuration(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
         job = self._job(harness="pi", model="glm-5.2")
@@ -429,10 +437,13 @@ class PiCommandTests(TempDirTestCase):
             model = model_config["providers"]["openrouter"]["models"][0]
             self.assertEqual(model["id"], PI_MODEL_ALIASES["glm-5.2"])
             self.assertEqual(model["contextWindow"], 1_048_576)
+            routing = model["compat"]["openRouterRouting"]
+            self.assertFalse(routing["allow_fallbacks"])
+            self.assertIn("baidu", routing["order"])
             settings = json.loads(
                 (private_root / "config" / "settings.json").read_text(encoding="utf-8")
             )
-            self.assertEqual(settings, {"httpIdleTimeoutMs": 0})
+            self.assertEqual(settings, {"httpIdleTimeoutMs": 600_000})
             env = h.prepare_env({"PATH": "/usr/bin"})
             self.assertEqual(env["PI_CODING_AGENT_DIR"], str(private_root / "config"))
             # Pi may create additional auth/cache files; the whole private root
@@ -460,6 +471,52 @@ class PiCommandTests(TempDirTestCase):
         with self.assertRaisesRegex(ValueError, "reserved"):
             with h.execution_context(job):
                 pass
+
+    def test_missing_openrouter_key_fails_closed_before_any_setup(self) -> None:
+        h = PiHarness(binary=str(self.fake_bin))
+        job = self._job(harness="pi", model="glm-5.2")
+        env = {k: v for k, v in os.environ.items() if k != "OPENROUTER_API_KEY"}
+        with (
+            mock.patch.dict(os.environ, env, clear=True),
+            mock.patch(
+                "basecamp_bench.adapters.OPENROUTER_KEY_FILE",
+                self.root / "no-such-key-file",
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "OpenRouter key"):
+                with h.execution_context(job):
+                    pass
+        self.assertFalse(h._private_root(job).exists())
+
+    def test_openrouter_key_file_fallback_and_env_precedence(self) -> None:
+        key_file = self.root / "openrouter-api-key"
+        key_file.write_text("sk-or-from-file\n", encoding="utf-8")
+        key_file.chmod(0o600)
+        h = PiHarness(binary=str(self.fake_bin))
+        job = self._job(harness="pi", model="glm-5.2")
+        env = {k: v for k, v in os.environ.items() if k != "OPENROUTER_API_KEY"}
+        with (
+            mock.patch.dict(os.environ, env, clear=True),
+            mock.patch("basecamp_bench.adapters.OPENROUTER_KEY_FILE", key_file),
+        ):
+            with h.execution_context(job):
+                filled = h.prepare_env({"PATH": "/usr/bin"})
+                self.assertEqual(filled["OPENROUTER_API_KEY"], "sk-or-from-file")
+                explicit = h.prepare_env(
+                    {"PATH": "/usr/bin", "OPENROUTER_API_KEY": "env-wins"}
+                )
+                self.assertEqual(explicit["OPENROUTER_API_KEY"], "env-wins")
+
+    def test_openrouter_key_file_rejects_public_permissions(self) -> None:
+        key_file = self.root / "openrouter-api-key"
+        key_file.write_text("sk-or-public\n", encoding="utf-8")
+        key_file.chmod(0o644)
+        env = {k: v for k, v in os.environ.items() if k != "OPENROUTER_API_KEY"}
+        with (
+            mock.patch.dict(os.environ, env, clear=True),
+            mock.patch("basecamp_bench.adapters.OPENROUTER_KEY_FILE", key_file),
+        ):
+            self.assertIsNone(PiHarness(binary=str(self.fake_bin)).prepare_env().get("OPENROUTER_API_KEY"))
 
 
 class AgyCommandTests(TempDirTestCase):
@@ -610,6 +667,7 @@ class EnvironmentTests(TempDirTestCase):
         self.assertIn("PATH", RETAINED_ENV_NAMES)
         self.assertIn("OPENAI_API_KEY", RETAINED_ENV_NAMES)
 
+    @mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"})
     def test_pi_env_uses_isolated_config_directory(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
         job = self._job(harness="pi", model="glm-5.2")
