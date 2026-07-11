@@ -11,11 +11,11 @@ import json
 import os
 import shutil
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar, Iterator, Literal
+from typing import Any, ClassVar, Literal
 
 __all__ = [
     "ModelSpec",
@@ -692,7 +692,7 @@ class GrokHarness(Harness):
             'extends = "strict"\n'
             "restrict_network = false\n"
             f"read_only = {json.dumps([str(path) for path in read_only])}\n"
-        ).encode("utf-8")
+        ).encode()
         prefix = b"" if original is None or original.endswith(b"\n") else b"\n"
         profile_path.write_bytes((original or b"") + prefix + profile)
         prompt_copy.write_bytes(job.prompt_path.read_bytes())

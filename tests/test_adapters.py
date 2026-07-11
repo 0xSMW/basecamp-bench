@@ -374,7 +374,7 @@ class GrokCommandTests(TempDirTestCase):
         with mock.patch.dict(os.environ, {"PATH": f"/usr/bin:{tool_bin}"}):
             with h.execution_context(job):
                 profile = profile_path.read_text(encoding="utf-8")
-                self.assertIn('[profiles.basecamp_bench]', profile)
+                self.assertIn("[profiles.basecamp_bench]", profile)
                 self.assertIn('extends = "strict"', profile)
                 self.assertIn(str(self.evidence), profile)
                 self.assertIn(str(tool_bin), profile)
