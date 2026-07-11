@@ -1371,7 +1371,11 @@ def _collect_tooling(
                 unresolved_cache[unresolved_key] = (None, error or "executable unavailable")
             version, version_error = unresolved_cache[unresolved_key]
         else:
-            probe_key = str(Path(resolved).resolve())
+            # Command dispatchers such as Volta expose multiple tool names as
+            # symlinks to one shim.  The invoked path selects the real tool, so
+            # following the symlink would incorrectly share version output
+            # across otherwise distinct executables.
+            probe_key = os.path.abspath(resolved)
             if probe_key not in probe_cache:
                 _, version, version_error = _probe_tool_version(
                     config, run_dir, adapter, len(probe_cache) + 1

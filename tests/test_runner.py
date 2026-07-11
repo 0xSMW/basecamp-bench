@@ -11,6 +11,7 @@ import threading
 import time
 import unittest
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -625,6 +626,47 @@ class PipelineTests(Fixture):
             self.assertIsNone(record["version_error"])
             self.assertEqual(record["adapter_version"], record["runner_version"])
             self.assertEqual(record["deterministic_seed"]["supported"], False)
+
+    def test_tooling_does_not_deduplicate_distinct_names_for_one_dispatcher(self) -> None:
+        dispatcher = self.root / "dispatcher"
+        dispatcher.write_text("#!/bin/sh\n", encoding="utf-8")
+        dispatcher.chmod(0o755)
+        alpha = self.root / "alpha"
+        beta = self.root / "beta"
+        alpha.symlink_to(dispatcher)
+        beta.symlink_to(dispatcher)
+        harnesses = {
+            "alpha": self.harness("alpha"),
+            "beta": self.harness("beta"),
+        }
+        harnesses["alpha"] = replace(harnesses["alpha"], binary=str(alpha))
+        harnesses["beta"] = replace(harnesses["beta"], binary=str(beta))
+        config = self.config(
+            harnesses=harnesses,
+            evaluators=(self.evaluator("eval-a", "judge-model-a", harness="alpha"),),
+        )
+        original = self.side_effect
+
+        def distinguish_invoked_name(command, **kwargs):  # type: ignore[no-untyped-def]
+            if "--version" in command:
+                self.version_probe_count += 1
+                kwargs["stdout_path"].write_text(
+                    f"{Path(command[0]).name} 1.0\n", encoding="utf-8"
+                )
+                return _proc()
+            return original(command, **kwargs)
+
+        self.side_effect = distinguish_invoked_name  # type: ignore[method-assign]
+        records = self.read_run_manifest(
+            self.run_bench(config=config, id_factory=_Ids("dispatcher"))
+        )["tooling"]
+        implementations = {
+            record["config_id"]: record["executable_version"]
+            for record in records
+            if record["role"] == "implementation"
+        }
+        self.assertEqual(implementations, {"alpha": "alpha 1.0", "beta": "beta 1.0"})
+        self.assertEqual(self.version_probe_count, 2)
 
     def test_evaluator_role_uses_disabled_implementation_harness_config(self) -> None:
         eval_harness = HarnessSpec(
