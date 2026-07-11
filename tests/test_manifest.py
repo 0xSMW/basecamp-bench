@@ -403,6 +403,7 @@ class BuildAndWriteManifestTests(TempDirTestCase):
                 "config",
                 "inputs",
                 "pricing",
+                "costs",
                 "tooling",
                 "jobs",
                 "artifacts",
@@ -415,6 +416,36 @@ class BuildAndWriteManifestTests(TempDirTestCase):
         self.assertEqual(manifest["run"]["id"], "run-test-001")
         self.assertEqual(manifest["runner"]["version"], "1.0.0a1")
         self.assertIn("python_version", manifest["environment"])
+        self.assertEqual(
+            manifest["costs"],
+            {
+                "known_implementation_usd": 0.1,
+                "known_evaluation_usd": 0.0,
+                "known_total_usd": 0.1,
+                "complete": True,
+                "unknown_job_count": 0,
+            },
+        )
+
+    def test_cost_summary_includes_evaluators_and_surfaces_unknown_costs(self) -> None:
+        jobs = list(_minimal_manifest_kwargs()["jobs"])
+        evaluation = dict(jobs[0])
+        evaluation.update({"id": "job-2", "kind": "evaluate", "cost_usd": 0.025})
+        unknown = dict(evaluation)
+        unknown.update({"id": "job-3", "cost_usd": None})
+        manifest = build_manifest(**_minimal_manifest_kwargs(jobs=[*jobs, evaluation, unknown]))
+        self.assertEqual(manifest["costs"]["known_implementation_usd"], 0.1)
+        self.assertEqual(manifest["costs"]["known_evaluation_usd"], 0.025)
+        self.assertEqual(manifest["costs"]["known_total_usd"], 0.125)
+        self.assertFalse(manifest["costs"]["complete"])
+        self.assertEqual(manifest["costs"]["unknown_job_count"], 1)
+
+    def test_cost_summary_excludes_reused_implementation(self) -> None:
+        reused = dict(_minimal_manifest_kwargs()["jobs"][0])
+        reused["command_preview"] = "reuse prior_run=prior snapshot_tree_sha256=abc"
+        manifest = build_manifest(**_minimal_manifest_kwargs(jobs=[reused]))
+        self.assertEqual(manifest["costs"]["known_total_usd"], 0.0)
+        self.assertTrue(manifest["costs"]["complete"])
 
     def test_invalid_status_and_hashes(self) -> None:
         with self.assertRaises(ValueError):
@@ -481,12 +512,13 @@ class VerifyRunTests(TempDirTestCase):
     def _seed_run(
         self,
         *,
+        run_name: str = "run",
         artifact_text: str = "hello",
         mutate_manifest: object | None = None,
         skip_artifact: bool = False,
         artifact_rel: str = "results/out.txt",
     ) -> Path:
-        run_dir = self.root / "run"
+        run_dir = self.root / run_name
         run_dir.mkdir()
         art = run_dir.joinpath(*artifact_rel.split("/"))
         art.parent.mkdir(parents=True, exist_ok=True)
@@ -512,6 +544,28 @@ class VerifyRunTests(TempDirTestCase):
         # Undeclared files are ignored.
         (run_dir / "noise.log").write_text("ignore me", encoding="utf-8")
         self.assertEqual(verify_run(run_dir), [])
+
+    def test_legacy_schema_1_manifest_without_cost_summary_remains_valid(self) -> None:
+        run_dir = self._seed_run()
+        path = run_dir / "run-manifest.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        del data["costs"]
+        path.write_text(json.dumps(data, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_malformed_job_costs_report_errors_without_crashing(self) -> None:
+        for index, invalid_cost in enumerate(("oops", {}, 10**400), start=1):
+            with self.subTest(invalid_cost=type(invalid_cost).__name__):
+                run_dir = self._seed_run(
+                    run_name=f"run-invalid-cost-{index}",
+                    artifact_rel=f"results/out-{index}.txt",
+                )
+                path = run_dir / "run-manifest.json"
+                data = json.loads(path.read_text(encoding="utf-8"))
+                data["jobs"][0]["cost_usd"] = invalid_cost
+                path.write_text(json.dumps(data, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+                errors = verify_run(run_dir)
+                self.assertTrue(any("cost_usd" in error for error in errors))
 
     def test_missing_manifest(self) -> None:
         run_dir = self.root / "empty"

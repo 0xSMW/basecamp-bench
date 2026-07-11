@@ -53,12 +53,13 @@ ROOT_KEYS = (
     "config",
     "inputs",
     "pricing",
+    "costs",
     "tooling",
     "jobs",
     "artifacts",
     "status",
 )
-REQUIRED_ROOT_KEYS = frozenset(ROOT_KEYS)
+REQUIRED_ROOT_KEYS = frozenset(ROOT_KEYS) - {"costs"}
 ALLOWED_ROOT_KEYS = frozenset(ROOT_KEYS)
 
 REDACTED = "<redacted>"
@@ -103,6 +104,16 @@ _READ_CHUNK = 1024 * 1024
 DEFAULT_MAX_EXPORT_ARTIFACT_BYTES = 256 * 1024 * 1024
 DEFAULT_MAX_EXPORT_TOTAL_BYTES = 256 * 1024 * 1024
 DEFAULT_MAX_EXPORT_MEMBERS = 10_000
+
+
+def _is_finite_number(value: Any) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (OverflowError, ValueError):
+        return False
+
 
 _TEXT_ARTIFACT_SUFFIXES = frozenset(
     {
@@ -854,6 +865,8 @@ def build_manifest(
         "finished_at": finished_at,
     }
 
+    costs = _summarize_incurred_costs(safe_jobs)
+
     manifest: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "runner": runner,
@@ -862,6 +875,7 @@ def build_manifest(
         "config": safe_config,
         "inputs": safe_inputs,
         "pricing": safe_pricing,
+        "costs": costs,
         "tooling": safe_tooling,
         "jobs": safe_jobs,
         "artifacts": safe_artifacts,
@@ -875,6 +889,48 @@ def build_manifest(
     if validation_errors:
         raise ValueError("invalid run manifest:\n" + "\n".join(validation_errors))
     return manifest
+
+
+def _summarize_incurred_costs(jobs: Sequence[Any]) -> dict[str, Any]:
+    """Summarize known spend for calls executed by this run.
+
+    Reevaluation manifests contain an implementation record for provenance,
+    identified by their stable ``reuse prior_run=`` command preview. That
+    historical cost remains attributed to the attempt but is not incurred
+    again by the reevaluation run.
+    """
+    implementation = 0.0
+    evaluation = 0.0
+    unknown_job_count = 0
+    for job in jobs:
+        if not isinstance(job, Mapping) or job.get("skipped") is True:
+            continue
+        preview = job.get("command_preview")
+        if (
+            job.get("kind") == "implement"
+            and isinstance(preview, str)
+            and preview.startswith("reuse prior_run=")
+        ):
+            continue
+        kind = job.get("kind")
+        if kind not in {"implement", "evaluate"}:
+            continue
+        cost = job.get("cost_usd")
+        if cost is None:
+            unknown_job_count += 1
+        elif not _is_finite_number(cost) or float(cost) < 0:
+            unknown_job_count += 1
+        elif kind == "implement":
+            implementation += float(cost)
+        else:
+            evaluation += float(cost)
+    return {
+        "known_implementation_usd": implementation,
+        "known_evaluation_usd": evaluation,
+        "known_total_usd": implementation + evaluation,
+        "complete": unknown_job_count == 0,
+        "unknown_job_count": unknown_job_count,
+    }
 
 
 def _portable_pricing(pricing: Mapping[str, Any]) -> dict[str, Any]:
@@ -1053,10 +1109,13 @@ def _validate_manifest_data(data: Any) -> list[str]:
             return False
         return True
 
-    if not exact(data, ALLOWED_ROOT_KEYS, "manifest"):
-        if not isinstance(data, dict):
-            return errors
-    assert isinstance(data, dict)
+    if not isinstance(data, dict):
+        errors.append("manifest must be an object")
+        return errors
+    for key in sorted(REQUIRED_ROOT_KEYS - set(data)):
+        errors.append(f"manifest missing required field: {key}")
+    for key in sorted(set(data) - ALLOWED_ROOT_KEYS):
+        errors.append(f"manifest has unexpected field: {key}")
     if data.get("schema_version") != SCHEMA_VERSION:
         errors.append(f"manifest.schema_version must be {SCHEMA_VERSION!r}")
     if data.get("status") not in STATUS_VALUES:
@@ -1081,6 +1140,44 @@ def _validate_manifest_data(data: Any) -> list[str]:
             errors.append("manifest.run.mode must be 'local' or 'publication'")
         timestamp(run.get("started_at"), "manifest.run.started_at")
         timestamp(run.get("finished_at"), "manifest.run.finished_at", nullable=True)
+
+    costs = data.get("costs")
+    cost_keys = {
+        "known_implementation_usd",
+        "known_evaluation_usd",
+        "known_total_usd",
+        "complete",
+        "unknown_job_count",
+    }
+    if "costs" in data and exact(costs, cost_keys, "manifest.costs"):
+        number(costs.get("known_implementation_usd"), "manifest.costs.known_implementation_usd")
+        number(costs.get("known_evaluation_usd"), "manifest.costs.known_evaluation_usd")
+        number(costs.get("known_total_usd"), "manifest.costs.known_total_usd")
+        boolean(costs.get("complete"), "manifest.costs.complete")
+        integer(costs.get("unknown_job_count"), "manifest.costs.unknown_job_count")
+        implementation = costs.get("known_implementation_usd")
+        evaluation = costs.get("known_evaluation_usd")
+        total = costs.get("known_total_usd")
+        if all(_is_finite_number(value) for value in (implementation, evaluation, total)):
+            assert implementation is not None and evaluation is not None and total is not None
+            if not math.isclose(
+                float(total),
+                float(implementation) + float(evaluation),
+                rel_tol=1e-12,
+                abs_tol=1e-12,
+            ):
+                errors.append(
+                    "manifest.costs.known_total_usd must equal implementation plus evaluation"
+                )
+        unknown = costs.get("unknown_job_count")
+        complete = costs.get("complete")
+        if (
+            isinstance(unknown, int)
+            and not isinstance(unknown, bool)
+            and isinstance(complete, bool)
+        ):
+            if complete != (unknown == 0):
+                errors.append("manifest.costs.complete must match unknown_job_count == 0")
 
     env = data.get("environment")
     if exact(env, _ENV_KEYS, "manifest.environment"):
@@ -1268,6 +1365,8 @@ def _validate_manifest_data(data: Any) -> list[str]:
                 if job["id"] in seen_job_ids:
                     errors.append(f"manifest.jobs[{index}].id is duplicated")
                 seen_job_ids.add(job["id"])
+        if isinstance(costs, dict) and costs != _summarize_incurred_costs(jobs):
+            errors.append("manifest.costs must match incurred job costs")
 
     artifacts = data.get("artifacts")
     if not isinstance(artifacts, dict):

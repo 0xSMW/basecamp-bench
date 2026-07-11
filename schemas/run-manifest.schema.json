@@ -13,6 +13,7 @@
     "config": {"$ref": "#/$defs/config"},
     "inputs": {"type": "object", "propertyNames": {"type": "string", "minLength": 1}, "additionalProperties": {"$ref": "#/$defs/sha256"}},
     "pricing": {"$ref": "#/$defs/pricingProvenance"},
+    "costs": {"$ref": "#/$defs/costSummary"},
     "tooling": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/toolingRecord"}},
     "jobs": {"type": "array", "items": {"oneOf": [{"$ref": "#/$defs/implementationJob"}, {"$ref": "#/$defs/evaluationJob"}, {"$ref": "#/$defs/skippedEvaluationJob"}]}},
     "artifacts": {"type": "object", "propertyNames": {"$ref": "#/$defs/publicArtifactPath"}, "additionalProperties": {"$ref": "#/$defs/sha256"}},
@@ -25,6 +26,17 @@
     "nullableString": {"type": ["string", "null"], "minLength": 1},
     "nullableAnyString": {"type": ["string", "null"]},
     "nullableNonnegative": {"type": ["number", "null"], "minimum": 0},
+    "costSummary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["known_implementation_usd", "known_evaluation_usd", "known_total_usd", "complete", "unknown_job_count"],
+      "properties": {
+        "known_implementation_usd": {"type": "number", "minimum": 0},
+        "known_evaluation_usd": {"type": "number", "minimum": 0},
+        "known_total_usd": {"type": "number", "minimum": 0},
+        "complete": {"type": "boolean"},
+        "unknown_job_count": {"type": "integer", "minimum": 0}
+      }
+    },
     "relativePath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\u0000-\\u001f]+$"},
     "publicArtifactPath": {"allOf": [{"$ref": "#/$defs/relativePath"}, {"not": {"const": "run-manifest.json"}}, {"not": {"pattern": "^(?:logs|workspaces|private|prompts)(?:/|$)"}}]},
     "runner": {
