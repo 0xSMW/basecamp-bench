@@ -50,6 +50,18 @@ enabled = true
 # display_name = "GLM 5.2 via OpenRouter"
 # enabled = true
 
+# Optional Google Antigravity harness. Install and authenticate `agy`; the
+# adapter maps effort = "low", "medium", or "high" to the matching Gemini 3.5
+# Flash model and enables Antigravity's native terminal sandbox.
+#
+# [harnesses.agy-flash]
+# adapter = "agy"
+# model = "gemini-3.5-flash"
+# effort = "high"
+# provider_family = "google"
+# display_name = "Gemini 3.5 Flash (High) via Antigravity"
+# enabled = true
+
 [[evaluators]]
 # Sol 5.6 is intentional. Trials with Fable 5, Grok 4.5, and Sol 5.6 produced
 # comparably fair judgments; Sol was the most detailed and thorough. Another

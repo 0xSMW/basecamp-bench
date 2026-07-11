@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from basecamp_bench.adapters import (
+    AGY_MODEL_ALIASES,
     DEFAULT_GROK_BINARY,
     PI_MODEL_ALIASES,
     RETAINED_ENV_NAMES,
     AgentJob,
+    AgyHarness,
     ClaudeHarness,
     CodexHarness,
     GrokHarness,
@@ -95,7 +98,8 @@ class RegistryTests(unittest.TestCase):
     def test_builtin_registration_deterministic(self) -> None:
         names = registered_harnesses()
         self.assertEqual(names, sorted(names))
-        self.assertEqual(names, ["claude", "codex", "grok", "pi"])
+        self.assertEqual(names, ["agy", "claude", "codex", "grok", "pi"])
+        self.assertIsInstance(get_harness("agy"), AgyHarness)
         self.assertIsInstance(get_harness("codex"), CodexHarness)
         self.assertIsInstance(get_harness("claude"), ClaudeHarness)
         self.assertIsInstance(get_harness("grok"), GrokHarness)
@@ -439,6 +443,79 @@ class PiCommandTests(TempDirTestCase):
         h = PiHarness(binary=str(self.fake_bin))
         job = self._job(harness="pi", model="glm-5.2")
         (self.workdir / ".basecamp-bench-prompt.md").write_text("occupied", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "reserved"):
+            with h.execution_context(job):
+                pass
+
+
+class AgyCommandTests(TempDirTestCase):
+    def test_sandboxed_argv_and_disposable_evidence(self) -> None:
+        (self.evidence / "app.py").write_text("print('evidence')\n", encoding="utf-8")
+        self.prompt_path.write_text(
+            f"Inspect {self.evidence}\n{SENTINEL}\n",
+            encoding="utf-8",
+        )
+        h = AgyHarness(binary=str(self.fake_bin))
+        job = self._job(
+            kind="evaluate",
+            harness="agy",
+            model="gemini-3.5-flash",
+            evidence_dirs=(self.evidence,),
+        )
+        with h.execution_context(job):
+            cmd = h.build_command(job)
+            self._assert_no_sentinel_in_argv(cmd)
+            self.assertEqual(cmd[0], sys.executable)
+            self.assertEqual(cmd[3], str(self.fake_bin))
+            self.assertEqual(
+                cmd[cmd.index("--model") + 1],
+                AGY_MODEL_ALIASES["gemini-3.5-flash"]["high"],
+            )
+            self.assertEqual(cmd[cmd.index("--mode") + 1], "accept-edits")
+            self.assertEqual(cmd[cmd.index("--output-format") + 1], "json")
+            self.assertIn("--sandbox", cmd)
+            self.assertIn("--dangerously-skip-permissions", cmd)
+            self.assertNotIn("--add-dir", cmd)
+            self.assertNotIn("-p", cmd)
+
+            staged_root = self.workdir / ".basecamp-bench-agy"
+            staged_evidence = staged_root / "evidence-0"
+            staged_prompt = (staged_root / "prompt.md").read_text(encoding="utf-8")
+            launcher = (staged_root / "launch.py").read_text(encoding="utf-8")
+            self.assertNotIn(SENTINEL, launcher)
+            self.assertIn(str(staged_evidence), staged_prompt)
+            self.assertNotIn(str(self.evidence), staged_prompt)
+            self.assertEqual(
+                (staged_evidence / "app.py").read_text(encoding="utf-8"),
+                "print('evidence')\n",
+            )
+        self.assertFalse((self.workdir / ".basecamp-bench-agy").exists())
+        self.assertEqual(
+            (self.evidence / "app.py").read_text(encoding="utf-8"), "print('evidence')\n"
+        )
+
+    def test_danger_full_access_omits_sandbox(self) -> None:
+        h = AgyHarness(binary=str(self.fake_bin))
+        job = self._job(
+            harness="agy",
+            model="gemini-3.5-flash",
+            sandbox_mode="danger-full-access",
+        )
+        with h.execution_context(job):
+            cmd = h.build_command(job)
+        self.assertNotIn("--sandbox", cmd)
+
+    def test_rejects_unknown_model_and_effort(self) -> None:
+        h = AgyHarness(binary=str(self.fake_bin))
+        with self.assertRaisesRegex(ValueError, "unsupported"):
+            h.build_command(self._job(harness="agy", model="gemini-pro"))
+        with self.assertRaisesRegex(ValueError, "does not support effort"):
+            h.build_command(self._job(harness="agy", model="gemini-3.5-flash", effort="xhigh"))
+
+    def test_reserved_path_fails_closed(self) -> None:
+        h = AgyHarness(binary=str(self.fake_bin))
+        job = self._job(harness="agy", model="gemini-3.5-flash")
+        (self.workdir / ".basecamp-bench-agy").mkdir()
         with self.assertRaisesRegex(ValueError, "reserved"):
             with h.execution_context(job):
                 pass
@@ -824,8 +901,29 @@ class ParseOutputTests(TempDirTestCase):
         self.assertEqual(parsed.session_id, "pi-session")
         self.assertIsNone(parsed.reported_cost_usd)
 
+    def test_agy_json_usage_and_response(self) -> None:
+        h = AgyHarness(binary=str(self.fake_bin))
+        job = self._job(harness="agy", model="gemini-3.5-flash")
+        payload = {
+            "conversation_id": "agy-session",
+            "status": "SUCCESS",
+            "response": "done\n",
+            "usage": {
+                "input_tokens": 17_492,
+                "output_tokens": 5,
+                "thinking_tokens": 2,
+                "total_tokens": 17_497,
+            },
+        }
+        parsed = h.parse_output(job, json.dumps(payload))
+        self.assertEqual(parsed.usage, Usage(input_tokens=17_492, output_tokens=5))
+        self.assertEqual(parsed.last_message, "done\n")
+        self.assertEqual(parsed.session_id, "agy-session")
+        self.assertIsNone(parsed.reported_cost_usd)
+
     def test_malformed_and_noisy_output_tolerated(self) -> None:
         for harness_cls, harness_name in (
+            (AgyHarness, "agy"),
             (CodexHarness, "codex"),
             (ClaudeHarness, "claude"),
             (GrokHarness, "grok"),

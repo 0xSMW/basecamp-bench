@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import contextmanager
@@ -27,6 +28,7 @@ __all__ = [
     "ClaudeHarness",
     "GrokHarness",
     "PiHarness",
+    "AgyHarness",
     "register_harness",
     "get_harness",
     "registered_harnesses",
@@ -34,6 +36,7 @@ __all__ = [
     "RETAINED_ENV_NAMES",
     "DEFAULT_GROK_BINARY",
     "PI_MODEL_ALIASES",
+    "AGY_MODEL_ALIASES",
 ]
 
 
@@ -1094,3 +1097,111 @@ class PiHarness(Harness):
             last_message=last_message,
             session_id=session_id,
         )
+
+
+AGY_MODEL_ALIASES: Mapping[str, Mapping[str, str]] = {
+    "gemini-3.5-flash": {
+        "low": "Gemini 3.5 Flash (Low)",
+        "medium": "Gemini 3.5 Flash (Medium)",
+        "high": "Gemini 3.5 Flash (High)",
+    }
+}
+
+
+@register_harness
+class AgyHarness(Harness):
+    """Google Antigravity CLI with its native terminal sandbox enabled."""
+
+    name = "agy"
+    _STATE_DIR = ".basecamp-bench-agy"
+    _PROMPT_FILE = "prompt.md"
+    _LAUNCHER_FILE = "launch.py"
+
+    @staticmethod
+    def _native_model(model: str, effort: str) -> str:
+        efforts = AGY_MODEL_ALIASES.get(model)
+        if efforts is None:
+            known = ", ".join(sorted(AGY_MODEL_ALIASES))
+            raise ValueError(f"AGY model '{model}' is unsupported; configured aliases: {known}")
+        try:
+            return efforts[effort]
+        except KeyError as exc:
+            known = ", ".join(sorted(efforts))
+            raise ValueError(
+                f"AGY model '{model}' does not support effort '{effort}'; choose: {known}"
+            ) from exc
+
+    @contextmanager
+    def execution_context(self, job: AgentJob) -> Iterator[None]:
+        """Stage the prompt and disposable evidence copies inside the sandbox."""
+        state_dir = job.workdir / self._STATE_DIR
+        if state_dir.is_symlink() or state_dir.exists():
+            raise ValueError("workspace contains a reserved AGY adapter path")
+        state_dir.mkdir()
+        try:
+            (state_dir / self._LAUNCHER_FILE).write_text(
+                "import os\n"
+                "import sys\n"
+                "with open(sys.argv[1], encoding='utf-8') as fh:\n"
+                "    prompt = fh.read()\n"
+                "os.execv(sys.argv[2], [sys.argv[2], *sys.argv[3:], '-p', prompt])\n",
+                encoding="utf-8",
+            )
+            prompt_text = job.prompt_path.read_text(encoding="utf-8")
+            for index, source in enumerate(job.evidence_dirs):
+                if source.is_symlink() or not source.is_dir():
+                    raise ValueError("AGY evidence paths must be non-symlink directories")
+                if any(path.is_symlink() for path in source.rglob("*")):
+                    raise ValueError("AGY evidence trees must not contain symlinks")
+                staged = state_dir / f"evidence-{index}"
+                shutil.copytree(source, staged)
+                prompt_text = prompt_text.replace(str(source), str(staged))
+            (state_dir / self._PROMPT_FILE).write_text(prompt_text, encoding="utf-8")
+            yield
+        finally:
+            if state_dir.is_symlink():
+                state_dir.unlink()
+            elif state_dir.exists():
+                shutil.rmtree(state_dir)
+
+    def build_command(self, job: AgentJob) -> list[str]:
+        native_model = self._native_model(job.model.model, job.model.effort)
+        cmd = [
+            sys.executable,
+            str(job.workdir / self._STATE_DIR / self._LAUNCHER_FILE),
+            str(job.workdir / self._STATE_DIR / self._PROMPT_FILE),
+            self.resolve_binary(),
+            "--model",
+            native_model,
+            "--mode",
+            "accept-edits",
+            "--output-format",
+            "json",
+            "--print-timeout",
+            "24h",
+            "--log-file",
+            f"{self._STATE_DIR}/agy.log",
+            "--dangerously-skip-permissions",
+        ]
+        if job.sandbox_mode != "danger-full-access":
+            cmd.append("--sandbox")
+        return cmd
+
+    def parse_output(self, job: AgentJob, stdout_text: str) -> ParsedOutput:
+        for obj in _iter_json_objects(stdout_text):
+            native_usage = obj.get("usage")
+            usage = None
+            if isinstance(native_usage, dict):
+                usage = Usage(
+                    input_tokens=_int_of(native_usage.get("input_tokens")),
+                    output_tokens=_int_of(native_usage.get("output_tokens")),
+                )
+            response = obj.get("response")
+            conversation_id = obj.get("conversation_id")
+            return ParsedOutput(
+                usage=usage,
+                reported_cost_usd=None,
+                last_message=response if isinstance(response, str) else None,
+                session_id=conversation_id if isinstance(conversation_id, str) else None,
+            )
+        return ParsedOutput()
