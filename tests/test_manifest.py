@@ -1005,6 +1005,24 @@ class BuildManifestGitIntegrationTests(TempDirTestCase):
         self.assertIsNone(m["runner"]["commit"])
         self.assertIsNotNone(m["runner"]["error"])
 
+    def test_explicit_runner_git_uses_frozen_provenance(self) -> None:
+        frozen = {"commit": "b" * 40, "dirty": False, "error": None}
+        with mock.patch("basecamp_bench.manifest.git_provenance") as probe:
+            manifest = build_manifest(
+                **_minimal_manifest_kwargs(repo=None, runner_git=frozen)
+            )
+        probe.assert_not_called()
+        self.assertEqual(manifest["runner"], {"version": "1.0.0a1", **frozen})
+
+    def test_repo_and_explicit_runner_git_are_mutually_exclusive(self) -> None:
+        with self.assertRaisesRegex(ValueError, "mutually exclusive"):
+            build_manifest(
+                **_minimal_manifest_kwargs(
+                    repo=self.root,
+                    runner_git={"commit": "b" * 40, "dirty": False, "error": None},
+                )
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

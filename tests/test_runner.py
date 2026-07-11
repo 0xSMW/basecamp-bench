@@ -744,6 +744,19 @@ class PipelineTests(Fixture):
         self.assertTrue(all(not errors for errors in transition_errors))
         self.assertEqual(verify_run(run_dir), [])
 
+    def test_git_provenance_is_frozen_before_manifest_checkpoints(self) -> None:
+        frozen = {"commit": "a" * 40, "dirty": False, "error": None}
+        with (
+            mock.patch("basecamp_bench.runner.git_provenance", return_value=frozen) as capture,
+            mock.patch(
+                "basecamp_bench.manifest.git_provenance",
+                side_effect=AssertionError("checkpoint refreshed Git provenance"),
+            ),
+        ):
+            run_dir = self.run_bench(id_factory=_Ids("git-frozen"))
+        capture.assert_called_once_with(self.root)
+        self.assertEqual(self.read_run_manifest(run_dir)["runner"], {"version": "1.0.0a1", **frozen})
+
     def test_implementation_exception_checkpoints_failed_manifest(self) -> None:
         self.raise_impl = True
         with self.assertRaisesRegex(RuntimeError, "implementation exploded"):

@@ -784,6 +784,7 @@ def build_manifest(
     started_at: str,
     finished_at: str | None = None,
     repo: Path | None = None,
+    runner_git: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build an exact-root run manifest compatible with the schema.
 
@@ -829,7 +830,25 @@ def build_manifest(
     if not isinstance(safe_jobs, list):
         raise TypeError("jobs must serialize to a list")
 
-    if repo is None:
+    if runner_git is not None:
+        if repo is not None:
+            raise ValueError("repo and runner_git are mutually exclusive")
+        if set(runner_git) != {"commit", "dirty", "error"}:
+            raise ValueError("runner_git must contain exactly commit, dirty, and error")
+        commit = runner_git["commit"]
+        dirty = runner_git["dirty"]
+        error = runner_git["error"]
+        if commit is not None and (
+            not isinstance(commit, str)
+            or re.fullmatch(r"(?:[a-f0-9]{40}|[a-f0-9]{64})", commit) is None
+        ):
+            raise ValueError("runner_git.commit must be a full lowercase Git hash or None")
+        if dirty is not None and type(dirty) is not bool:
+            raise TypeError("runner_git.dirty must be bool or None")
+        if error is not None and (not isinstance(error, str) or not error):
+            raise ValueError("runner_git.error must be a nonempty string or None")
+        git = {"commit": commit, "dirty": dirty, "error": error}
+    elif repo is None:
         git = {"commit": None, "dirty": None, "error": None}
     else:
         git = git_provenance(Path(repo))

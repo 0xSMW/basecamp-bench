@@ -44,7 +44,13 @@ from basecamp_bench.execution import (
     secret_env_values as _secret_env_values,
 )
 from basecamp_bench.leaderboard import Attempt, aggregate_attempts, write_leaderboards
-from basecamp_bench.manifest import build_manifest, hash_inputs, verify_run, write_manifest
+from basecamp_bench.manifest import (
+    build_manifest,
+    git_provenance,
+    hash_inputs,
+    verify_run,
+    write_manifest,
+)
 from basecamp_bench.pricing import find_exact_rates, load_pricing_snapshot, normalize_model_id
 from basecamp_bench.processes import ProcessResult, run_managed
 from basecamp_bench.prompts import build_evaluator_prompt, implementation_prompt_bytes
@@ -154,6 +160,7 @@ class _RunContext:
     run_id: str
     make_id: Callable[[], str]
     started: str
+    runner_git: dict[str, Any]
     pricing_payload: Mapping[str, Any] | None
     pricing_prov: dict[str, Any]
     pricing_retrieved_at: str | None
@@ -489,6 +496,7 @@ def _open_run(
     else:
         make_id = id_factory
         run_id = validate_identifier(make_id(), field="run_id")
+    runner_git = git_provenance(config.root)
     config.run_root.mkdir(parents=True, exist_ok=True)
     run_dir = create_unique_directory(config.run_root / run_id)
     for name in (
@@ -523,6 +531,7 @@ def _open_run(
             {},
             tooling,
             finished=_utc_now(now),
+            runner_git=runner_git,
         )
         raise ValueError("; ".join(hard))
     unsafe = [e for e in gate_errors if e.startswith("unsafe:")]
@@ -555,6 +564,7 @@ def _open_run(
         run_id=run_id,
         make_id=make_id,
         started=started,
+        runner_git=runner_git,
         pricing_payload=pricing_payload,
         pricing_prov=pricing_prov,
         pricing_retrieved_at=pricing_retrieved_at,
@@ -635,6 +645,7 @@ def _finalize_run(
         dict(ctx.input_hashes),
         list(ctx.tooling),
         finished=_utc_now(now),
+        runner_git=ctx.runner_git,
     )
     _emit_progress(options, "run.finished", run_id=ctx.run_id, status=final_status)
     return run_dir
@@ -1467,6 +1478,7 @@ def _checkpoint_run(
         dict(ctx.input_hashes),
         [dict(item) for item in ctx.tooling],
         finished=finished,
+        runner_git=ctx.runner_git,
     )
 
 
@@ -1557,6 +1569,7 @@ def _write_manifest(
     inputs: dict[str, str],
     tooling: list[dict[str, Any]],
     finished: str | None = None,
+    runner_git: Mapping[str, Any] | None = None,
 ) -> None:
     write_manifest(
         run_dir / "run-manifest.json",
@@ -1573,7 +1586,7 @@ def _write_manifest(
             status=status,
             started_at=started,
             finished_at=finished,
-            repo=config.root,
+            runner_git=runner_git,
         ),
     )
 
