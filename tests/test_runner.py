@@ -1066,6 +1066,34 @@ class PublicationTests(Fixture):
 
 
 class UnsafeTests(Fixture):
+    def test_pi_requires_external_isolation_or_host_ack(self) -> None:
+        @register_harness(replace=True)
+        class PiLike(Harness):
+            name = "pi"
+
+            def build_command(self, job: AgentJob) -> list[str]:
+                return ["pi", "x"]
+
+        try:
+            cfg = self.config(
+                harnesses={"pi-glm": self.harness(hid="pi-glm", adapter="pi", model="glm-5.2")},
+                evaluators=(self.evaluator("e1", "judge-model-a", harness="pi-glm"),),
+            )
+            with self.assertRaisesRegex(ValueError, "non-OS-sandboxed"):
+                self.run_bench(
+                    config=cfg,
+                    options=RunOptions(
+                        allow_unsafe_host_execution=False,
+                        confirmed_isolated_environment=False,
+                        allow_network_pricing=False,
+                    ),
+                    id_factory=_Ids("pi-unsafe"),
+                )
+        finally:
+            from basecamp_bench.adapters import PiHarness
+
+            register_harness(PiHarness, replace=True)
+
     def test_workspace_sandboxed_claude_does_not_require_host_ack(self) -> None:
         @register_harness(replace=True)
         class ClaudeLike(Harness):

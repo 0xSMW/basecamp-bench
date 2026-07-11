@@ -11,6 +11,7 @@ from unittest import mock
 
 from basecamp_bench.adapters import (
     DEFAULT_GROK_BINARY,
+    PI_MODEL_ALIASES,
     RETAINED_ENV_NAMES,
     AgentJob,
     ClaudeHarness,
@@ -19,6 +20,7 @@ from basecamp_bench.adapters import (
     Harness,
     ModelSpec,
     ParsedOutput,
+    PiHarness,
     Usage,
     get_harness,
     is_retained_env_name,
@@ -93,10 +95,11 @@ class RegistryTests(unittest.TestCase):
     def test_builtin_registration_deterministic(self) -> None:
         names = registered_harnesses()
         self.assertEqual(names, sorted(names))
-        self.assertEqual(names, ["claude", "codex", "grok"])
+        self.assertEqual(names, ["claude", "codex", "grok", "pi"])
         self.assertIsInstance(get_harness("codex"), CodexHarness)
         self.assertIsInstance(get_harness("claude"), ClaudeHarness)
         self.assertIsInstance(get_harness("grok"), GrokHarness)
+        self.assertIsInstance(get_harness("pi"), PiHarness)
 
     def test_unknown_harness(self) -> None:
         with self.assertRaises(KeyError) as ctx:
@@ -392,6 +395,49 @@ class GrokCommandTests(TempDirTestCase):
         self.assertNotIn("--sandbox", cmd)
 
 
+class PiCommandTests(TempDirTestCase):
+    def test_glm_argv_and_transient_configuration(self) -> None:
+        h = PiHarness(binary=str(self.fake_bin))
+        job = self._job(harness="pi", model="glm-5.2")
+        with h.execution_context(job):
+            cmd = h.build_command(job)
+            self._assert_no_sentinel_in_argv(cmd)
+            self.assertEqual(cmd[0], str(self.fake_bin))
+            self.assertEqual(cmd[cmd.index("--provider") + 1], "openrouter")
+            self.assertEqual(cmd[cmd.index("--model") + 1], "z-ai/glm-5.2")
+            self.assertEqual(cmd[cmd.index("--thinking") + 1], "high")
+            self.assertEqual(cmd[cmd.index("--tools") + 1], "read,bash,edit,write,grep,find,ls")
+            self.assertIn("--no-session", cmd)
+            self.assertIn("--approve", cmd)
+            self.assertEqual(cmd[-2:], ["-p", "@.basecamp-bench-prompt.md"])
+
+            config_path = self.workdir / ".basecamp-bench-pi" / "models.json"
+            model_config = json.loads(config_path.read_text(encoding="utf-8"))
+            model = model_config["providers"]["openrouter"]["models"][0]
+            self.assertEqual(model["id"], PI_MODEL_ALIASES["glm-5.2"])
+            self.assertEqual(model["contextWindow"], 1_048_576)
+            self.assertEqual(
+                (self.workdir / ".basecamp-bench-prompt.md").read_text(encoding="utf-8"),
+                SENTINEL,
+            )
+        self.assertFalse((self.workdir / ".basecamp-bench-pi").exists())
+        self.assertFalse((self.workdir / ".basecamp-bench-prompt.md").exists())
+
+    def test_rejects_unknown_model_alias(self) -> None:
+        h = PiHarness(binary=str(self.fake_bin))
+        job = self._job(harness="pi", model="z-ai/glm-5.2")
+        with self.assertRaisesRegex(ValueError, "unsupported"):
+            h.build_command(job)
+
+    def test_reserved_paths_fail_closed(self) -> None:
+        h = PiHarness(binary=str(self.fake_bin))
+        job = self._job(harness="pi", model="glm-5.2")
+        (self.workdir / ".basecamp-bench-prompt.md").write_text("occupied", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "reserved"):
+            with h.execution_context(job):
+                pass
+
+
 class EnvironmentTests(TempDirTestCase):
     def test_allowlist_keeps_required_drops_arbitrary(self) -> None:
         h = CodexHarness(binary=str(self.fake_bin))
@@ -414,6 +460,7 @@ class EnvironmentTests(TempDirTestCase):
             "ANTHROPIC_API_KEY": "sk-ant-secret",
             "XAI_API_KEY": "xai-secret",
             "GROK_HOME": "/tmp/grok-home",
+            "OPENROUTER_API_KEY": "or-secret",
             # Arbitrary / secret noise that must be dropped
             "AWS_SECRET_ACCESS_KEY": "aws-secret",
             "MY_CUSTOM_TOKEN": "custom-secret",
@@ -439,6 +486,7 @@ class EnvironmentTests(TempDirTestCase):
             "ANTHROPIC_API_KEY",
             "XAI_API_KEY",
             "GROK_HOME",
+            "OPENROUTER_API_KEY",
         ):
             self.assertIn(key, env)
             self.assertEqual(env[key], base[key])
@@ -456,6 +504,7 @@ class EnvironmentTests(TempDirTestCase):
         self.assertTrue(is_retained_env_name("OPENAI_API_KEY"))
         self.assertTrue(is_retained_env_name("ANTHROPIC_API_KEY"))
         self.assertTrue(is_retained_env_name("XAI_API_KEY"))
+        self.assertTrue(is_retained_env_name("OPENROUTER_API_KEY"))
         self.assertTrue(is_retained_env_name("LC_MESSAGES"))
         self.assertTrue(is_retained_env_name("SSL_CERT_DIR"))
         self.assertFalse(is_retained_env_name("AWS_SECRET_ACCESS_KEY"))
@@ -463,6 +512,13 @@ class EnvironmentTests(TempDirTestCase):
         self.assertFalse(is_retained_env_name("RANDOM_VAR"))
         self.assertIn("PATH", RETAINED_ENV_NAMES)
         self.assertIn("OPENAI_API_KEY", RETAINED_ENV_NAMES)
+
+    def test_pi_env_uses_isolated_config_directory(self) -> None:
+        h = PiHarness(binary=str(self.fake_bin))
+        env = h.prepare_env({"PATH": "/usr/bin", "OPENROUTER_API_KEY": "secret"})
+        self.assertEqual(env["PI_CODING_AGENT_DIR"], ".basecamp-bench-pi")
+        self.assertEqual(env["PI_TELEMETRY"], "0")
+        self.assertEqual(env["OPENROUTER_API_KEY"], "secret")
 
     def test_prepare_env_does_not_copy_os_environ_arbitrarily(self) -> None:
         h = ClaudeHarness(binary=str(self.fake_bin))
@@ -722,11 +778,52 @@ class ParseOutputTests(TempDirTestCase):
         self.assertEqual(parsed.last_message, "only text")
         self.assertIsNone(parsed.usage)
 
+    def test_pi_jsonl_usage_and_message(self) -> None:
+        h = PiHarness(binary=str(self.fake_bin))
+        job = self._job(harness="pi", model="glm-5.2")
+        text = "\n".join(
+            [
+                json.dumps({"type": "session", "id": "pi-session"}),
+                json.dumps(
+                    {
+                        "type": "message_end",
+                        "message": {
+                            "role": "assistant",
+                            "content": [{"type": "text", "text": "first"}],
+                            "usage": {
+                                "input": 100,
+                                "output": 20,
+                                "cacheRead": 30,
+                                "cacheWrite": 4,
+                                "cost": {"total": 99},
+                            },
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "message_end",
+                        "message": {
+                            "role": "assistant",
+                            "content": [{"type": "text", "text": "final"}],
+                            "usage": {"input": 10, "output": 5, "cacheRead": 2},
+                        },
+                    }
+                ),
+            ]
+        )
+        parsed = h.parse_output(job, text)
+        self.assertEqual(parsed.usage, Usage(110, 32, 4, 25))
+        self.assertEqual(parsed.last_message, "final")
+        self.assertEqual(parsed.session_id, "pi-session")
+        self.assertIsNone(parsed.reported_cost_usd)
+
     def test_malformed_and_noisy_output_tolerated(self) -> None:
         for harness_cls, harness_name in (
             (CodexHarness, "codex"),
             (ClaudeHarness, "claude"),
             (GrokHarness, "grok"),
+            (PiHarness, "pi"),
         ):
             with self.subTest(harness=harness_name):
                 h = harness_cls(binary=str(self.fake_bin))

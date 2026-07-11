@@ -26,12 +26,14 @@ __all__ = [
     "CodexHarness",
     "ClaudeHarness",
     "GrokHarness",
+    "PiHarness",
     "register_harness",
     "get_harness",
     "registered_harnesses",
     "is_retained_env_name",
     "RETAINED_ENV_NAMES",
     "DEFAULT_GROK_BINARY",
+    "PI_MODEL_ALIASES",
 ]
 
 
@@ -177,6 +179,8 @@ RETAINED_ENV_NAMES: frozenset[str] = frozenset(
         "XAI_BASE_URL",
         "GROK_API_KEY",
         "GROK_HOME",
+        # Pi / OpenRouter
+        "OPENROUTER_API_KEY",
     }
 )
 
@@ -933,3 +937,158 @@ class GrokHarness(Harness):
         except OSError:
             return None
         return total if found else None
+
+
+PI_MODEL_ALIASES: Mapping[str, str] = {
+    # Benchmark identifiers must be safe path components, while OpenRouter's
+    # native model identifiers contain a provider slash.
+    "glm-5.2": "z-ai/glm-5.2",
+}
+
+
+@register_harness
+class PiHarness(Harness):
+    """Pi coding agent using an isolated OpenRouter model catalog."""
+
+    name = "pi"
+    _CONFIG_DIR = ".basecamp-bench-pi"
+    _PROMPT_FILE = ".basecamp-bench-prompt.md"
+
+    @staticmethod
+    def _native_model(model: str) -> str:
+        try:
+            return PI_MODEL_ALIASES[model]
+        except KeyError as exc:
+            known = ", ".join(sorted(PI_MODEL_ALIASES))
+            raise ValueError(
+                f"Pi model '{model}' is unsupported; configured aliases: {known}"
+            ) from exc
+
+    @contextmanager
+    def execution_context(self, job: AgentJob) -> Iterator[None]:
+        """Install only the custom model and prompt files needed for this job."""
+        config_dir = job.workdir / self._CONFIG_DIR
+        models_path = config_dir / "models.json"
+        prompt_copy = job.workdir / self._PROMPT_FILE
+        if config_dir.is_symlink() or models_path.is_symlink() or prompt_copy.is_symlink():
+            raise ValueError("Pi reserved configuration paths must not be symlinks")
+        if config_dir.exists() or prompt_copy.exists():
+            raise ValueError("workspace contains a reserved Pi adapter path")
+        if any(not path.is_dir() for path in job.evidence_dirs):
+            raise ValueError("Pi evidence paths must be directories")
+
+        native_model = self._native_model(job.model.model)
+        config_dir.mkdir()
+        models_path.write_text(
+            json.dumps(
+                {
+                    "providers": {
+                        "openrouter": {
+                            "baseUrl": "https://openrouter.ai/api/v1",
+                            "api": "openai-completions",
+                            "apiKey": "$OPENROUTER_API_KEY",
+                            "models": [
+                                {
+                                    "id": native_model,
+                                    "name": "GLM 5.2",
+                                    "reasoning": True,
+                                    "input": ["text"],
+                                    "contextWindow": 1_048_576,
+                                    "maxTokens": 131_072,
+                                }
+                            ],
+                        }
+                    }
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        prompt_copy.write_bytes(job.prompt_path.read_bytes())
+        try:
+            yield
+        finally:
+            if not prompt_copy.is_symlink() and prompt_copy.is_file():
+                prompt_copy.unlink()
+            if not models_path.is_symlink() and models_path.is_file():
+                models_path.unlink()
+            if not config_dir.is_symlink():
+                try:
+                    config_dir.rmdir()
+                except OSError:
+                    pass
+
+    def prepare_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
+        env = super().prepare_env(base)
+        # Relative paths resolve against the per-job working directory.
+        env["PI_CODING_AGENT_DIR"] = self._CONFIG_DIR
+        env["PI_TELEMETRY"] = "0"
+        return env
+
+    def build_command(self, job: AgentJob) -> list[str]:
+        native_model = self._native_model(job.model.model)
+        return [
+            self.resolve_binary(),
+            "--mode",
+            "json",
+            "--provider",
+            "openrouter",
+            "--model",
+            native_model,
+            "--thinking",
+            job.model.effort,
+            "--no-session",
+            "--no-extensions",
+            "--no-skills",
+            "--no-prompt-templates",
+            "--approve",
+            "--tools",
+            "read,bash,edit,write,grep,find,ls",
+            "-p",
+            f"@{self._PROMPT_FILE}",
+        ]
+
+    def parse_output(self, job: AgentJob, stdout_text: str) -> ParsedOutput:
+        usage = Usage()
+        found_usage = False
+        last_message: str | None = None
+        session_id: str | None = None
+        for obj in _iter_json_objects(stdout_text):
+            if obj.get("type") == "session" and isinstance(obj.get("id"), str):
+                session_id = obj["id"]
+            if obj.get("type") != "message_end":
+                continue
+            message = obj.get("message")
+            if not isinstance(message, dict) or message.get("role") != "assistant":
+                continue
+            native_usage = message.get("usage")
+            if isinstance(native_usage, dict):
+                usage = usage.add(
+                    Usage(
+                        input_tokens=_int_of(native_usage.get("input")),
+                        cached_input_tokens=_int_of(native_usage.get("cacheRead")),
+                        cache_write_tokens=_int_of(native_usage.get("cacheWrite")),
+                        output_tokens=_int_of(native_usage.get("output")),
+                    )
+                )
+                found_usage = True
+            content = message.get("content")
+            if isinstance(content, list):
+                text_parts = [
+                    item["text"]
+                    for item in content
+                    if isinstance(item, dict)
+                    and item.get("type") == "text"
+                    and isinstance(item.get("text"), str)
+                ]
+                if text_parts:
+                    last_message = "\n".join(text_parts)
+        return ParsedOutput(
+            usage=usage if found_usage else None,
+            # Custom model catalogs cannot safely encode OpenRouter's dynamic
+            # routing price. The runner resolves cost from its pinned pricing.
+            reported_cost_usd=None,
+            last_message=last_message,
+            session_id=session_id,
+        )

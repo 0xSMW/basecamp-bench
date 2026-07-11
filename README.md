@@ -27,7 +27,7 @@ gate before making production-reliability or performance claims.
 - Python 3.11 or newer.
 - A clone of this repository; run commands from its root.
 - Any selected agent CLIs installed and authenticated: Codex, Claude Code,
-  and/or Grok.
+  Grok, and/or Pi.
 - A disposable VM for real publication runs.
 
 No Python runtime dependencies are required.
@@ -179,6 +179,11 @@ A new model on an existing CLI is configuration only: update the corresponding
 an adapter implementing command construction, environment allowlisting, working
 directory, stdin, and output/usage parsing. Adapter tests must cover redaction,
 malformed output, permissions, timeouts, and vendor output drift.
+
+The optional `pi` adapter exposes the safe benchmark model ID `glm-5.2` and
+routes it to OpenRouter's `z-ai/glm-5.2`; set `OPENROUTER_API_KEY` and use the
+commented example in `bench.example.toml`. Pi has no OS sandbox, so it requires
+the local unsafe-execution acknowledgement or the documented external boundary.
 
 Contract or evaluator-directive changes require a new contract version and
 changelog entry. Published contract versions are immutable.
