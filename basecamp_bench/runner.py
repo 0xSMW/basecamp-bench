@@ -83,7 +83,7 @@ _SEED_IGNORE = (
     "__pycache__/**",
     "*.pyc",
 )
-_NO_OS_SANDBOX = frozenset({"claude", "grok"})
+_NO_OS_SANDBOX = frozenset({"claude"})
 _PRICING_URL = "https://models.dev/api.json"
 _PRICING_MAX_AGE_S = 7 * 24 * 3600
 _MIN_PUB_REPS, _MIN_PUB_EVALS, _MIN_LOCAL_EVALS = 3, 2, 1
@@ -151,6 +151,56 @@ def execute_agent(
     """Run *job* via adapter + run_managed; parse usage/cost/message."""
     adapter = get_harness(job.harness, binary=_binary_for_job(config, job))
     roots, secrets = (config.root, config.run_root, job.workdir), _secret_env_values(adapter)
+    context = adapter.execution_context(job)
+    try:
+        context.__enter__()
+    except Exception as exc:  # noqa: BLE001
+        empty = ProcessResult(
+            returncode=None,
+            duration_s=0.0,
+            timed_out=False,
+            interrupted=False,
+            stdout_bytes=0,
+            stderr_bytes=0,
+            stdout_truncated=False,
+            stderr_truncated=False,
+            error=str(exc),
+        )
+        return AgentExecution(
+            process=empty,
+            usage=None,
+            cost_usd=None,
+            reported_cost_usd=None,
+            last_message=None,
+            command_preview="<execution-setup-failed>",
+            error=_safe_error(str(exc), roots=roots, secret_values=secrets),
+        )
+    try:
+        return _execute_agent_prepared(
+            config,
+            job,
+            adapter=adapter,
+            roots=roots,
+            secrets=secrets,
+            pricing_data=pricing_data,
+            pricing_retrieved_at=pricing_retrieved_at,
+            options=options,
+        )
+    finally:
+        context.__exit__(None, None, None)
+
+
+def _execute_agent_prepared(
+    config: BenchConfig,
+    job: AgentJob,
+    *,
+    adapter: Harness,
+    roots: tuple[Path, Path, Path],
+    secrets: Sequence[str],
+    pricing_data: Mapping[str, Any] | None,
+    pricing_retrieved_at: str | None,
+    options: RunOptions,
+) -> AgentExecution:
     try:
         command = list(adapter.build_command(job))
     except Exception as exc:  # noqa: BLE001

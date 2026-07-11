@@ -283,7 +283,10 @@ class GrokCommandTests(TempDirTestCase):
         self._assert_no_sentinel_in_argv(cmd)
         self.assertEqual(cmd[0], str(self.fake_bin))
         self.assertIn("--prompt-file", cmd)
-        self.assertEqual(cmd[cmd.index("--prompt-file") + 1], str(self.prompt_path))
+        self.assertEqual(
+            cmd[cmd.index("--prompt-file") + 1],
+            str(self.workdir / ".grok" / ".basecamp-bench-prompt.md"),
+        )
         self.assertIn("--cwd", cmd)
         self.assertEqual(cmd[cmd.index("--cwd") + 1], str(self.workdir))
         self.assertIn("-m", cmd)
@@ -298,8 +301,9 @@ class GrokCommandTests(TempDirTestCase):
         self.assertNotIn("--no-subagents", cmd)
         self.assertNotIn("--always-approve", cmd)
         self.assertIn("--tools", cmd)
-        self.assertNotIn("Bash", cmd[cmd.index("--tools") + 1].split(","))
-        self.assertNotIn("Bash(*)", cmd)
+        self.assertIn("Bash", cmd[cmd.index("--tools") + 1].split(","))
+        self.assertIn("Bash(*)", cmd)
+        self.assertEqual(cmd[cmd.index("--sandbox") + 1], "basecamp_bench")
         self.assertIsNone(h.stdin_for(job))
         # Prompt lives only in the file referenced by --prompt-file.
         self.assertEqual(self.prompt_path.read_text(encoding="utf-8"), SENTINEL)
@@ -321,6 +325,8 @@ class GrokCommandTests(TempDirTestCase):
         for i, arg in enumerate(cmd):
             if arg in ("--allow", "--deny") and i + 1 < len(cmd):
                 rule = cmd[i + 1]
+                if rule == "Bash(*)":
+                    continue
                 if "(" in rule and ")" in rule:
                     inner = rule[rule.index("(") + 1 : rule.rindex(")")]
                     if inner:
@@ -335,6 +341,37 @@ class GrokCommandTests(TempDirTestCase):
         sibling = self.root / "other-submission"
         sibling.mkdir()
         self.assertFalse(any(str(sibling) in a for a in cmd))
+
+    def test_workspace_execution_context_installs_and_restores_sandbox(self) -> None:
+        h = GrokHarness(binary=str(self.fake_bin))
+        job = self._job(
+            kind="evaluate",
+            harness="grok",
+            evidence_dirs=(self.evidence,),
+        )
+        profile_path = self.workdir / ".grok" / "sandbox.toml"
+        tool_bin = self.root / "tools" / "bin"
+        tool_bin.mkdir(parents=True)
+        prompt_copy = self.workdir / ".grok" / ".basecamp-bench-prompt.md"
+        with mock.patch.dict(os.environ, {"PATH": f"/usr/bin:{tool_bin}"}):
+            with h.execution_context(job):
+                profile = profile_path.read_text(encoding="utf-8")
+                self.assertIn('[profiles.basecamp_bench]', profile)
+                self.assertIn('extends = "strict"', profile)
+                self.assertIn(str(self.evidence), profile)
+                self.assertIn(str(tool_bin), profile)
+                self.assertEqual(prompt_copy.read_text(encoding="utf-8"), SENTINEL)
+        self.assertFalse(profile_path.exists())
+        self.assertFalse(prompt_copy.exists())
+        self.assertFalse(profile_path.parent.exists())
+
+    def test_danger_full_access_does_not_install_sandbox(self) -> None:
+        h = GrokHarness(binary=str(self.fake_bin))
+        job = self._job(harness="grok", sandbox_mode="danger-full-access")
+        with h.execution_context(job):
+            self.assertFalse((self.workdir / ".grok" / "sandbox.toml").exists())
+        cmd = h.build_command(job)
+        self.assertNotIn("--sandbox", cmd)
 
 
 class EnvironmentTests(TempDirTestCase):

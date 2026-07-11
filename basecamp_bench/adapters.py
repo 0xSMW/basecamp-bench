@@ -12,9 +12,10 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Iterator, Literal
 
 __all__ = [
     "ModelSpec",
@@ -306,6 +307,11 @@ class Harness(ABC):
         """Bytes to pass as stdin, or ``None`` when unused."""
         return None
 
+    @contextmanager
+    def execution_context(self, job: AgentJob) -> Iterator[None]:
+        """Prepare transient per-job state, restoring it after execution."""
+        yield
+
     def prepare_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
         """Build a fresh environment from the portable allowlist.
 
@@ -589,11 +595,76 @@ class GrokHarness(Harness):
         # Prompt is carried via ``--prompt-file`` only.
         return None
 
+    @contextmanager
+    def execution_context(self, job: AgentJob) -> Iterator[None]:
+        """Install a fail-closed custom OS sandbox profile for this job."""
+        if job.sandbox_mode == "danger-full-access":
+            yield
+            return
+
+        grok_dir = job.workdir / ".grok"
+        profile_path = grok_dir / "sandbox.toml"
+        prompt_copy = grok_dir / ".basecamp-bench-prompt.md"
+        if grok_dir.is_symlink() or profile_path.is_symlink() or prompt_copy.is_symlink():
+            raise ValueError("Grok sandbox configuration path must not be a symlink")
+
+        created_dir = not grok_dir.exists()
+        if created_dir:
+            grok_dir.mkdir()
+        elif not grok_dir.is_dir():
+            raise ValueError("Grok sandbox configuration parent must be a directory")
+
+        original = profile_path.read_bytes() if profile_path.exists() else None
+        if original is not None and b"[profiles.basecamp_bench]" in original:
+            raise ValueError("workspace already defines reserved Grok sandbox profile")
+        if prompt_copy.exists():
+            raise ValueError("workspace contains reserved Grok prompt path")
+
+        read_only = list(job.evidence_dirs)
+        if any(not path.is_dir() for path in read_only):
+            raise ValueError("Grok evidence paths must be directories")
+        for entry in os.environ.get("PATH", "").split(os.pathsep):
+            path = Path(entry)
+            if entry and path.is_absolute() and path.is_dir() and path not in read_only:
+                read_only.append(path)
+        profile = (
+            "\n[profiles.basecamp_bench]\n"
+            'extends = "strict"\n'
+            "restrict_network = false\n"
+            f"read_only = {json.dumps([str(path) for path in read_only])}\n"
+        ).encode("utf-8")
+        prefix = b"" if original is None or original.endswith(b"\n") else b"\n"
+        profile_path.write_bytes((original or b"") + prefix + profile)
+        prompt_copy.write_bytes(job.prompt_path.read_bytes())
+        try:
+            yield
+        finally:
+            if grok_dir.is_symlink():
+                return
+            if profile_path.is_symlink():
+                profile_path.unlink()
+            if prompt_copy.is_symlink() or prompt_copy.is_file():
+                prompt_copy.unlink()
+            if original is None:
+                if profile_path.is_file():
+                    profile_path.unlink()
+            else:
+                profile_path.write_bytes(original)
+            if created_dir:
+                try:
+                    grok_dir.rmdir()
+                except OSError:
+                    pass
+
     def build_command(self, job: AgentJob) -> list[str]:
         cmd: list[str] = [
             self.resolve_binary(),
             "--prompt-file",
-            str(job.prompt_path),
+            str(
+                job.prompt_path
+                if job.sandbox_mode == "danger-full-access"
+                else job.workdir / ".grok" / ".basecamp-bench-prompt.md"
+            ),
             "--cwd",
             str(job.workdir),
             "-m",
@@ -610,10 +681,12 @@ class GrokHarness(Harness):
         else:
             cmd.extend(
                 [
+                    "--sandbox",
+                    "basecamp_bench",
                     "--permission-mode",
                     "dontAsk",
                     "--tools",
-                    "Edit,Glob,Grep,Read,Write",
+                    "Bash,Edit,Glob,Grep,Read,Write",
                 ]
             )
             cmd.extend(self._permission_rules(job))
@@ -642,6 +715,8 @@ class GrokHarness(Harness):
         workdir_s = str(workdir)
         rules.extend(
             [
+                "--allow",
+                "Bash(*)",
                 "--allow",
                 f"Write({workdir_s})",
                 "--allow",
