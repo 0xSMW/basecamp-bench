@@ -450,18 +450,11 @@ class EligibilityGateTests(unittest.TestCase):
         self.assertFalse(entry["eligible"])
         self.assertIn("local_mode", entry["ineligible_reasons"])
 
-    def test_publication_cardinality_and_overlap_gates(self) -> None:
+    def test_publication_cardinality_gates(self) -> None:
         cases = (
             (self._three_valid()[:2], "insufficient_repetitions"),
             (self._three_valid(evaluator_ids=("only-one",)), "insufficient_evaluators"),
             (self._three_valid(evaluator_ids=("same", "same")), "insufficient_evaluators"),
-            (
-                self._three_valid(
-                    model_id="contestant-x",
-                    evaluator_ids=("judge-1", "contestant-x"),
-                ),
-                "model_evaluator_overlap",
-            ),
         )
         for attempts, reason in cases:
             with self.subTest(reason=reason):
@@ -473,16 +466,15 @@ class EligibilityGateTests(unittest.TestCase):
                 self.assertFalse(entry["eligible"])
                 self.assertIn(reason, entry["ineligible_reasons"])
 
-    def test_no_fuzzy_overlap_false_positive(self) -> None:
+    def test_evaluator_model_overlap_is_allowed(self) -> None:
         attempts = self._three_valid(
             model_id="gpt-4",
-            evaluator_ids=("gpt-4-turbo", "judge-other"),
+            evaluator_ids=("gpt-4", "judge-other"),
         )
         roots = aggregate_attempts(
             attempts, mode="publication", generated_at="2026-01-01T00:00:00Z"
         )
         entry = roots[0]["entries"][0]  # type: ignore[index]
-        self.assertNotIn("model_evaluator_overlap", entry["ineligible_reasons"])
         self.assertTrue(entry["eligible"])
 
     def test_publication_requires_all_costs_known(self) -> None:

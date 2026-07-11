@@ -107,7 +107,6 @@ _REASON_EVAL_COST_INCOMPLETE = "evaluation_cost_incomplete"
 _REASON_DISPLAY_NAME = "display_name_inconsistent"
 _REASON_INSUFFICIENT_REPS = "insufficient_repetitions"
 _REASON_INSUFFICIENT_EVALS = "insufficient_evaluators"
-_REASON_MODEL_EVAL_OVERLAP = "model_evaluator_overlap"
 _REASON_ATTEMPT_INELIGIBLE = "attempt_ineligible_reasons"
 _REASON_LOCAL_MODE = "local_mode"
 
@@ -197,7 +196,7 @@ def _require_sha256(value: Any, field: str) -> str:
 
 
 def _normalize_model_key(value: str) -> str:
-    """Normalize model/evaluator ids for exact overlap checks (no fuzzy match)."""
+    """Normalize evaluator model IDs for exact distinct-count checks."""
     return value.lower().strip().replace(" ", "-")
 
 
@@ -503,15 +502,6 @@ def _aggregate_group(
             for a in valid
         ):
             reasons.append(_REASON_INSUFFICIENT_EVALS)
-        model_key = _normalize_model_key(model_id)
-        for attempt in attempts:
-            for eid in attempt.evaluator_ids:
-                if _normalize_model_key(eid) == model_key:
-                    reasons.append(_REASON_MODEL_EVAL_OVERLAP)
-                    break
-            else:
-                continue
-            break
     stable = _stable_reasons(reasons)
     eligible = valid_count > 0 and len(stable) == 0
     raw_rows = [_attempt_to_raw(a) for a in attempts]

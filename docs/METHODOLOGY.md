@@ -15,13 +15,16 @@ The runner validates the exact dimension set and computes the weighted score. Ev
 Local mode supports inexpensive iteration. Local entries always carry `local_mode`, remain ineligible, and never enter a Pareto frontier. Publication mode requires:
 
 - At least three independent implementation repetitions per configuration.
-- At least two valid judges whose exact model IDs do not match the contestant model.
+- At least two valid judge model IDs. An evaluator may share the contestant's
+  model ID; that relationship remains explicit in attempt provenance.
 - An immutable snapshot and complete hash/provenance manifest.
 - Every required evaluator report and score artifact.
 - Exact or explicitly pinned pricing; fuzzy model-price matches are ineligible.
 - Safe execution settings and no evidence mutation or secret-scan finding.
 
 Leaderboards are scoped to one complete comparison identity. They expose every raw attempt, success rate, median, mean, population standard deviation, range, judge disagreement, duration, token usage, and cost. FE and BE are not combined. Reports may combine later compatible files: exact duplicate attempts are deduplicated, model aggregates are recomputed from the combined raw attempts, and every source timestamp and run ID remains visible. Aggregate fields in source files never override this recomputation. Frontier and dominator identity is the exact `(harness, model_id)` pair, so the same model run through different harnesses remains distinct.
+
+Run manifests also expose incurred implementation, evaluation, and combined known spend under `costs`. Failed or invalid evaluator calls remain included when their cost is known; `complete` and `unknown_job_count` make partial accounting explicit. Reevaluation excludes the reused implementation cost from newly incurred spend while preserving it on the attributed attempt.
 
 Publication reevaluation may reuse submissions only from a completed publication run whose reused attempts have no ineligibility reasons, with identical seed, reference pack, and implementation prompt hashes. This prevents a later environment or tool probe from laundering an ineligible implementation into an eligible publication result. Rubrics and contracts may change intentionally and remain explicit in lineage. Local reevaluation remains available for diagnostics.
 

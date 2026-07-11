@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import textwrap
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -169,6 +170,18 @@ class RunManagedTests(unittest.TestCase):
         self.assertIsInstance(result.duration_s, float)
         self.assertGreaterEqual(result.duration_s, 0.0)
 
+    def test_pre_cancelled_run_never_spawns(self) -> None:
+        cancel = threading.Event()
+        cancel.set()
+        result = self._run(
+            [str(self.root / "missing-binary-that-must-not-be-spawned")],
+            cancel_event=cancel,
+        )
+        self.assertTrue(result.interrupted)
+        self.assertFalse(result.timed_out)
+        self.assertIsNone(result.returncode)
+        self.assertIsNone(result.error)
+
     def test_nonzero_exit_code_preserved(self) -> None:
         script = _write_script(
             self.root,
@@ -242,6 +255,54 @@ class RunManagedTests(unittest.TestCase):
             _pid_alive(grandchild_pid),
             f"grandchild pid {grandchild_pid} still alive after run_managed returned",
         )
+
+    def test_cancel_event_kills_posix_grandchild(self) -> None:
+        if os.name != "posix":
+            self.skipTest("process-group grandchild cleanup is POSIX-specific")
+
+        marker = self.root / "cancelled-grandchild.pid"
+        sticky = _write_script(
+            self.root,
+            "cancel_sticky_parent.py",
+            f"""\
+            import os
+            import signal
+            import time
+
+            pid = os.fork()
+            if pid == 0:
+                signal.signal(signal.SIGTERM, signal.SIG_IGN)
+                with open({str(marker)!r}, "w", encoding="utf-8") as fh:
+                    fh.write(str(os.getpid()))
+                    fh.flush()
+                while True:
+                    time.sleep(1)
+            while True:
+                time.sleep(1)
+            """,
+        )
+        cancel = threading.Event()
+        outcome: dict[str, ProcessResult] = {}
+
+        def invoke() -> None:
+            outcome["result"] = self._run(
+                [sys.executable, str(sticky)],
+                timeout_s=30.0,
+                grace_s=0.5,
+                cancel_event=cancel,
+            )
+
+        worker = threading.Thread(target=invoke, name="cancel-run-managed-test")
+        worker.start()
+        self.assertTrue(_poll_until(marker.exists, timeout_s=2.0))
+        cancel.set()
+        worker.join(timeout=4.0)
+        self.assertFalse(worker.is_alive())
+        result = outcome["result"]
+        self.assertTrue(result.interrupted)
+        self.assertFalse(result.timed_out)
+        grandchild_pid = int(marker.read_text(encoding="utf-8").strip())
+        self.assertTrue(_poll_until(lambda: not _pid_alive(grandchild_pid), timeout_s=2.0))
 
     def test_creates_log_parent_directories(self) -> None:
         deep_out = self.root / "a" / "b" / "c" / "stdout.log"

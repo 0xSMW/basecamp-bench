@@ -7,6 +7,8 @@ import json
 import os
 import re
 import tempfile
+import threading
+import time
 import unittest
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -634,14 +636,51 @@ class PipelineTests(Fixture):
         run_dir = self.run_root / "eval-crash001"
         manifest = self.read_run_manifest(run_dir)
         self.assertEqual(manifest["status"], "failed")
-        self.assertEqual([job["kind"] for job in manifest["jobs"]], ["implement", "evaluate"])
-        self.assertFalse(manifest["jobs"][-1]["valid"])
+        eval_jobs = [job for job in manifest["jobs"] if job["kind"] == "evaluate"]
+        self.assertEqual(len(eval_jobs), 2)
+        self.assertTrue(all(not job["valid"] for job in eval_jobs))
+        self.assertEqual(
+            {job["eval_attempt_id"] for job in eval_jobs},
+            {"eval-crash003", "eval-crash004"},
+        )
+        self.assertTrue(all(job["id"] == f"evaluate-{job['eval_attempt_id']}" for job in eval_jobs))
         snapshot_artifacts = {
             key: value
             for key, value in manifest["artifacts"].items()
             if key.startswith("snapshots/")
         }
         self.assertTrue(snapshot_artifacts)
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_evaluator_exception_checkpoints_concurrent_sibling_outcome(self) -> None:
+        original = self.side_effect
+        both_started = threading.Barrier(2)
+        failure_released = threading.Event()
+
+        def mixed_outcome(command, **kwargs):  # type: ignore[no-untyped-def]
+            kind = command[command.index("--kind") + 1] if "--kind" in command else "implement"
+            if "--version" in command or kind != "evaluate":
+                return original(command, **kwargs)
+            prompt_path = Path(command[command.index("--prompt-file") + 1])
+            prompt = prompt_path.read_text(encoding="utf-8")
+            both_started.wait(timeout=2.0)
+            if '"judge_id": "eval-a"' in prompt:
+                failure_released.set()
+                raise RuntimeError("evaluator exploded")
+            failure_released.wait(timeout=2.0)
+            time.sleep(0.05)
+            return original(command, **kwargs)
+
+        self.side_effect = mixed_outcome  # type: ignore[method-assign]
+        with self.assertRaisesRegex(RuntimeError, "evaluator exploded"):
+            self.run_bench(id_factory=_Ids("mixed-eval-crash"))
+        run_dir = self.run_root / "mixed-eval-crash001"
+        manifest = self.read_run_manifest(run_dir)
+        eval_jobs = [job for job in manifest["jobs"] if job["kind"] == "evaluate"]
+        self.assertEqual(len(eval_jobs), 2)
+        self.assertEqual(sum(job["error"] is None for job in eval_jobs), 1)
+        self.assertEqual(sum(job["error"] is not None for job in eval_jobs), 1)
+        self.assertTrue(any(path.endswith("/output/result.json") for path in manifest["artifacts"]))
         self.assertEqual(verify_run(run_dir), [])
 
     def test_keyboard_interrupt_checkpoints_failed_manifest_and_reraises(self) -> None:
@@ -653,6 +692,265 @@ class PipelineTests(Fixture):
         self.assertEqual(manifest["status"], "failed")
         self.assertTrue(manifest["jobs"][0]["interrupted"])
         self.assertNotIn(str(self.root), json.dumps(manifest))
+        self.assertEqual(verify_run(run_dir), [])
+
+
+class ConcurrencyTests(Fixture):
+    def test_build_success_progress_waits_for_snapshot_commit(self) -> None:
+        from basecamp_bench import runner as runner_module
+
+        original = runner_module.atomic_snapshot
+        events: list[tuple[str, dict[str, object]]] = []
+
+        def fail_submission_snapshot(source, destination, **kwargs):  # type: ignore[no-untyped-def]
+            if Path(destination).parent.name == "snapshots":
+                raise RuntimeError("snapshot commit failed")
+            return original(source, destination, **kwargs)
+
+        with mock.patch(
+            "basecamp_bench.runner.atomic_snapshot", side_effect=fail_submission_snapshot
+        ):
+            with self.assertRaisesRegex(RuntimeError, "snapshot commit failed"):
+                self.run_bench(
+                    options=self.options(
+                        progress=lambda event, fields: events.append((event, dict(fields)))
+                    ),
+                    id_factory=_Ids("snapshot-progress"),
+                )
+        finished = [fields for event, fields in events if event == "build.finished"]
+        self.assertFalse(any(fields.get("status") == "succeeded" for fields in finished))
+        self.assertEqual(events[-1][0], "run.failed")
+
+    def test_sigterm_handler_sets_shared_cancellation_and_restores(self) -> None:
+        import signal
+
+        if not hasattr(signal, "SIGTERM"):
+            self.skipTest("SIGTERM unavailable")
+        from basecamp_bench import runner as runner_module
+
+        cancel = threading.Event()
+        previous = signal.getsignal(signal.SIGTERM)
+        restore = runner_module._install_termination_cancellation(cancel)
+        try:
+            handler = signal.getsignal(signal.SIGTERM)
+            self.assertTrue(callable(handler))
+            with self.assertRaises(KeyboardInterrupt):
+                handler(signal.SIGTERM, None)  # type: ignore[operator]
+            self.assertTrue(cancel.is_set())
+        finally:
+            restore()
+        self.assertIs(signal.getsignal(signal.SIGTERM), previous)
+
+    def test_parallel_agent_cap_bounds_builds_and_evaluations(self) -> None:
+        original = self.side_effect
+        lock = threading.Lock()
+        two_entered = threading.Event()
+        active = 0
+        peak = 0
+
+        def bounded(command, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal active, peak
+            if "--version" in command:
+                return original(command, **kwargs)
+            with lock:
+                active += 1
+                peak = max(peak, active)
+                if active == 2:
+                    two_entered.set()
+            two_entered.wait(timeout=2.0)
+            try:
+                return original(command, **kwargs)
+            finally:
+                with lock:
+                    active -= 1
+
+        self.side_effect = bounded  # type: ignore[method-assign]
+        run_dir = self.run_bench(
+            config=self.config(repetitions=3),
+            options=self.options(max_parallel_agents=2),
+            id_factory=_Ids("bounded"),
+        )
+        self.assertTrue(two_entered.is_set())
+        self.assertEqual(peak, 2)
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_parallel_agent_cap_rejects_invalid_values(self) -> None:
+        for value in (0, -1, True, 1.5):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                RunOptions(max_parallel_agents=value)  # type: ignore[arg-type]
+
+    def test_duplicate_planned_ids_fail_before_agent_execution(self) -> None:
+        original = self.side_effect
+        agent_calls = 0
+
+        def counting(command, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal agent_calls
+            if "--version" not in command:
+                agent_calls += 1
+            return original(command, **kwargs)
+
+        values = iter(("run-id", "duplicate", "eval-1", "eval-2", "duplicate"))
+        self.side_effect = counting  # type: ignore[method-assign]
+        with self.assertRaisesRegex(ValueError, "duplicate planned identifier"):
+            self.run_bench(
+                config=self.config(repetitions=2),
+                id_factory=lambda: next(values),
+            )
+        self.assertEqual(agent_calls, 0)
+
+    def test_progress_reports_attributable_stage_transitions(self) -> None:
+        lock = threading.Lock()
+        events: list[tuple[str, dict[str, object]]] = []
+
+        def record(event: str, fields: Mapping[str, object]) -> None:
+            with lock:
+                events.append((event, dict(fields)))
+
+        self.run_bench(options=self.options(progress=record), id_factory=_Ids("progress"))
+        names = [event for event, _ in events]
+        self.assertEqual(names.count("build.started"), 1)
+        self.assertEqual(names.count("build.finished"), 1)
+        self.assertEqual(names.count("evaluate.started"), 2)
+        self.assertEqual(names.count("evaluate.finished"), 2)
+        self.assertIn("aggregate.started", names)
+        self.assertIn("aggregate.finished", names)
+        self.assertIn("report.started", names)
+        self.assertIn("report.finished", names)
+        self.assertEqual(names[-1], "run.finished")
+        submission_id = next(
+            fields["submission_id"] for event, fields in events if event == "build.finished"
+        )
+        build_finished = next(
+            index
+            for index, (event, fields) in enumerate(events)
+            if event == "build.finished" and fields["submission_id"] == submission_id
+        )
+        eval_starts = [
+            index
+            for index, (event, fields) in enumerate(events)
+            if event == "evaluate.started" and fields["submission_id"] == submission_id
+        ]
+        self.assertTrue(eval_starts)
+        self.assertTrue(all(build_finished < index for index in eval_starts))
+
+    def test_independent_repetitions_overlap(self) -> None:
+        original = self.side_effect
+        lock = threading.Lock()
+        both_entered = threading.Event()
+        active = 0
+        peak = 0
+
+        def concurrent(command, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal active, peak
+            kind = command[command.index("--kind") + 1] if "--kind" in command else "implement"
+            if "--version" in command or kind != "implement":
+                return original(command, **kwargs)
+            with lock:
+                active += 1
+                peak = max(peak, active)
+                if active == 2:
+                    both_entered.set()
+            both_entered.wait(timeout=2.0)
+            try:
+                return original(command, **kwargs)
+            finally:
+                with lock:
+                    active -= 1
+
+        self.side_effect = concurrent  # type: ignore[method-assign]
+        run_dir = self.run_bench(config=self.config(repetitions=2), id_factory=_Ids("parallel"))
+        self.assertTrue(both_entered.is_set())
+        self.assertEqual(peak, 2)
+        self.assertEqual(len(list((run_dir / "attempts").glob("*.json"))), 2)
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_evaluators_for_ready_submission_overlap(self) -> None:
+        original = self.side_effect
+        lock = threading.Lock()
+        both_entered = threading.Event()
+        active = 0
+        peak = 0
+
+        def concurrent(command, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal active, peak
+            kind = command[command.index("--kind") + 1] if "--kind" in command else "implement"
+            if "--version" in command or kind != "evaluate":
+                return original(command, **kwargs)
+            with lock:
+                active += 1
+                peak = max(peak, active)
+                if active == 2:
+                    both_entered.set()
+            both_entered.wait(timeout=2.0)
+            try:
+                return original(command, **kwargs)
+            finally:
+                with lock:
+                    active -= 1
+
+        self.side_effect = concurrent  # type: ignore[method-assign]
+        run_dir = self.run_bench(id_factory=_Ids("judges"))
+        self.assertTrue(both_entered.is_set())
+        self.assertEqual(peak, 2)
+        attempt = self.attempt_json(run_dir)
+        self.assertTrue(attempt["evaluation_success"])
+        self.assertEqual(len(attempt["evaluator_ids"]), 2)
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_ready_submission_evaluates_before_slow_sibling_finishes(self) -> None:
+        original = self.side_effect
+        lock = threading.Lock()
+        fast_eval_started = threading.Event()
+        implementation_calls = 0
+
+        def staged(command, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal implementation_calls
+            kind = command[command.index("--kind") + 1] if "--kind" in command else "implement"
+            if "--version" in command:
+                return original(command, **kwargs)
+            if kind == "implement":
+                with lock:
+                    implementation_calls += 1
+                    is_slow = implementation_calls == 1
+                if is_slow:
+                    fast_eval_started.wait(timeout=2.0)
+                return original(command, **kwargs)
+            fast_eval_started.set()
+            return original(command, **kwargs)
+
+        self.side_effect = staged  # type: ignore[method-assign]
+        run_dir = self.run_bench(config=self.config(repetitions=2), id_factory=_Ids("dag"))
+        self.assertTrue(fast_eval_started.is_set())
+        self.assertEqual(len(list((run_dir / "attempts").glob("*.json"))), 2)
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_concurrent_checkpoint_writes_are_serialized(self) -> None:
+        from basecamp_bench import runner as runner_module
+
+        original = runner_module._write_manifest
+        lock = threading.Lock()
+        active = 0
+        peak = 0
+
+        def recording(*args, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            try:
+                time.sleep(0.005)
+                return original(*args, **kwargs)
+            finally:
+                with lock:
+                    active -= 1
+
+        with mock.patch("basecamp_bench.runner._write_manifest", side_effect=recording):
+            run_dir = self.run_bench(
+                config=self.config(repetitions=2), id_factory=_Ids("checkpoint")
+            )
+        self.assertEqual(peak, 1)
+        manifest = self.read_run_manifest(run_dir)
+        self.assertEqual(len({job["id"] for job in manifest["jobs"]}), 6)
         self.assertEqual(verify_run(run_dir), [])
 
 
@@ -695,7 +993,7 @@ class EvalIntegrityTests(Fixture):
 
 
 class OverlapTests(Fixture):
-    def test_skip_exact_model_overlap(self) -> None:
+    def test_exact_model_overlap_is_evaluated_and_recorded(self) -> None:
         cfg = self.config(
             evaluators=(
                 self.evaluator("eval-same", "contestant-model"),
@@ -703,15 +1001,13 @@ class OverlapTests(Fixture):
             )
         )
         run_dir = self.run_bench(config=cfg, id_factory=_Ids("o"))
-        skips = [
-            j
-            for j in self.read_run_manifest(run_dir)["jobs"]
-            if j.get("reason") == "contestant_evaluator_model_overlap"
+        eval_jobs = [
+            j for j in self.read_run_manifest(run_dir)["jobs"] if j.get("kind") == "evaluate"
         ]
-        self.assertEqual(len(skips), 1)
+        self.assertEqual(len(eval_jobs), 2)
         att = self.attempt_json(run_dir)
         self.assertTrue(att["evaluation_success"])
-        self.assertEqual(att["evaluator_ids"], ["judge-model-b"])
+        self.assertEqual(att["evaluator_ids"], ["contestant-model", "judge-model-b"])
 
 
 class PublicationTests(Fixture):
@@ -989,7 +1285,9 @@ class ReevaluateTests(Fixture):
         self.assertTrue(att["evaluation_success"])
         self.assertEqual(att["implementation_cost_usd"], prior_impl_cost)
         self.assertEqual(att["tokens"], prior_impl_tokens + 10)
-        self.assertAlmostEqual(att["duration_s"], prior_impl_duration + 0.25)
+        # Evaluators run concurrently, so attempt wall time follows the slowest
+        # evaluator rather than the sum of evaluator durations.
+        self.assertAlmostEqual(att["duration_s"], prior_impl_duration + 0.125)
         self.assertAlmostEqual(att["evaluation_cost_usd"], 0.004)
         self.assertEqual(set(att["evaluator_ids"]), {"judge-model-a", "judge-model-b"})
         self.assertTrue((new_dir / "snapshots" / prior_sid / "app.py").is_file())
@@ -1005,6 +1303,20 @@ class ReevaluateTests(Fixture):
         blob = json.dumps(man)
         self.assertNotIn(str(prior.resolve()), blob)
         self.assertNotIn(str(self.root.resolve()), man["jobs"][0]["command_preview"])
+
+    def test_failed_reevaluation_preserves_prior_lineage_inputs(self) -> None:
+        prior = self.run_bench(id_factory=_Ids("lineage-prior"))
+        prior_id = prior.name
+        sid = self.attempt_json(prior)["submission_id"]
+        self.raise_eval = True
+        with self.assertRaisesRegex(RuntimeError, "evaluator exploded"):
+            self.reeval(prior, id_factory=_Ids("lineage-new"))
+        failed = self.run_root / "lineage-new001"
+        manifest = self.read_run_manifest(failed)
+        self.assertEqual(manifest["status"], "failed")
+        self.assertIn(f"prior_run:{prior_id}", manifest["inputs"])
+        self.assertIn(f"reuse_snapshot_tree:{sid}", manifest["inputs"])
+        self.assertEqual(verify_run(failed), [])
 
     def test_seed_hash_mismatch_rejects_before_evaluator_execution(self) -> None:
         prior = self.run_bench(id_factory=_Ids("seed"))

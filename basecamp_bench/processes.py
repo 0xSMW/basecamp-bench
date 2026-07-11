@@ -199,6 +199,20 @@ def _spawn_failure_result(started: float, error: str) -> ProcessResult:
     )
 
 
+def _cancelled_result(started: float) -> ProcessResult:
+    return ProcessResult(
+        returncode=None,
+        duration_s=time.perf_counter() - started,
+        timed_out=False,
+        interrupted=True,
+        stdout_bytes=0,
+        stderr_bytes=0,
+        stdout_truncated=False,
+        stderr_truncated=False,
+        error=None,
+    )
+
+
 def run_managed(
     command: Sequence[str],
     *,
@@ -210,6 +224,7 @@ def run_managed(
     grace_s: float = 3.0,
     max_stream_bytes: int = 50_000_000,
     stdin: bytes | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> ProcessResult:
     """Run *command* with bounded streaming logs and process-group cleanup.
 
@@ -233,6 +248,8 @@ def run_managed(
 
     if not command:
         return _spawn_failure_result(started, "command must be a non-empty sequence")
+    if cancel_event is not None and cancel_event.is_set():
+        return _cancelled_result(started)
 
     popen_kwargs: dict = {
         "args": list(command),
@@ -289,14 +306,25 @@ def run_managed(
     wait_error: str | None = None
 
     try:
-        if timeout_s is None:
-            proc.wait()
-        else:
-            try:
-                proc.wait(timeout=timeout_s)
-            except subprocess.TimeoutExpired:
-                timed_out = True
+        deadline = None if timeout_s is None else time.monotonic() + timeout_s
+        while proc.poll() is None:
+            if cancel_event is not None and cancel_event.is_set():
+                interrupted = True
                 _terminate_and_reap(proc, grace_s)
+                break
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    timed_out = True
+                    _terminate_and_reap(proc, grace_s)
+                    break
+                poll_timeout = min(_POLL_INTERVAL_S, remaining)
+            else:
+                poll_timeout = _POLL_INTERVAL_S
+            try:
+                proc.wait(timeout=poll_timeout)
+            except subprocess.TimeoutExpired:
+                pass
     except KeyboardInterrupt:
         interrupted = True
         _terminate_and_reap(proc, grace_s)

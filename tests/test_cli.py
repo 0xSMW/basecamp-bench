@@ -56,6 +56,8 @@ class RunCommandTests(TempDirTestCase):
             "--allow-unsafe-host-execution",
             "--isolated-environment",
             "--offline-pricing",
+            "--max-parallel-agents",
+            "7",
         )
         self.assertEqual((code, stderr), (0, ""))
         self.assertEqual(stdout, f"{result}\n")
@@ -72,7 +74,35 @@ class RunCommandTests(TempDirTestCase):
         self.assertTrue(options.allow_unsafe_host_execution)
         self.assertTrue(options.confirmed_isolated_environment)
         self.assertFalse(options.allow_network_pricing)
+        self.assertEqual(options.max_parallel_agents, 7)
+        self.assertTrue(callable(options.progress))
         self.assertIs(run.call_args.args[0], config)
+
+    @patch("basecamp_bench.cli.run_benchmark", return_value=Path("result"))
+    @patch("basecamp_bench.cli.load_config", return_value=object())
+    def test_quiet_disables_progress(self, _load: Mock, run: Mock) -> None:
+        code, _, stderr = self.invoke("run", "--root", os.fspath(self.root), "--quiet")
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertIsNone(run.call_args.kwargs["options"].progress)
+
+    def test_progress_printer_emits_atomic_sorted_event_line(self) -> None:
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            cli._progress_printer()("evaluate.started", {"track": "fe", "model": "sol"})
+        self.assertEqual(stderr.getvalue(), "[evaluate.started] model=sol track=fe\n")
+
+    def test_progress_printer_counts_parallel_completions(self) -> None:
+        stderr = io.StringIO()
+        printer = cli._progress_printer()
+        with redirect_stderr(stderr):
+            printer("run.planned", {"implementations": 2, "evaluators": 2})
+            printer("build.finished", {"model": "sol"})
+            printer("build.finished", {"model": "grok"})
+            printer("evaluate.finished", {"model": "sol"})
+        lines = stderr.getvalue().splitlines()
+        self.assertIn("progress=1/2", lines[1])
+        self.assertIn("progress=2/2", lines[2])
+        self.assertIn("progress=1/2", lines[3])
 
     @patch("basecamp_bench.cli.run_benchmark", return_value=Path("result"))
     @patch("basecamp_bench.cli.load_config", return_value=object())
@@ -113,6 +143,9 @@ class RunCommandTests(TempDirTestCase):
     def test_argparse_rejects_bad_positive_values(self) -> None:
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as ctx:
             cli.main(("run", "--timeout", "0"))
+        self.assertEqual(ctx.exception.code, 2)
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as ctx:
+            cli.main(("run", "--max-parallel-agents", "0"))
         self.assertEqual(ctx.exception.code, 2)
 
 

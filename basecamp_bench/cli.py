@@ -6,7 +6,8 @@ import argparse
 import json
 import os
 import sys
-from collections.abc import Sequence
+import threading
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from .config import BenchConfig, config_to_public_dict, load_config
@@ -57,6 +58,18 @@ def _add_safety_args(parser: argparse.ArgumentParser) -> None:
         "--offline-pricing",
         action="store_true",
         help="forbid network pricing retrieval and use cache/overrides only",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="suppress live stage and agent progress on stderr",
+    )
+    parser.add_argument(
+        "--max-parallel-agents",
+        type=_positive_int,
+        default=32,
+        metavar="COUNT",
+        help="cap simultaneous paid agent processes (default: 32)",
     )
 
 
@@ -130,11 +143,57 @@ def _load(args: argparse.Namespace) -> BenchConfig:
 
 
 def _options(args: argparse.Namespace) -> RunOptions:
+    progress = None if args.quiet else _progress_printer()
     return RunOptions(
         allow_unsafe_host_execution=args.allow_unsafe_host_execution,
         confirmed_isolated_environment=args.confirmed_isolated_environment,
         allow_network_pricing=not args.offline_pricing,
+        max_parallel_agents=args.max_parallel_agents,
+        progress=progress,
     )
+
+
+def _progress_printer() -> Callable[[str, Mapping[str, object]], None]:
+    lock = threading.Lock()
+    totals = {"build": 0, "evaluate": 0}
+    completed = {"build": 0, "evaluate": 0}
+
+    def emit(event: str, fields: Mapping[str, object]) -> None:
+        with lock:
+            rendered = dict(fields)
+            if event == "run.planned":
+                implementations = fields.get("implementations")
+                evaluators = fields.get("evaluators")
+                totals["build"] = (
+                    implementations
+                    if isinstance(implementations, int) and not isinstance(implementations, bool)
+                    else 0
+                )
+                totals["evaluate"] = (
+                    evaluators
+                    if isinstance(evaluators, int) and not isinstance(evaluators, bool)
+                    else 0
+                )
+            elif event == "reevaluate.planned":
+                evaluators = fields.get("evaluators")
+                totals["evaluate"] = (
+                    evaluators
+                    if isinstance(evaluators, int) and not isinstance(evaluators, bool)
+                    else 0
+                )
+            elif event == "build.finished":
+                completed["build"] += 1
+                if totals["build"]:
+                    rendered["progress"] = f"{completed['build']}/{totals['build']}"
+            elif event == "evaluate.finished":
+                completed["evaluate"] += 1
+                if totals["evaluate"]:
+                    rendered["progress"] = f"{completed['evaluate']}/{totals['evaluate']}"
+            details = " ".join(f"{key}={rendered[key]}" for key in sorted(rendered))
+            line = f"[{event}]" + (f" {details}" if details else "")
+            print(line, file=sys.stderr, flush=True)
+
+    return emit
 
 
 def _is_leaderboard_json(path: Path) -> bool:

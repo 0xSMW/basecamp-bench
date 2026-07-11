@@ -141,7 +141,7 @@ class PublishedSchemaTests(unittest.TestCase):
                 "submission_id": "sub-1",
                 "evaluator_id": "eval-sol",
                 "skipped": True,
-                "reason": "contestant_evaluator_model_overlap",
+                "reason": "operator_disabled_evaluator",
             }
         ]
         self.validate("run-manifest.schema.json", skipped)

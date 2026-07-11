@@ -50,8 +50,8 @@ effort = "high"
 provider_family = "openai"
 enabled = true
 
-# Publication mode requires at least two valid, non-overlapping evaluator
-# model IDs and three implementation repetitions. Configure the second
+# Publication mode requires at least two valid evaluator model IDs and three
+# implementation repetitions. Configure the second
 # evaluator explicitly before switching mode to "publication".
 #
 # [[evaluators]]

@@ -56,6 +56,14 @@ evaluator:
 basecamp-bench run --harness codex --track fe
 ```
 
+Independent implementation attempts run concurrently. As soon as one
+submission is snapshotted, its evaluator calls run concurrently while other
+implementations continue. Live progress is written to stderr with attributable
+`build`, `evaluate`, `aggregate`, `report`, and final run events; use `--quiet`
+to suppress it. The completed run path remains the only stdout output. At most
+32 paid agent processes run simultaneously by default; adjust the safety cap
+with `--max-parallel-agents`.
+
 Harness and track flags may be repeated or comma-separated. Workspace-only
 execution is the default. A harness without an OS sandbox requires either an
 explicit local acknowledgement or a confirmed disposable boundary:
@@ -66,7 +74,7 @@ basecamp-bench run --harness grok --track be \
 ```
 
 Publication mode requires at least three implementation repetitions, two valid
-evaluator model IDs that do not exactly match the contestant model, exact or
+evaluator model IDs, exact or
 pinned pricing, a distributable reference pack, and confirmed isolation:
 
 ```sh

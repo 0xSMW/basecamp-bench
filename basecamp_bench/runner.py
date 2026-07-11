@@ -9,8 +9,11 @@ import os
 import re
 import secrets
 import shlex
+import signal
 import statistics
+import threading
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -98,6 +101,16 @@ class RunOptions:
     confirmed_isolated_environment: bool = False
     allow_network_pricing: bool = True
     max_log_bytes: int = 50_000_000
+    max_parallel_agents: int = 32
+    progress: Callable[[str, Mapping[str, object]], None] | None = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.max_parallel_agents, bool) or not isinstance(
+            self.max_parallel_agents, int
+        ):
+            raise ValueError("max_parallel_agents must be a positive integer")
+        if self.max_parallel_agents < 1:
+            raise ValueError("max_parallel_agents must be a positive integer")
 
 
 @dataclass(frozen=True)
@@ -109,6 +122,51 @@ class AgentExecution:
     last_message: str | None
     command_preview: str
     error: str | None
+
+
+@dataclass(frozen=True)
+class _RunTask:
+    harness: Any
+    track: Any
+    repetition: int
+    submission_id: str
+    evaluator_attempts: tuple[tuple[Any, str], ...]
+
+
+def _emit_progress(options: RunOptions, event: str, **fields: object) -> None:
+    """Emit best-effort structured progress without affecting benchmark results."""
+    if options.progress is None:
+        return
+    try:
+        options.progress(event, fields)
+    except Exception:  # progress rendering must never fail a paid benchmark job
+        pass
+
+
+def _allocate_planned_id(make_id: Callable[[], str], field: str, allocated: set[str]) -> str:
+    value = validate_identifier(make_id(), field=field)
+    if value in allocated:
+        raise ValueError(f"duplicate planned identifier: {value}")
+    allocated.add(value)
+    return value
+
+
+def _install_termination_cancellation(cancel_event: threading.Event) -> Callable[[], None]:
+    """Convert main-thread SIGTERM into coordinated agent cancellation."""
+    if threading.current_thread() is not threading.main_thread() or not hasattr(signal, "SIGTERM"):
+        return lambda: None
+    previous = signal.getsignal(signal.SIGTERM)
+
+    def terminate(_signum: int, _frame: object) -> None:
+        cancel_event.set()
+        raise KeyboardInterrupt("received SIGTERM")
+
+    signal.signal(signal.SIGTERM, terminate)
+
+    def restore() -> None:
+        signal.signal(signal.SIGTERM, previous)
+
+    return restore
 
 
 def new_run_id(now: datetime | None = None, nonce: str | None = None) -> str:
@@ -147,6 +205,7 @@ def execute_agent(
     pricing_data: Mapping[str, Any] | None,
     pricing_retrieved_at: str | None,
     options: RunOptions,
+    cancel_event: threading.Event | None = None,
 ) -> AgentExecution:
     """Run *job* via adapter + run_managed; parse usage/cost/message."""
     adapter = get_harness(job.harness, binary=_binary_for_job(config, job))
@@ -185,6 +244,7 @@ def execute_agent(
             pricing_data=pricing_data,
             pricing_retrieved_at=pricing_retrieved_at,
             options=options,
+            cancel_event=cancel_event,
         )
     finally:
         context.__exit__(None, None, None)
@@ -200,6 +260,7 @@ def _execute_agent_prepared(
     pricing_data: Mapping[str, Any] | None,
     pricing_retrieved_at: str | None,
     options: RunOptions,
+    cancel_event: threading.Event | None,
 ) -> AgentExecution:
     try:
         command = list(adapter.build_command(job))
@@ -238,6 +299,7 @@ def _execute_agent_prepared(
         timeout_s=timeout_s,
         max_stream_bytes=options.max_log_bytes,
         stdin=adapter.stdin_for(job),
+        cancel_event=cancel_event,
     )
     parsed = adapter.parse_output(job, _read_text(stdout_path))
     last = parsed.last_message
@@ -275,6 +337,9 @@ def run_benchmark(
     attempts: list[Attempt] = []
     arts: dict[str, str] = {}
     checkpoint = _checkpoint_writer(config, ctx, jobs, arts)
+    cancel_event = threading.Event()
+    agent_slots = threading.BoundedSemaphore(options.max_parallel_agents)
+    restore_signal = _install_termination_cancellation(cancel_event)
     try:
         checkpoint(status="running")
         harnesses = [
@@ -282,34 +347,104 @@ def run_benchmark(
         ]
         evaluators = [e for e in config.evaluators if e.enabled]
         tracks = [config.tracks[t] for t in sorted(config.tracks)]
+        tasks: list[_RunTask] = []
+        allocated_ids = {ctx["run_id"]}
         for harness in harnesses:
             for track in tracks:
                 for rep in range(1, config.repetitions + 1):
-                    attempt, j, a = _run_repetition(
+                    submission_id = _allocate_planned_id(
+                        ctx["make_id"], "submission_id", allocated_ids
+                    )
+                    evaluator_attempts = tuple(
+                        (
+                            evaluator,
+                            _allocate_planned_id(ctx["make_id"], "eval_attempt_id", allocated_ids),
+                        )
+                        for evaluator in evaluators
+                    )
+                    tasks.append(
+                        _RunTask(
+                            harness=harness,
+                            track=track,
+                            repetition=rep,
+                            submission_id=submission_id,
+                            evaluator_attempts=evaluator_attempts,
+                        )
+                    )
+        _emit_progress(
+            options,
+            "run.planned",
+            implementations=len(tasks),
+            evaluators=sum(len(task.evaluator_attempts) for task in tasks),
+        )
+        results: list[tuple[Attempt, list[dict[str, Any]], dict[str, str]] | None] = [None] * len(
+            tasks
+        )
+        implementation_executor = ThreadPoolExecutor(
+            max_workers=max(1, min(len(tasks), options.max_parallel_agents)),
+            thread_name_prefix="basecamp-bench-implement",
+        )
+        evaluator_executor = ThreadPoolExecutor(
+            max_workers=max(
+                1,
+                min(
+                    sum(len(task.evaluator_attempts) for task in tasks),
+                    options.max_parallel_agents,
+                ),
+            ),
+            thread_name_prefix="basecamp-bench-evaluate",
+        )
+        futures: dict[Future[Any], int] = {}
+        try:
+            for index, task in enumerate(tasks):
+                futures[
+                    implementation_executor.submit(
+                        _run_repetition,
                         config,
                         options,
                         ctx["run_dir"],
                         ctx["run_id"],
-                        harness,
-                        track,
-                        rep,
-                        ctx["make_id"],
+                        task.harness,
+                        task.track,
+                        task.repetition,
+                        task.submission_id,
                         ctx["contracts"],
                         ctx["contract_hashes"],
-                        evaluators,
+                        task.evaluator_attempts,
                         ctx["pricing_payload"],
                         ctx["pricing_retrieved_at"],
                         ctx["pricing_ok"],
                         ctx["pricing_reasons"],
                         ctx["ineligible"],
                         checkpoint,
+                        cancel_event,
+                        agent_slots,
+                        evaluator_executor,
                     )
-                    attempts.append(attempt)
-                    checkpoint(j, a)
-        return _finalize_run(config, ctx, jobs, attempts, arts, now)
+                ] = index
+            for future in as_completed(futures):
+                results[futures[future]] = future.result()
+        except BaseException:
+            cancel_event.set()
+            for future in futures:
+                future.cancel()
+            raise
+        finally:
+            implementation_executor.shutdown(wait=True, cancel_futures=True)
+            evaluator_executor.shutdown(wait=True, cancel_futures=True)
+        for result in results:
+            if result is None:
+                raise RuntimeError("implementation scheduler returned an incomplete result set")
+            attempt, j, a = result
+            attempts.append(attempt)
+            checkpoint(j, a)
+        return _finalize_run(config, ctx, jobs, attempts, arts, now, options)
     except (Exception, KeyboardInterrupt) as exc:
+        _emit_progress(options, "run.failed", error=type(exc).__name__)
         _fail_run_without_masking(config, ctx["run_dir"], checkpoint, exc)
         raise
+    finally:
+        restore_signal()
 
 
 def reevaluate_run(
@@ -335,6 +470,9 @@ def reevaluate_run(
     attempts: list[Attempt] = []
     arts: dict[str, str] = {}
     checkpoint = _checkpoint_writer(config, ctx, jobs, arts)
+    cancel_event = threading.Event()
+    agent_slots = threading.BoundedSemaphore(options.max_parallel_agents)
+    restore_signal = _install_termination_cancellation(cancel_event)
     try:
         _require_reevaluation_inputs_match(
             prior_man,
@@ -345,29 +483,92 @@ def reevaluate_run(
         )
         if ctx["run_id"] == prior_man["run_id"]:
             raise ValueError("re-evaluation run_id collides with prior run_id")
-        checkpoint(status="running")
-        evaluators = [e for e in config.evaluators if e.enabled]
         for item in reusable:
-            attempt, j, a = _reeval_submission(
-                config,
-                options,
-                ctx,
-                prior_man["run_id"],
-                item,
-                evaluators,
-                checkpoint,
-            )
-            attempts.append(attempt)
             ctx["input_hashes"][f"reuse_snapshot_tree:{item['submission_id']}"] = item["tree_hash"]
-            checkpoint(j, a)
         ctx["input_hashes"][f"prior_run:{prior_man['run_id']}"] = sha256_file(
             prior / "run-manifest.json"
         )
+        checkpoint(status="running")
+        evaluators = [e for e in config.evaluators if e.enabled]
+        allocated_ids = {ctx["run_id"], *(str(item["submission_id"]) for item in reusable)}
+        planned = [
+            (
+                item,
+                tuple(
+                    (
+                        evaluator,
+                        _allocate_planned_id(ctx["make_id"], "eval_attempt_id", allocated_ids),
+                    )
+                    for evaluator in evaluators
+                ),
+            )
+            for item in reusable
+        ]
+        _emit_progress(
+            options,
+            "reevaluate.planned",
+            submissions=len(planned),
+            evaluators=sum(len(evaluator_attempts) for _, evaluator_attempts in planned),
+        )
+        results: list[tuple[Attempt, list[dict[str, Any]], dict[str, str]] | None] = [None] * len(
+            planned
+        )
+        reevaluation_executor = ThreadPoolExecutor(
+            max_workers=max(1, min(len(planned), options.max_parallel_agents)),
+            thread_name_prefix="basecamp-bench-reevaluate",
+        )
+        evaluator_executor = ThreadPoolExecutor(
+            max_workers=max(
+                1,
+                min(
+                    sum(len(evaluator_attempts) for _, evaluator_attempts in planned),
+                    options.max_parallel_agents,
+                ),
+            ),
+            thread_name_prefix="basecamp-bench-evaluate",
+        )
+        futures: dict[Future[Any], int] = {}
+        try:
+            for index, (item, evaluator_attempts) in enumerate(planned):
+                futures[
+                    reevaluation_executor.submit(
+                        _reeval_submission,
+                        config,
+                        options,
+                        ctx,
+                        prior_man["run_id"],
+                        item,
+                        evaluator_attempts,
+                        checkpoint,
+                        cancel_event,
+                        agent_slots,
+                        evaluator_executor,
+                    )
+                ] = index
+            for future in as_completed(futures):
+                results[futures[future]] = future.result()
+        except BaseException:
+            cancel_event.set()
+            for future in futures:
+                future.cancel()
+            raise
+        finally:
+            reevaluation_executor.shutdown(wait=True, cancel_futures=True)
+            evaluator_executor.shutdown(wait=True, cancel_futures=True)
+        for (item, _), result in zip(planned, results, strict=True):
+            if result is None:
+                raise RuntimeError("reevaluation scheduler returned an incomplete result set")
+            attempt, j, a = result
+            attempts.append(attempt)
+            checkpoint(j, a)
         checkpoint()
-        return _finalize_run(config, ctx, jobs, attempts, arts, now)
+        return _finalize_run(config, ctx, jobs, attempts, arts, now, options)
     except (Exception, KeyboardInterrupt) as exc:
+        _emit_progress(options, "run.failed", error=type(exc).__name__)
         _fail_run_without_masking(config, ctx["run_dir"], checkpoint, exc)
         raise
+    finally:
+        restore_signal()
 
 
 def _open_run(
@@ -476,8 +677,10 @@ def _finalize_run(
     attempts: list[Attempt],
     artifact_hashes: dict[str, str],
     now: datetime | None,
+    options: RunOptions,
 ) -> Path:
     run_dir: Path = ctx["run_dir"]
+    _emit_progress(options, "aggregate.started", attempts=len(attempts))
     roots = aggregate_attempts(
         attempts,
         mode=config.mode,
@@ -492,23 +695,22 @@ def _finalize_run(
         },
     )
     written = write_leaderboards(run_dir / "leaderboards", roots)
+    _emit_progress(options, "aggregate.finished", leaderboards=len(roots))
     lb_json = [p for p in written if p.suffix == ".json"]
     for path in written:
         rel = portable_path(path, run_dir)
         if rel != "<external>":
             artifact_hashes[rel] = sha256_file(path)
     report_path = run_dir / "report.html"
+    _emit_progress(options, "report.started", output="report.html")
     write_report(lb_json, report_path)
     artifact_hashes["report.html"] = sha256_file(report_path)
+    _emit_progress(options, "report.finished", output="report.html")
     for attempt in attempts:
         ap = run_dir / "attempts" / f"{attempt.submission_id}.json"
         if ap.is_file():
             artifact_hashes[f"attempts/{attempt.submission_id}.json"] = sha256_file(ap)
-    _write_manifest(
-        config,
-        run_dir,
-        ctx["run_id"],
-        ctx["started"],
+    final_status = (
         "ineligible"
         if config.mode == "publication"
         and any(
@@ -516,7 +718,14 @@ def _finalize_run(
             for root in roots
             for e in cast(Sequence[Mapping[str, Any]], root.get("entries", []))
         )
-        else _final_status(config, ctx["ineligible"], attempts),
+        else _final_status(config, ctx["ineligible"], attempts)
+    )
+    _write_manifest(
+        config,
+        run_dir,
+        ctx["run_id"],
+        ctx["started"],
+        final_status,
         _public_pricing(ctx["pricing_prov"], ctx["pricing_ok"], ctx["pricing_reasons"]),
         job_records,
         artifact_hashes,
@@ -524,6 +733,7 @@ def _finalize_run(
         list(ctx["tooling"]),
         finished=_utc_now(now),
     )
+    _emit_progress(options, "run.finished", run_id=ctx["run_id"], status=final_status)
     return run_dir
 
 
@@ -779,13 +989,14 @@ def _eval_pass(
     track: Any,
     contract: EvaluationContract,
     contract_hash: str,
-    evaluators: Sequence[Any],
-    make_id: Callable[[], str],
+    evaluator_attempts: Sequence[tuple[Any, str]],
     pricing_data: Mapping[str, Any] | None,
     pricing_retrieved_at: str | None,
     repetition: int,
-    contestant_model: str,
     checkpoint: Callable[..., None],
+    cancel_event: threading.Event,
+    agent_slots: threading.BoundedSemaphore,
+    evaluator_executor: ThreadPoolExecutor,
 ) -> tuple[
     list[dict[str, Any]], list[dict[str, Any]], dict[str, str], list[str], float, bool, int, float
 ]:
@@ -794,26 +1005,13 @@ def _eval_pass(
     valid_results: list[dict[str, Any]] = []
     valid_eval_ids: list[str] = []
     eval_cost_total, eval_cost_known, eval_tokens, eval_duration = 0.0, True, 0, 0.0
-    contestant_key = normalize_model_id(contestant_model)
-    for evaluator in evaluators:
-        if normalize_model_id(evaluator.model) == contestant_key:
-            jobs.append(
-                {
-                    "id": f"skip-overlap-{sid}-{evaluator.id}",
-                    "kind": "evaluate",
-                    "harness": evaluator.harness,
-                    "track": track.id,
-                    "repetition": repetition,
-                    "submission_id": sid,
-                    "evaluator_id": evaluator.id,
-                    "skipped": True,
-                    "reason": "contestant_evaluator_model_overlap",
-                }
-            )
-            checkpoint(jobs, artifacts)
-            continue
-        try:
-            ev = _run_evaluator(
+    results: list[dict[str, Any] | None] = [None] * len(evaluator_attempts)
+    futures: dict[Future[Any], tuple[int, Any, str]] = {}
+    first_error: BaseException | None = None
+    for index, (evaluator, eval_attempt_id) in enumerate(evaluator_attempts):
+        futures[
+            evaluator_executor.submit(
+                _run_evaluator,
                 config,
                 options,
                 run_dir,
@@ -823,39 +1021,53 @@ def _eval_pass(
                 contract,
                 contract_hash,
                 evaluator,
-                make_id,
+                eval_attempt_id,
                 pricing_data,
                 pricing_retrieved_at,
                 repetition,
+                cancel_event,
+                agent_slots,
             )
-        except (Exception, KeyboardInterrupt) as exc:
-            failure_token = hashlib.sha256(f"{sid}:{evaluator.id}".encode()).hexdigest()[:12]
-            jobs.append(
-                _raised_job_record(
-                    config=config,
-                    run_dir=run_dir,
-                    job_id=f"evaluate-failed-{failure_token}",
-                    kind="evaluate",
-                    harness_id=evaluator.harness,
-                    track=track.id,
-                    repetition=repetition,
-                    submission_id=sid,
-                    exc=exc,
-                    extra={
-                        "evaluator_id": evaluator.id,
-                        "eval_attempt_id": f"failed-{failure_token}",
-                        "valid": False,
-                        "invalid_reasons": ["evaluator_exception"],
-                    },
-                )
+        ] = (index, evaluator, eval_attempt_id)
+    for future in as_completed(futures):
+        index, evaluator, eval_attempt_id = futures[future]
+        try:
+            ev = future.result()
+        except BaseException as exc:
+            cancel_event.set()
+            failure = _raised_job_record(
+                config=config,
+                run_dir=run_dir,
+                job_id=f"evaluate-{eval_attempt_id}",
+                kind="evaluate",
+                harness_id=evaluator.harness,
+                track=track.id,
+                repetition=repetition,
+                submission_id=sid,
+                exc=exc,
+                extra={
+                    "evaluator_id": evaluator.id,
+                    "eval_attempt_id": eval_attempt_id,
+                    "valid": False,
+                    "invalid_reasons": ["evaluator_exception"],
+                },
             )
-            checkpoint(jobs, artifacts)
-            raise
+            jobs.append(failure)
+            checkpoint((failure,), artifacts)
+            if first_error is None:
+                first_error = exc
+            continue
+        results[index] = ev
+        checkpoint((ev["job_record"],), ev["artifacts"])
+    if first_error is not None:
+        raise first_error
+    for (evaluator, _), ev in zip(evaluator_attempts, results, strict=True):
+        if ev is None:
+            raise RuntimeError("evaluator scheduler returned an incomplete result set")
         jobs.append(ev["job_record"])
         artifacts.update(ev["artifacts"])
-        checkpoint(jobs, artifacts)
         eval_tokens += ev["tokens"]
-        eval_duration += ev["duration_s"]
+        eval_duration = max(eval_duration, ev["duration_s"])
         if ev["cost_usd"] is None:
             eval_cost_known = False
         else:
@@ -895,12 +1107,15 @@ def _reeval_submission(
     ctx: Mapping[str, Any],
     prior_run_id: str,
     item: Mapping[str, Any],
-    enabled_evaluators: Sequence[Any],
+    evaluator_attempts: Sequence[tuple[Any, str]],
     checkpoint: Callable[..., None],
+    cancel_event: threading.Event,
+    agent_slots: threading.BoundedSemaphore,
+    evaluator_executor: ThreadPoolExecutor,
 ) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
     jobs: list[dict[str, Any]] = []
     artifacts: dict[str, str] = {}
-    run_dir, run_id, make_id = ctx["run_dir"], ctx["run_id"], ctx["make_id"]
+    run_dir, run_id = ctx["run_dir"], ctx["run_id"]
     contracts, contract_hashes = ctx["contracts"], ctx["contract_hashes"]
     sid, prior_att, impl_job = item["submission_id"], item["attempt"], item["impl_job"]
     track_id = prior_att["track"]
@@ -956,13 +1171,14 @@ def _reeval_submission(
             track,
             contract,
             contract_hash,
-            enabled_evaluators,
-            make_id,
+            evaluator_attempts,
             ctx["pricing_payload"],
             ctx["pricing_retrieved_at"],
             int(prior_att["repetition"]),
-            prior_att["model_id"],
             checkpoint,
+            cancel_event,
+            agent_slots,
+            evaluator_executor,
         )
     )
     jobs.extend(ej)
@@ -1457,6 +1673,7 @@ def _checkpoint_writer(
     artifacts: dict[str, str],
 ) -> Callable[..., None]:
     seen = {job["id"] for job in jobs}
+    lock = threading.RLock()
 
     def checkpoint(
         new_jobs: Sequence[Mapping[str, Any]] = (),
@@ -1465,16 +1682,25 @@ def _checkpoint_writer(
         status: str = "running",
         finished: str | None = None,
     ) -> None:
-        for record in new_jobs:
-            job_id = record.get("id")
-            if not isinstance(job_id, str):
-                raise ValueError("checkpoint job is missing an id")
-            if job_id not in seen:
-                jobs.append(dict(record))
-                seen.add(job_id)
-        if new_artifacts:
-            artifacts.update(new_artifacts)
-        _checkpoint_run(config, ctx, status, jobs, artifacts, finished=finished)
+        with lock:
+            for record in new_jobs:
+                job_id = record.get("id")
+                if not isinstance(job_id, str):
+                    raise ValueError("checkpoint job is missing an id")
+                if job_id not in seen:
+                    jobs.append(dict(record))
+                    seen.add(job_id)
+            jobs.sort(
+                key=lambda record: (
+                    str(record.get("submission_id") or ""),
+                    0 if record.get("kind") == "implement" else 1,
+                    str(record.get("evaluator_id") or ""),
+                    str(record["id"]),
+                )
+            )
+            if new_artifacts:
+                artifacts.update(new_artifacts)
+            _checkpoint_run(config, ctx, status, jobs, artifacts, finished=finished)
 
     return checkpoint
 
@@ -1671,20 +1897,31 @@ def _run_repetition(
     harness: Any,
     track: Any,
     repetition: int,
-    make_id: Callable[[], str],
+    submission_id: str,
     contracts: Mapping[str, EvaluationContract],
     contract_hashes: Mapping[str, str],
-    enabled_evaluators: Sequence[Any],
+    evaluator_attempts: Sequence[tuple[Any, str]],
     pricing_data: Mapping[str, Any] | None,
     pricing_retrieved_at: str | None,
     pricing_ok: bool,
     pricing_reasons: Sequence[str],
     global_ineligible_reasons: Sequence[str],
     checkpoint: Callable[..., None],
+    cancel_event: threading.Event,
+    agent_slots: threading.BoundedSemaphore,
+    evaluator_executor: ThreadPoolExecutor,
 ) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
     jobs: list[dict[str, Any]] = []
     artifacts: dict[str, str] = {}
-    submission_id = validate_identifier(make_id(), field="submission_id")
+    _emit_progress(
+        options,
+        "build.started",
+        harness=harness.id,
+        model=harness.model,
+        track=track.id,
+        repetition=repetition,
+        submission_id=submission_id,
+    )
     workspace = create_unique_directory(run_dir / "workspaces" / submission_id)
     materialize_seed(config, workspace / "tree")
     workdir = workspace / "tree"
@@ -1702,13 +1939,15 @@ def _run_repetition(
         sandbox_mode=_sandbox(config),
     )
     try:
-        impl = execute_agent(
-            config,
-            impl_job,
-            pricing_data=pricing_data,
-            pricing_retrieved_at=pricing_retrieved_at,
-            options=options,
-        )
+        with agent_slots:
+            impl = execute_agent(
+                config,
+                impl_job,
+                pricing_data=pricing_data,
+                pricing_retrieved_at=pricing_retrieved_at,
+                options=options,
+                cancel_event=cancel_event,
+            )
     except (Exception, KeyboardInterrupt) as exc:
         jobs.append(
             _raised_job_record(
@@ -1747,6 +1986,17 @@ def _run_repetition(
         for rel, digest in atomic_snapshot(workdir, snapshot_path).items():
             artifacts[f"snapshots/{submission_id}/{rel}"] = digest
         checkpoint(jobs, artifacts)
+        _emit_progress(
+            options,
+            "build.finished",
+            harness=harness.id,
+            model=harness.model,
+            track=track.id,
+            repetition=repetition,
+            submission_id=submission_id,
+            status="succeeded",
+            duration_s=round(float(impl.process.duration_s), 3),
+        )
         (
             ej,
             valid_results,
@@ -1765,16 +2015,29 @@ def _run_repetition(
             track,
             contracts[track.id],
             contract_hashes[track.id],
-            enabled_evaluators,
-            make_id,
+            evaluator_attempts,
             pricing_data,
             pricing_retrieved_at,
             repetition,
-            harness.model,
             checkpoint,
+            cancel_event,
+            agent_slots,
+            evaluator_executor,
         )
         jobs.extend(ej)
         artifacts.update(ea)
+    else:
+        _emit_progress(
+            options,
+            "build.finished",
+            harness=harness.id,
+            model=harness.model,
+            track=track.id,
+            repetition=repetition,
+            submission_id=submission_id,
+            status="failed",
+            duration_s=round(float(impl.process.duration_s), 3),
+        )
     min_evals = _MIN_PUB_EVALS if config.mode == "publication" else _MIN_LOCAL_EVALS
     evaluation_success = impl_ok and len(valid_results) >= min_evals
     reasons: list[str] = list(global_ineligible_reasons)
@@ -1832,12 +2095,23 @@ def _run_evaluator(
     contract: EvaluationContract,
     contract_hash: str,
     evaluator: Any,
-    make_id: Callable[[], str],
+    eval_attempt_id: str,
     pricing_data: Mapping[str, Any] | None,
     pricing_retrieved_at: str | None,
     repetition: int,
+    cancel_event: threading.Event,
+    agent_slots: threading.BoundedSemaphore,
 ) -> dict[str, Any]:
-    eval_attempt_id = validate_identifier(make_id(), field="eval_attempt_id")
+    _emit_progress(
+        options,
+        "evaluate.started",
+        evaluator=evaluator.id,
+        model=evaluator.model,
+        track=track.id,
+        repetition=repetition,
+        submission_id=submission_id,
+        eval_attempt_id=eval_attempt_id,
+    )
     eval_parent = run_dir / "evaluations" / submission_id
     eval_parent.mkdir(parents=True, exist_ok=True)
     eval_root = create_unique_directory(eval_parent / eval_attempt_id)
@@ -1877,13 +2151,15 @@ def _run_evaluator(
         evidence_dirs=(seed_dir, submission_dir),
         sandbox_mode="workspace-write",
     )
-    execution = execute_agent(
-        config,
-        job,
-        pricing_data=pricing_data,
-        pricing_retrieved_at=pricing_retrieved_at,
-        options=options,
-    )
+    with agent_slots:
+        execution = execute_agent(
+            config,
+            job,
+            pricing_data=pricing_data,
+            pricing_retrieved_at=pricing_retrieved_at,
+            options=options,
+            cancel_event=cancel_event,
+        )
     artifacts: dict[str, str] = {}
     invalid: list[str] = []
     valid_result: dict[str, Any] | None = None
@@ -1921,6 +2197,18 @@ def _run_evaluator(
         artifacts[f"{rel}/output/report.md"] = sha256_file(report_path)
     if result_path.is_file():
         artifacts[f"{rel}/output/result.json"] = sha256_file(result_path)
+    _emit_progress(
+        options,
+        "evaluate.finished",
+        evaluator=evaluator.id,
+        model=evaluator.model,
+        track=track.id,
+        repetition=repetition,
+        submission_id=submission_id,
+        eval_attempt_id=eval_attempt_id,
+        status="succeeded" if valid_result is not None else "failed",
+        duration_s=round(float(execution.process.duration_s), 3),
+    )
     return {
         "job_record": _job_record(
             job_id=f"evaluate-{eval_attempt_id}",
