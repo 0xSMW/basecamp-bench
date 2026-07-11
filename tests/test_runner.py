@@ -569,6 +569,44 @@ class PipelineTests(Fixture):
             self.assertFalse(str(key).startswith("workspaces/"))
         self.assertGreaterEqual(len(list((run_dir / "leaderboards").glob("*.json"))), 1)
 
+    def test_ambient_metadata_is_excluded_from_snapshots_and_eval_integrity(self) -> None:
+        original = self.side_effect
+
+        def with_ambient_metadata(command, **kwargs):  # type: ignore[no-untyped-def]
+            result = original(command, **kwargs)
+            if "--version" in command:
+                return result
+            kind = command[command.index("--kind") + 1] if "--kind" in command else "implement"
+            if kind == "implement":
+                workdir = Path(kwargs["cwd"])
+                (workdir / ".DS_Store").write_bytes(b"ambient")
+                nested = workdir / "generated"
+                nested.mkdir()
+                (nested / ".DS_Store").write_bytes(b"ambient")
+            else:
+                prompt_path = Path(command[command.index("--prompt-file") + 1])
+                prompt = prompt_path.read_text(encoding="utf-8")
+                for label in ("Seed directory", "Submission directory"):
+                    match = re.search(rf"{label}: (.+)", prompt)
+                    assert match is not None
+                    evidence_dir = Path(match.group(1).strip())
+                    (evidence_dir / ".DS_Store").write_bytes(b"ambient")
+                    nested = evidence_dir / "ambient-metadata"
+                    nested.mkdir()
+                    (nested / ".DS_Store").write_bytes(b"ambient")
+            return result
+
+        self.side_effect = with_ambient_metadata  # type: ignore[method-assign]
+        run_dir = self.run_bench(id_factory=_Ids("ambient"))
+        snapshot = run_dir / "snapshots" / "ambient002"
+        self.assertFalse(any(path.name == ".DS_Store" for path in snapshot.rglob("*")))
+        manifest = self.read_run_manifest(run_dir)
+        eval_jobs = [job for job in manifest["jobs"] if job["kind"] == "evaluate"]
+        self.assertEqual(len(eval_jobs), 2)
+        self.assertTrue(all(job["valid"] for job in eval_jobs))
+        self.assertTrue(all(job["invalid_reasons"] == [] for job in eval_jobs))
+        self.assertEqual(verify_run(run_dir), [])
+
     def test_tooling_records_all_roles_and_deduplicates_version_probe(self) -> None:
         man = self.read_run_manifest(self.run_bench(id_factory=_Ids("t")))
         self.assertEqual(self.version_probe_count, 1)
