@@ -770,7 +770,7 @@ class PublicationTests(Fixture):
 
 
 class UnsafeTests(Fixture):
-    def test_claude_requires_ack(self) -> None:
+    def test_workspace_sandboxed_claude_does_not_require_host_ack(self) -> None:
         @register_harness(replace=True)
         class ClaudeLike(Harness):
             name = "claude"
@@ -792,17 +792,16 @@ class UnsafeTests(Fixture):
                     },
                 },
             )
-            with self.assertRaises(ValueError) as ctx:
-                self.run_bench(
-                    config=cfg,
-                    options=RunOptions(
-                        allow_unsafe_host_execution=False,
-                        confirmed_isolated_environment=False,
-                        allow_network_pricing=False,
-                    ),
-                    id_factory=_Ids("c"),
-                )
-            self.assertIn("unsafe", str(ctx.exception).lower())
+            run_dir = self.run_bench(
+                config=cfg,
+                options=RunOptions(
+                    allow_unsafe_host_execution=False,
+                    confirmed_isolated_environment=False,
+                    allow_network_pricing=False,
+                ),
+                id_factory=_Ids("c"),
+            )
+            self.assertEqual(self.read_run_manifest(run_dir)["status"], "complete")
         finally:
             from basecamp_bench.adapters import ClaudeHarness
 
