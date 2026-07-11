@@ -29,6 +29,7 @@ from basecamp_bench.adapters import (
     registered_harnesses,
 )
 from basecamp_bench.config import BenchConfig, EvaluatorSpec, HarnessSpec, TrackSpec
+from basecamp_bench.locks import acquire_lane_locks
 from basecamp_bench.manifest import verify_run
 from basecamp_bench.processes import ProcessResult
 from basecamp_bench.runner import (
@@ -578,6 +579,18 @@ class ExecuteTests(Fixture):
 
 
 class PipelineTests(Fixture):
+    def test_overlapping_process_is_rejected_before_run_creation(self) -> None:
+        with acquire_lane_locks(self.run_root, [("agent-x", "fe")]):
+            with (
+                mock.patch("basecamp_bench.runner._open_run") as open_run,
+                self.assertRaisesRegex(ValueError, "benchmark lane already active: agent-x--fe"),
+            ):
+                self.run_bench()
+        open_run.assert_not_called()
+        self.assertEqual(
+            [path.name for path in self.run_root.iterdir() if not path.name.startswith(".")], []
+        )
+
     def test_happy_path(self) -> None:
         run_dir = self.run_bench(id_factory=_Ids("s"))
         prompts = list((run_dir / "prompts").glob("implement-*.md"))
@@ -1500,6 +1513,7 @@ class ReevaluateTests(Fixture):
         id_factory: Any = None,
         options: RunOptions | None = None,
         pricing_data: dict | None = None,
+        submission_ids: tuple[str, ...] | None = None,
     ) -> Path:
         with (
             mock.patch("basecamp_bench.runner.run_managed", side_effect=self.side_effect),
@@ -1512,6 +1526,7 @@ class ReevaluateTests(Fixture):
                 id_factory=id_factory or _Ids("r"),
                 pricing_data=self.pricing if pricing_data is None else pricing_data,
                 now=datetime(2026, 7, 11, 13, 0, 0, tzinfo=UTC),
+                submission_ids=submission_ids,
             )
 
     def test_happy_path_no_impl_fresh_evals(self) -> None:
@@ -1564,6 +1579,37 @@ class ReevaluateTests(Fixture):
         blob = json.dumps(man)
         self.assertNotIn(str(prior.resolve()), blob)
         self.assertNotIn(str(self.root.resolve()), man["jobs"][0]["command_preview"])
+
+    def test_selects_one_submission_without_evaluating_other_snapshots(self) -> None:
+        config = self.config(repetitions=2)
+        prior = self.run_bench(config=config, id_factory=_Ids("select-prior"))
+        submission_ids = sorted(path.stem for path in (prior / "attempts").glob("*.json"))
+        self.assertEqual(len(submission_ids), 2)
+        self.agent_calls = 0
+        new_dir = self.reeval(
+            prior,
+            config=config,
+            id_factory=_Ids("select-new"),
+            submission_ids=(submission_ids[1],),
+        )
+        self.assertEqual(self.agent_calls, 2)
+        self.assertEqual(
+            [path.stem for path in (new_dir / "attempts").glob("*.json")],
+            [submission_ids[1]],
+        )
+        self.assertFalse((new_dir / "snapshots" / submission_ids[0]).exists())
+        self.assertTrue((new_dir / "snapshots" / submission_ids[1]).is_dir())
+
+    def test_rejects_unknown_or_duplicate_submission_selection_before_new_run(self) -> None:
+        prior = self.run_bench(id_factory=_Ids("select-source"))
+        existing_dirs = set(self.run_root.iterdir())
+        for selected, message in (
+            (("missing-id",), "selected submission is not reusable"),
+            (("select-source002", "select-source002"), "duplicate IDs"),
+        ):
+            with self.assertRaisesRegex(ValueError, message):
+                self.reeval(prior, id_factory=_Ids("never"), submission_ids=selected)
+            self.assertEqual(set(self.run_root.iterdir()), existing_dirs)
 
     def test_failed_reevaluation_preserves_prior_lineage_inputs(self) -> None:
         prior = self.run_bench(id_factory=_Ids("lineage-prior"))

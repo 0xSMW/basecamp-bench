@@ -1027,8 +1027,9 @@ class PiHarness(Harness):
         private_root = self._private_root(job)
         config_dir = private_root / "config"
         models_path = config_dir / "models.json"
+        settings_path = config_dir / "settings.json"
         session_dir = self._session_dir(job)
-        reserved = (private_root, config_dir, models_path, session_dir)
+        reserved = (private_root, config_dir, models_path, settings_path, session_dir)
         if any(path.is_symlink() for path in reserved):
             raise ValueError("Pi reserved configuration paths must not be symlinks")
         if os.path.lexists(private_root):
@@ -1064,6 +1065,13 @@ class PiHarness(Harness):
                     sort_keys=True,
                 )
                 + "\n",
+                encoding="utf-8",
+            )
+            # Long reasoning turns can legitimately emit no bytes for more
+            # than Pi's five-minute default. Pi still runs under the benchmark's
+            # outer process timeout, so disable only its stream-idle cutoff.
+            settings_path.write_text(
+                json.dumps({"httpIdleTimeoutMs": 0}, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
             yield

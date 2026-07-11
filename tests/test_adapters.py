@@ -429,6 +429,10 @@ class PiCommandTests(TempDirTestCase):
             model = model_config["providers"]["openrouter"]["models"][0]
             self.assertEqual(model["id"], PI_MODEL_ALIASES["glm-5.2"])
             self.assertEqual(model["contextWindow"], 1_048_576)
+            settings = json.loads(
+                (private_root / "config" / "settings.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(settings, {"httpIdleTimeoutMs": 0})
             env = h.prepare_env({"PATH": "/usr/bin"})
             self.assertEqual(env["PI_CODING_AGENT_DIR"], str(private_root / "config"))
             # Pi may create additional auth/cache files; the whole private root

@@ -83,6 +83,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     reevaluate = sub.add_parser("reevaluate", help="re-evaluate immutable prior submissions")
     reevaluate.add_argument("run_dir", type=_path)
+    reevaluate.add_argument(
+        "--submission",
+        action="append",
+        dest="submissions",
+        metavar="ID",
+        help="re-evaluate only this submission ID (repeat or comma-separate)",
+    )
     _add_config_args(reevaluate)
     _add_safety_args(reevaluate)
 
@@ -248,7 +255,12 @@ def _reevaluate(args: argparse.Namespace) -> Path:
     function = getattr(runner, "reevaluate_run", None)
     if function is None:
         raise ValueError("this runner does not provide reevaluate_run")
-    return function(_load(args), Path(args.run_dir), options=_options(args))
+    return function(
+        _load(args),
+        Path(args.run_dir),
+        options=_options(args),
+        submission_ids=_selected(args.submissions),
+    )
 
 
 def _show_config(args: argparse.Namespace) -> None:

@@ -164,12 +164,15 @@ class ReevaluateCommandTests(TempDirTestCase):
                 os.fspath(self.root),
                 "--offline-pricing",
                 "--allow-unsafe-host-execution",
+                "--submission",
+                "id-one,id-two",
             )
         self.assertEqual((code, stdout, stderr), (0, f"{result}\n", ""))
         config = reevaluate.call_args.args[0]
         self.assertIs(config, _load.return_value)
         self.assertEqual(reevaluate.call_args.args[1], prior)
         self.assertFalse(reevaluate.call_args.kwargs["options"].allow_network_pricing)
+        self.assertEqual(reevaluate.call_args.kwargs["submission_ids"], ("id-one", "id-two"))
 
 
 class ReportCommandTests(TempDirTestCase):

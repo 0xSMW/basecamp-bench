@@ -44,6 +44,7 @@ from basecamp_bench.execution import (
     secret_env_values as _secret_env_values,
 )
 from basecamp_bench.leaderboard import Attempt, aggregate_attempts, write_leaderboards
+from basecamp_bench.locks import acquire_lane_locks
 from basecamp_bench.manifest import (
     build_manifest,
     git_provenance,
@@ -273,7 +274,37 @@ def run_benchmark(
     pricing_data: Mapping[str, Any] | None = None,
     now: datetime | None = None,
 ) -> Path:
-    """Execute a complete benchmark and return its newly created run directory.
+    """Execute one benchmark after atomically reserving every paid work lane.
+
+    A lane is one enabled implementation harness and track pair. OS-backed
+    locks reject overlapping processes before run creation, pricing access, or
+    provider invocation, while disjoint benchmark processes may run together.
+    """
+    lanes = (
+        (harness.id, track.id)
+        for harness in config.harnesses.values()
+        if harness.enabled
+        for track in config.tracks.values()
+    )
+    with acquire_lane_locks(config.run_root, lanes):
+        return _run_benchmark_once(
+            config,
+            options=options,
+            id_factory=id_factory,
+            pricing_data=pricing_data,
+            now=now,
+        )
+
+
+def _run_benchmark_once(
+    config: BenchConfig,
+    *,
+    options: RunOptions = RunOptions(),
+    id_factory: Callable[[], str] | None = None,
+    pricing_data: Mapping[str, Any] | None = None,
+    now: datetime | None = None,
+) -> Path:
+    """Execute a reserved benchmark and return its newly created run directory.
 
     Implementation tasks run concurrently. Evaluators for a successful,
     immutable snapshot may overlap other implementations, while one shared
@@ -386,13 +417,16 @@ def reevaluate_run(
     id_factory: Callable[[], str] | None = None,
     pricing_data: Mapping[str, Any] | None = None,
     now: datetime | None = None,
+    submission_ids: Sequence[str] | None = None,
 ) -> Path:
     """Re-evaluate verified snapshots and return a separate new run directory.
 
     The prior run and every declared snapshot are verified before reuse. The
-    copied snapshots are evaluated with the current contracts and evaluator
-    configuration; the source run remains unchanged. Evaluator failures use
-    the same checkpoint-and-reraise behavior as a normal benchmark run.
+    selected copied snapshots are evaluated with the current contracts and
+    evaluator configuration; the source run remains unchanged. When
+    ``submission_ids`` is absent, every reusable snapshot is selected.
+    Evaluator failures use the same checkpoint-and-reraise behavior as a
+    normal benchmark run.
     """
     prior = _require_prior_run_dir(config, prior_run_dir)
     errs = verify_run(prior)
@@ -402,6 +436,7 @@ def reevaluate_run(
     reusable = _prior_reusable_submissions(prior, prior_man)
     if not reusable:
         raise ValueError("prior run has no reusable verified snapshots")
+    reusable = _select_reusable_submissions(reusable, submission_ids)
     ctx = _open_run(config, options, id_factory, pricing_data, now)
     jobs: list[dict[str, Any]] = []
     attempts: list[Attempt] = []
@@ -912,6 +947,24 @@ def _prior_reusable_submissions(prior: Path, prior_man: Mapping[str, Any]) -> li
             }
         )
     return out
+
+
+def _select_reusable_submissions(
+    reusable: Sequence[dict[str, Any]], submission_ids: Sequence[str] | None
+) -> list[dict[str, Any]]:
+    """Return requested reusable submissions in explicit selection order."""
+    if submission_ids is None:
+        return list(reusable)
+    selected = [validate_identifier(value, field="submission_id") for value in submission_ids]
+    if not selected:
+        raise ValueError("submission selection must not be empty")
+    if len(selected) != len(set(selected)):
+        raise ValueError("submission selection contains duplicate IDs")
+    available = {str(item["submission_id"]): item for item in reusable}
+    missing = [value for value in selected if value not in available]
+    if missing:
+        raise ValueError(f"selected submission is not reusable: {missing[0]}")
+    return [available[value] for value in selected]
 
 
 def _eval_pass(
