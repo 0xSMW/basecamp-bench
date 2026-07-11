@@ -325,16 +325,17 @@ class GrokCommandTests(TempDirTestCase):
         self.assertNotIn("--no-plan", cmd)
         self.assertNotIn("--no-subagents", cmd)
         self.assertNotIn("--always-approve", cmd)
-        self.assertIn("--tools", cmd)
-        tools = cmd[cmd.index("--tools") + 1].split(",")
-        self.assertIn("Bash", tools)
-        # Grok rejects Bash at session creation when its auto-background
-        # companion tools are removed by an explicit allowlist.
-        self.assertIn("get_task_output", tools)
-        self.assertIn("kill_task", tools)
+        self.assertNotIn("--tools", cmd)
+        self.assertIn("--disallowed-tools", cmd)
+        denied = cmd[cmd.index("--disallowed-tools") + 1].split(",")
+        self.assertIn("web_search", denied)
+        self.assertNotIn("run_terminal_cmd", denied)
+        self.assertNotIn("get_task_output", denied)
+        self.assertNotIn("kill_task", denied)
         self.assertIn("Bash(*)", cmd)
         self.assertEqual(cmd[cmd.index("--sandbox") + 1], "basecamp_bench")
         self.assertIsNone(h.stdin_for(job))
+        self.assertEqual(h.prepare_env({"PATH": "/bin"})["GROK_SUBAGENTS"], "0")
         # Prompt lives only in the file referenced by --prompt-file.
         self.assertEqual(self.prompt_path.read_text(encoding="utf-8"), SENTINEL)
 

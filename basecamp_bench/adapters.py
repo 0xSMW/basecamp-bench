@@ -644,6 +644,25 @@ class ClaudeHarness(Harness):
 
 DEFAULT_GROK_BINARY = "grok"
 
+_GROK_DISALLOWED_TOOLS = (
+    "ask_user_question",
+    "image_edit",
+    "image_gen",
+    "lsp",
+    "memory_get",
+    "memory_search",
+    "monitor",
+    "scheduler_create",
+    "scheduler_delete",
+    "scheduler_list",
+    "search_tool",
+    "todo_write",
+    "use_tool",
+    "video_gen",
+    "web_fetch",
+    "web_search",
+)
+
 
 @register_harness
 class GrokHarness(Harness):
@@ -663,6 +682,14 @@ class GrokHarness(Harness):
     def stdin_for(self, job: AgentJob) -> bytes | None:
         # Prompt is carried via ``--prompt-file`` only.
         return None
+
+    def prepare_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
+        env = super().prepare_env(base)
+        # Keep each benchmark submission to one model agent. Unlike
+        # ``--no-subagents``, this does not remove the task-output companions
+        # that Grok's background-capable terminal requires at session startup.
+        env["GROK_SUBAGENTS"] = "0"
+        return env
 
     @contextmanager
     def execution_context(self, job: AgentJob) -> Iterator[None]:
@@ -754,10 +781,14 @@ class GrokHarness(Harness):
                     "basecamp_bench",
                     "--permission-mode",
                     "dontAsk",
-                    "--tools",
-                    # Grok 0.2.93 requires both companion tools whenever Bash
-                    # can auto-background a command after its foreground timeout.
-                    "Bash,Edit,Glob,Grep,Read,Write,get_task_output,kill_task",
+                    "--disallowed-tools",
+                    # Grok 0.2.93 leaves Bash auto-backgrounding enabled while
+                    # every positive --tools allowlist disables background
+                    # support, causing session construction to fail. Start from
+                    # its coherent default tool graph and remove capabilities
+                    # the benchmark does not need. The OS sandbox and explicit
+                    # permission rules below remain the filesystem boundary.
+                    ",".join(_GROK_DISALLOWED_TOOLS),
                 ]
             )
             cmd.extend(self._permission_rules(job))
