@@ -502,9 +502,7 @@ class PiCommandTests(TempDirTestCase):
             with h.execution_context(job):
                 filled = h.prepare_env({"PATH": "/usr/bin"})
                 self.assertEqual(filled["OPENROUTER_API_KEY"], "sk-or-from-file")
-                explicit = h.prepare_env(
-                    {"PATH": "/usr/bin", "OPENROUTER_API_KEY": "env-wins"}
-                )
+                explicit = h.prepare_env({"PATH": "/usr/bin", "OPENROUTER_API_KEY": "env-wins"})
                 self.assertEqual(explicit["OPENROUTER_API_KEY"], "env-wins")
 
     def test_openrouter_key_file_rejects_public_permissions(self) -> None:
@@ -516,7 +514,9 @@ class PiCommandTests(TempDirTestCase):
             mock.patch.dict(os.environ, env, clear=True),
             mock.patch("basecamp_bench.adapters.OPENROUTER_KEY_FILE", key_file),
         ):
-            self.assertIsNone(PiHarness(binary=str(self.fake_bin)).prepare_env().get("OPENROUTER_API_KEY"))
+            self.assertIsNone(
+                PiHarness(binary=str(self.fake_bin)).prepare_env().get("OPENROUTER_API_KEY")
+            )
 
 
 class AgyCommandTests(TempDirTestCase):

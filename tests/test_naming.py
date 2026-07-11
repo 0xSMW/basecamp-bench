@@ -17,10 +17,7 @@ class NamingTests(unittest.TestCase):
                 tracks=("be", "fe"),
                 contestants=(("xai", "grok-4.5"),),
             ),
-            (
-                "2026-07-11T17-08-07Z--fe-be--xai-grok-4-5--"
-                "20260711t170807z-db8473"
-            ),
+            ("2026-07-11T17-08-07Z--fe-be--xai-grok-4-5--20260711t170807z-db8473"),
         )
 
     def test_multi_model_and_injected_run_names(self) -> None:
@@ -42,19 +39,13 @@ class NamingTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            run_path_name(
-                "abc123", tracks=("fe",), contestants=(("xai", "grok-4.5"),)
-            ),
+            run_path_name("abc123", tracks=("fe",), contestants=(("xai", "grok-4.5"),)),
             "run--fe--xai-grok-4-5--abc123",
         )
 
     def test_short_shared_tail_does_not_alias_distinct_run_ids(self) -> None:
-        first = run_path_name(
-            "invalid-1-001", tracks=("fe",), contestants=(("xai", "grok-4.5"),)
-        )
-        second = run_path_name(
-            "invalid-2-001", tracks=("fe",), contestants=(("xai", "grok-4.5"),)
-        )
+        first = run_path_name("invalid-1-001", tracks=("fe",), contestants=(("xai", "grok-4.5"),))
+        second = run_path_name("invalid-2-001", tracks=("fe",), contestants=(("xai", "grok-4.5"),))
         self.assertNotEqual(first, second)
 
     def test_submission_names_remove_harness_model_overlap(self) -> None:

@@ -860,15 +860,12 @@ def _load_prior_manifest(prior: Path) -> dict[str, Any]:
     ):
         raise ValueError("prior run-manifest.json jobs/artifacts shape is invalid")
     implementation_jobs = [
-        job
-        for job in jobs
-        if isinstance(job, dict) and job.get("kind") == "implement"
+        job for job in jobs if isinstance(job, dict) and job.get("kind") == "implement"
     ]
     used_harnesses = {job.get("harness") for job in implementation_jobs}
     used_tracks = {job.get("track") for job in implementation_jobs}
-    if (
-        not implementation_jobs
-        or any(not isinstance(value, str) or not value for value in used_harnesses | used_tracks)
+    if not implementation_jobs or any(
+        not isinstance(value, str) or not value for value in used_harnesses | used_tracks
     ):
         raise ValueError("prior run implementation path identity is invalid")
     contestants: list[tuple[str, str]] = []

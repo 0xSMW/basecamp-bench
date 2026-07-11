@@ -1619,9 +1619,7 @@ class ReevaluateTests(Fixture):
         self.assertTrue((new_dir / "snapshots" / prior_readable / "app.py").is_file())
         self.assertTrue((new_dir / "report.html").is_file())
         self.assertGreaterEqual(len(list((new_dir / "leaderboards").glob("*.json"))), 1)
-        snap_keys = [
-            k for k in man["artifacts"] if k.startswith(f"snapshots/{prior_readable}/")
-        ]
+        snap_keys = [k for k in man["artifacts"] if k.startswith(f"snapshots/{prior_readable}/")]
         self.assertTrue(snap_keys)
         self.assertIn(f"reuse_snapshot_tree:{prior_sid}", man["inputs"])
         self.assertIn(f"prior_run:{prior_id}", man["inputs"])
@@ -1657,7 +1655,9 @@ class ReevaluateTests(Fixture):
             json.loads(path.read_text(encoding="utf-8"))
             for path in (new_dir / "attempts").glob("*.json")
         ]
-        self.assertEqual([attempt["submission_id"] for attempt in new_attempts], [submission_ids[1]])
+        self.assertEqual(
+            [attempt["submission_id"] for attempt in new_attempts], [submission_ids[1]]
+        )
         self.assertFalse((new_dir / "snapshots" / readable_by_id[submission_ids[0]]).exists())
         self.assertTrue((new_dir / "snapshots" / readable_by_id[submission_ids[1]]).is_dir())
 
@@ -1767,9 +1767,7 @@ class ReevaluateTests(Fixture):
         prior = self.run_bench(id_factory=_Ids("u"))
         attempt = self.attempt_json(prior)
         readable = self.submission_path(attempt)
-        (prior / "snapshots" / readable / "extra.txt").write_text(
-            "undeclared\n", encoding="utf-8"
-        )
+        (prior / "snapshots" / readable / "extra.txt").write_text("undeclared\n", encoding="utf-8")
         prior_tree = tree_manifest(prior)
         self.agent_calls = 0
         with self.assertRaises(ValueError) as ctx:
@@ -1782,9 +1780,7 @@ class ReevaluateTests(Fixture):
         prior = self.run_bench(id_factory=_Ids("h"))
         attempt = self.attempt_json(prior)
         readable = self.submission_path(attempt)
-        (prior / "snapshots" / readable / "app.py").write_text(
-            "mutated\n", encoding="utf-8"
-        )
+        (prior / "snapshots" / readable / "app.py").write_text("mutated\n", encoding="utf-8")
         self.agent_calls = 0
         with self.assertRaises(ValueError) as ctx:
             self.reeval(prior, id_factory=_Ids("x"))

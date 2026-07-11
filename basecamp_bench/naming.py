@@ -56,10 +56,7 @@ def _tracks(values: Iterable[str]) -> str:
 
 
 def _contestant(provider: str, model: str) -> str:
-    return (
-        f"{_slug(provider, field='provider')}-"
-        f"{_slug(model.rsplit('/', 1)[-1], field='model')}"
-    )
+    return f"{_slug(provider, field='provider')}-{_slug(model.rsplit('/', 1)[-1], field='model')}"
 
 
 def run_path_name(
@@ -116,8 +113,5 @@ def judge_path_name(
     eval_attempt_id: str,
 ) -> str:
     """Return a readable post-judging evaluator path with a unique suffix."""
-    prefix = (
-        f"judge-{_slug(harness, field='evaluator_harness')}-"
-        f"{_contestant(provider, model)}"
-    )
+    prefix = f"judge-{_slug(harness, field='evaluator_harness')}-{_contestant(provider, model)}"
     return _bounded(prefix, _suffix(eval_attempt_id, 8))

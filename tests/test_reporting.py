@@ -1442,7 +1442,10 @@ class CompatibilityAggregationTests(TempDirTestCase):
         )
         second["runner_source_sha256"] = "9" * 64
         points = load_leaderboards(
-            [self.write_json("publication-a.json", first), self.write_json("publication-b.json", second)]
+            [
+                self.write_json("publication-a.json", first),
+                self.write_json("publication-b.json", second),
+            ]
         )
         self.assertEqual(len(build_report_payload(points)["sections"]), 2)
 

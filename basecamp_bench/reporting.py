@@ -1337,11 +1337,7 @@ def build_report_payload(points: Sequence[ReportPoint]) -> dict[str, Any]:
                 "mode": key[3],
                 "runner_source_sha256": key[4],
                 "runner_source_sha256_values": sorted(
-                    {
-                        value
-                        for point in group
-                        for value in point.runner_source_sha256_values
-                    }
+                    {value for point in group for value in point.runner_source_sha256_values}
                 ),
                 "seed_tree_sha256": key[5],
                 "reference_manifest_sha256": key[6],

@@ -151,7 +151,10 @@ def _judge_names(
         submission_id = job.get("submission_id")
         eval_attempt_id = job.get("eval_attempt_id")
         evaluator_id = job.get("evaluator_id")
-        if not all(isinstance(value, str) and value for value in (submission_id, eval_attempt_id, evaluator_id)):
+        if not all(
+            isinstance(value, str) and value
+            for value in (submission_id, eval_attempt_id, evaluator_id)
+        ):
             raise ValueError("terminal layout found incomplete evaluator path provenance")
         assert isinstance(submission_id, str)
         assert isinstance(eval_attempt_id, str)
@@ -407,8 +410,10 @@ def verify_readable_layout(run_dir: Path, manifest: Mapping[str, Any]) -> list[s
     run_id = run.get("id")
     harnesses = config.get("harnesses")
     evaluators = config.get("evaluators")
-    if not isinstance(run_id, str) or not isinstance(harnesses, dict) or not isinstance(
-        evaluators, list
+    if (
+        not isinstance(run_id, str)
+        or not isinstance(harnesses, dict)
+        or not isinstance(evaluators, list)
     ):
         return ["terminal layout cannot resolve manifest identities"]
 
@@ -456,11 +461,7 @@ def verify_readable_layout(run_dir: Path, manifest: Mapping[str, Any]) -> list[s
     }
     judge_names: dict[tuple[str, str], str] = {}
     for job in jobs:
-        if (
-            not isinstance(job, dict)
-            or job.get("kind") != "evaluate"
-            or job.get("skipped") is True
-        ):
+        if not isinstance(job, dict) or job.get("kind") != "evaluate" or job.get("skipped") is True:
             continue
         submission_id = job.get("submission_id")
         eval_attempt_id = job.get("eval_attempt_id")
