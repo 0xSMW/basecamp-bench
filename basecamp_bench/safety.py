@@ -200,12 +200,14 @@ def _is_safe_manifest_key(key: object) -> bool:
 def verify_tree_manifest(
     root: os.PathLike[str] | str,
     manifest: Mapping[str, str],
+    ignore: Iterable[str] = (),
 ) -> list[str]:
     """Compare *root* to *manifest* and return sorted human-readable errors.
 
     Reports missing, unexpected, and hash-mismatched paths. Invalid expected
     keys and failures while collecting the live manifest are reported as
-    deterministic error entries instead of being ignored.
+    deterministic error entries. *ignore* uses :func:`tree_manifest` patterns
+    and must match the patterns used to create *manifest*.
     """
     errors: list[str] = []
     expected: dict[str, str] = {}
@@ -219,7 +221,7 @@ def verify_tree_manifest(
         expected[key] = digest
 
     try:
-        actual = tree_manifest(root)
+        actual = tree_manifest(root, ignore=ignore)
     except Exception as exc:  # noqa: BLE001 — surface any collection failure
         errors.append(f"manifest collection failed: {exc}")
         return sorted(errors)

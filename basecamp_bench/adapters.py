@@ -254,6 +254,7 @@ class Harness(ABC):
     """
 
     name: ClassVar[str]
+    requires_usage: ClassVar[bool] = False
 
     def __init__(self, binary: str | None = None) -> None:
         self._binary = binary
@@ -651,7 +652,8 @@ class GrokHarness(Harness):
     name = "grok"
 
     def __init__(self, binary: str | None = None) -> None:
-        # Default to the absolute Grok install path; constructor may override.
+        # Community installs resolve from PATH; local config may pin an absolute
+        # binary when multiple CLIs share the same command name.
         super().__init__(binary=DEFAULT_GROK_BINARY if binary is None else binary)
 
     def working_directory(self, job: AgentJob) -> Path | None:
@@ -753,7 +755,9 @@ class GrokHarness(Harness):
                     "--permission-mode",
                     "dontAsk",
                     "--tools",
-                    "Bash,Edit,Glob,Grep,Read,Write",
+                    # Grok 0.2.93 requires both companion tools whenever Bash
+                    # can auto-background a command after its foreground timeout.
+                    "Bash,Edit,Glob,Grep,Read,Write,get_task_output,kill_task",
                 ]
             )
             cmd.extend(self._permission_rules(job))
@@ -954,8 +958,20 @@ class PiHarness(Harness):
     """Pi coding agent using an isolated OpenRouter model catalog."""
 
     name = "pi"
-    _CONFIG_DIR = ".basecamp-bench-pi"
-    _PROMPT_FILE = ".basecamp-bench-prompt.md"
+    requires_usage = True
+    _PRIVATE_SUFFIX = ".pi-state"
+
+    def __init__(self, binary: str | None = None) -> None:
+        super().__init__(binary=binary)
+        self._active_config_dir: Path | None = None
+
+    @classmethod
+    def _private_root(cls, job: AgentJob) -> Path:
+        return job.log_path.parent / f".{job.log_path.name}{cls._PRIVATE_SUFFIX}"
+
+    @classmethod
+    def _session_dir(cls, job: AgentJob) -> Path:
+        return cls._private_root(job) / "sessions"
 
     @staticmethod
     def _native_model(model: str) -> str:
@@ -967,65 +983,73 @@ class PiHarness(Harness):
                 f"Pi model '{model}' is unsupported; configured aliases: {known}"
             ) from exc
 
+    @staticmethod
+    def _session_token(usage: Mapping[str, Any], key: str) -> int:
+        value = usage.get(key)
+        if type(value) is not int or value < 0:
+            raise ValueError("assistant message has invalid token counts")
+        return value
+
     @contextmanager
     def execution_context(self, job: AgentJob) -> Iterator[None]:
-        """Install only the custom model and prompt files needed for this job."""
-        config_dir = job.workdir / self._CONFIG_DIR
+        """Install a private model catalog and disposable native session ledger."""
+        private_root = self._private_root(job)
+        config_dir = private_root / "config"
         models_path = config_dir / "models.json"
-        prompt_copy = job.workdir / self._PROMPT_FILE
-        if config_dir.is_symlink() or models_path.is_symlink() or prompt_copy.is_symlink():
+        session_dir = self._session_dir(job)
+        reserved = (private_root, config_dir, models_path, session_dir)
+        if any(path.is_symlink() for path in reserved):
             raise ValueError("Pi reserved configuration paths must not be symlinks")
-        if config_dir.exists() or prompt_copy.exists():
-            raise ValueError("workspace contains a reserved Pi adapter path")
+        if os.path.lexists(private_root):
+            raise ValueError("run private directory contains a reserved Pi adapter path")
         if any(not path.is_dir() for path in job.evidence_dirs):
             raise ValueError("Pi evidence paths must be directories")
 
         native_model = self._native_model(job.model.model)
-        config_dir.mkdir()
-        models_path.write_text(
-            json.dumps(
-                {
-                    "providers": {
-                        "openrouter": {
-                            "baseUrl": "https://openrouter.ai/api/v1",
-                            "api": "openai-completions",
-                            "apiKey": "$OPENROUTER_API_KEY",
-                            "models": [
-                                {
-                                    "id": native_model,
-                                    "name": "GLM 5.2",
-                                    "reasoning": True,
-                                    "input": ["text"],
-                                    "contextWindow": 1_048_576,
-                                    "maxTokens": 131_072,
-                                }
-                            ],
-                        }
-                    }
-                },
-                sort_keys=True,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        prompt_copy.write_bytes(job.prompt_path.read_bytes())
+        config_dir.mkdir(parents=True)
+        self._active_config_dir = config_dir
         try:
+            models_path.write_text(
+                json.dumps(
+                    {
+                        "providers": {
+                            "openrouter": {
+                                "baseUrl": "https://openrouter.ai/api/v1",
+                                "api": "openai-completions",
+                                "apiKey": "$OPENROUTER_API_KEY",
+                                "models": [
+                                    {
+                                        "id": native_model,
+                                        "name": "GLM 5.2",
+                                        "reasoning": True,
+                                        "input": ["text"],
+                                        "contextWindow": 1_048_576,
+                                        "maxTokens": 131_072,
+                                    }
+                                ],
+                            }
+                        }
+                    },
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             yield
         finally:
-            if not prompt_copy.is_symlink() and prompt_copy.is_file():
-                prompt_copy.unlink()
-            if not models_path.is_symlink() and models_path.is_file():
-                models_path.unlink()
-            if not config_dir.is_symlink():
-                try:
-                    config_dir.rmdir()
-                except OSError:
-                    pass
+            self._active_config_dir = None
+            if private_root.is_symlink():
+                private_root.unlink()
+            elif private_root.is_dir():
+                shutil.rmtree(private_root)
+            elif os.path.lexists(private_root):
+                raise ValueError("Pi reserved private root changed type")
 
     def prepare_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
         env = super().prepare_env(base)
-        # Relative paths resolve against the per-job working directory.
-        env["PI_CODING_AGENT_DIR"] = self._CONFIG_DIR
+        # Version probes run outside a job context and need no private catalog.
+        if self._active_config_dir is not None:
+            env["PI_CODING_AGENT_DIR"] = str(self._active_config_dir)
         env["PI_TELEMETRY"] = "0"
         return env
 
@@ -1036,14 +1060,15 @@ class PiHarness(Harness):
         return [
             self.resolve_binary(),
             "--mode",
-            "json",
+            "text",
             "--provider",
             "openrouter",
             "--model",
             native_model,
             "--thinking",
             "high",
-            "--no-session",
+            "--session-dir",
+            str(self._session_dir(job)),
             "--no-extensions",
             "--no-skills",
             "--no-prompt-templates",
@@ -1051,46 +1076,77 @@ class PiHarness(Harness):
             "--tools",
             "read,bash,edit,write,grep,find,ls",
             "-p",
-            f"@{self._PROMPT_FILE}",
+            f"@{job.prompt_path}",
         ]
 
     def parse_output(self, job: AgentJob, stdout_text: str) -> ParsedOutput:
+        del stdout_text  # Text mode is bounded; the native ledger is authoritative.
+        session_dir = self._session_dir(job)
+        if session_dir.is_symlink():
+            raise ValueError("Pi session directory must not be a symlink")
+        if not session_dir.is_dir():
+            return ParsedOutput()
+        files = sorted(session_dir.glob("*.jsonl"))
+        if len(files) != 1:
+            if not files:
+                return ParsedOutput()
+            raise ValueError("Pi usage capture must contain exactly one session")
+        session_path = files[0]
+        if session_path.is_symlink() or not session_path.is_file():
+            raise ValueError("Pi usage capture must be a regular file")
+
         usage = Usage()
-        found_usage = False
+        assistant_messages = 0
         last_message: str | None = None
         session_id: str | None = None
-        for obj in _iter_json_objects(stdout_text):
-            if obj.get("type") == "session" and isinstance(obj.get("id"), str):
-                session_id = obj["id"]
-            if obj.get("type") != "message_end":
-                continue
-            message = obj.get("message")
-            if not isinstance(message, dict) or message.get("role") != "assistant":
-                continue
-            native_usage = message.get("usage")
-            if isinstance(native_usage, dict):
-                usage = usage.add(
-                    Usage(
-                        input_tokens=_int_of(native_usage.get("input")),
-                        cached_input_tokens=_int_of(native_usage.get("cacheRead")),
-                        cache_write_tokens=_int_of(native_usage.get("cacheWrite")),
-                        output_tokens=_int_of(native_usage.get("output")),
+        try:
+            with session_path.open(encoding="utf-8") as handle:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    entry = json.loads(line)
+                    if not isinstance(entry, dict):
+                        raise ValueError("session entry must be an object")
+                    if entry.get("type") == "session":
+                        native_id = entry.get("id")
+                        if not isinstance(native_id, str) or not native_id or session_id is not None:
+                            raise ValueError("session header is invalid")
+                        session_id = native_id
+                        continue
+                    if entry.get("type") != "message":
+                        continue
+                    message = entry.get("message")
+                    if not isinstance(message, dict) or message.get("role") != "assistant":
+                        continue
+                    native_usage = message.get("usage")
+                    if not isinstance(native_usage, dict):
+                        raise ValueError("assistant message omitted usage")
+                    usage = usage.add(
+                        Usage(
+                            input_tokens=self._session_token(native_usage, "input"),
+                            cached_input_tokens=self._session_token(native_usage, "cacheRead"),
+                            cache_write_tokens=self._session_token(native_usage, "cacheWrite"),
+                            output_tokens=self._session_token(native_usage, "output"),
+                        )
                     )
-                )
-                found_usage = True
-            content = message.get("content")
-            if isinstance(content, list):
-                text_parts = [
-                    item["text"]
-                    for item in content
-                    if isinstance(item, dict)
-                    and item.get("type") == "text"
-                    and isinstance(item.get("text"), str)
-                ]
-                if text_parts:
-                    last_message = "\n".join(text_parts)
+                    assistant_messages += 1
+                    content = message.get("content")
+                    if isinstance(content, list):
+                        text_parts = [
+                            item["text"]
+                            for item in content
+                            if isinstance(item, dict)
+                            and item.get("type") == "text"
+                            and isinstance(item.get("text"), str)
+                        ]
+                        if text_parts:
+                            last_message = "\n".join(text_parts)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Pi usage capture is unreadable") from exc
+        if session_id is None or assistant_messages == 0:
+            return ParsedOutput()
         return ParsedOutput(
-            usage=usage if found_usage else None,
+            usage=usage,
             # Custom model catalogs cannot safely encode OpenRouter's dynamic
             # routing price. The runner resolves cost from its pinned pricing.
             reported_cost_usd=None,

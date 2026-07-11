@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from basecamp_bench.adapters import AgentJob, Harness, Usage, get_harness
+from basecamp_bench.adapters import AgentJob, Harness, ParsedOutput, Usage, get_harness
 from basecamp_bench.config import BenchConfig
 from basecamp_bench.pricing import compute_cost, find_exact_rates
 from basecamp_bench.processes import ProcessResult, run_managed
@@ -128,10 +128,20 @@ def _execute_agent_prepared(
         stdin=adapter.stdin_for(job),
         cancel_event=cancel_event,
     )
-    parsed = adapter.parse_output(job, read_text(stdout_path))
+    parse_error: str | None = None
+    try:
+        parsed = adapter.parse_output(job, read_text(stdout_path))
+    except Exception as exc:  # noqa: BLE001 — malformed vendor output must fail closed
+        parsed = ParsedOutput()
+        parse_error = f"output parse failed: {type(exc).__name__}: {exc}"
     last = parsed.last_message
     if last is None and job.last_message_path.is_file():
         last = read_text(job.last_message_path).strip() or None
+    execution_error = _execution_error(process)
+    if execution_error is None and parse_error is not None:
+        execution_error = parse_error
+    if execution_error is None and adapter.requires_usage and parsed.usage is None:
+        execution_error = "missing or incomplete required usage capture"
     return AgentExecution(
         process=process,
         usage=parsed.usage,
@@ -146,7 +156,7 @@ def _execute_agent_prepared(
         reported_cost_usd=parsed.reported_cost_usd,
         last_message=last,
         command_preview=preview,
-        error=safe_error(_execution_error(process), roots=roots, secret_values=secrets),
+        error=safe_error(execution_error, roots=roots, secret_values=secrets),
     )
 
 

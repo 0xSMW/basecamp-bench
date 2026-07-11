@@ -435,12 +435,18 @@ class NewRunIdTests(unittest.TestCase):
 
 class MaterializeTests(Fixture):
     def test_excludes_and_overlays(self) -> None:
+        (self.ref / ".DS_Store").write_bytes(b"ambient")
+        nested = self.ref / "nested"
+        nested.mkdir()
+        (nested / ".DS_Store").write_bytes(b"ambient")
         dest = self.root / "ws"
         man = materialize_seed(self.config(), dest)
         self.assertTrue((dest / "AGENTS.md").is_file())
         self.assertFalse((dest / ".env").exists())
         self.assertFalse((dest / ".git").exists())
         self.assertFalse((dest / "reference" / "stale.txt").exists())
+        self.assertFalse((dest / "reference" / ".DS_Store").exists())
+        self.assertFalse((dest / "reference" / "nested" / ".DS_Store").exists())
         self.assertEqual((dest / "reference" / "note.txt").read_bytes(), b"reference-asset-v1\n")
         self.assertIn("reference/note.txt", man)
 
@@ -491,6 +497,46 @@ class ExecuteTests(Fixture):
         self.assertEqual(result.cost_usd, 9.99)
         self.assertNotIn("/usr/local/bin", result.command_preview)
         self.assertIn("fake-agent", result.command_preview)
+
+    def test_successful_process_fails_without_required_usage_capture(self) -> None:
+        class RequiredUsageHarness(FakeHarness):
+            requires_usage = True
+
+            def parse_output(self, job: AgentJob, stdout_text: str) -> ParsedOutput:
+                return ParsedOutput()
+
+        work = self.root / "required-usage"
+        work.mkdir()
+        job = AgentJob(
+            kind="implement",
+            harness="fake",
+            model=ModelSpec(model="contestant-model", effort="high"),
+            workdir=work,
+            prompt_path=self.prompt,
+            log_path=self.root / "required.log",
+            last_message_path=self.root / "required.last.md",
+        )
+
+        def successful(command, **kwargs):  # type: ignore[no-untyped-def]
+            kwargs["stdout_path"].write_text("done\n", encoding="utf-8")
+            return _proc()
+
+        with (
+            mock.patch(
+                "basecamp_bench.execution.get_harness",
+                return_value=RequiredUsageHarness(binary=str(self.bin)),
+            ),
+            mock.patch("basecamp_bench.execution.run_managed", side_effect=successful),
+        ):
+            result = execute_agent(
+                self.config(),
+                job,
+                pricing_data=self.pricing,
+                pricing_retrieved_at="2026-07-11T00:00:00Z",
+                options=self.options(),
+            )
+        self.assertEqual(result.error, "missing or incomplete required usage capture")
+        self.assertIsNone(result.usage)
 
 
 class PipelineTests(Fixture):

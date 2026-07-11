@@ -326,7 +326,12 @@ class GrokCommandTests(TempDirTestCase):
         self.assertNotIn("--no-subagents", cmd)
         self.assertNotIn("--always-approve", cmd)
         self.assertIn("--tools", cmd)
-        self.assertIn("Bash", cmd[cmd.index("--tools") + 1].split(","))
+        tools = cmd[cmd.index("--tools") + 1].split(",")
+        self.assertIn("Bash", tools)
+        # Grok rejects Bash at session creation when its auto-background
+        # companion tools are removed by an explicit allowlist.
+        self.assertIn("get_task_output", tools)
+        self.assertIn("kill_task", tools)
         self.assertIn("Bash(*)", cmd)
         self.assertEqual(cmd[cmd.index("--sandbox") + 1], "basecamp_bench")
         self.assertIsNone(h.stdin_for(job))
@@ -403,6 +408,7 @@ class PiCommandTests(TempDirTestCase):
     def test_glm_argv_and_transient_configuration(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
         job = self._job(harness="pi", model="glm-5.2")
+        private_root = h._private_root(job)
         with h.execution_context(job):
             cmd = h.build_command(job)
             self._assert_no_sentinel_in_argv(cmd)
@@ -411,21 +417,24 @@ class PiCommandTests(TempDirTestCase):
             self.assertEqual(cmd[cmd.index("--model") + 1], "z-ai/glm-5.2")
             self.assertEqual(cmd[cmd.index("--thinking") + 1], "high")
             self.assertEqual(cmd[cmd.index("--tools") + 1], "read,bash,edit,write,grep,find,ls")
-            self.assertIn("--no-session", cmd)
+            self.assertEqual(cmd[cmd.index("--mode") + 1], "text")
+            self.assertNotIn("--no-session", cmd)
+            self.assertEqual(cmd[cmd.index("--session-dir") + 1], str(h._session_dir(job)))
             self.assertIn("--approve", cmd)
-            self.assertEqual(cmd[-2:], ["-p", "@.basecamp-bench-prompt.md"])
+            self.assertEqual(cmd[-2:], ["-p", f"@{self.prompt_path}"])
 
-            config_path = self.workdir / ".basecamp-bench-pi" / "models.json"
+            config_path = private_root / "config" / "models.json"
             model_config = json.loads(config_path.read_text(encoding="utf-8"))
             model = model_config["providers"]["openrouter"]["models"][0]
             self.assertEqual(model["id"], PI_MODEL_ALIASES["glm-5.2"])
             self.assertEqual(model["contextWindow"], 1_048_576)
-            self.assertEqual(
-                (self.workdir / ".basecamp-bench-prompt.md").read_text(encoding="utf-8"),
-                SENTINEL,
-            )
-        self.assertFalse((self.workdir / ".basecamp-bench-pi").exists())
-        self.assertFalse((self.workdir / ".basecamp-bench-prompt.md").exists())
+            env = h.prepare_env({"PATH": "/usr/bin"})
+            self.assertEqual(env["PI_CODING_AGENT_DIR"], str(private_root / "config"))
+            # Pi may create additional auth/cache files; the whole private root
+            # must still be removed before the submission is snapshotted.
+            (private_root / "config" / "auth.json").write_text("{}\n", encoding="utf-8")
+        self.assertFalse(private_root.exists())
+        self.assertEqual(list(self.workdir.iterdir()), [])
 
     def test_rejects_unknown_model_alias(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
@@ -442,7 +451,7 @@ class PiCommandTests(TempDirTestCase):
     def test_reserved_paths_fail_closed(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
         job = self._job(harness="pi", model="glm-5.2")
-        (self.workdir / ".basecamp-bench-prompt.md").write_text("occupied", encoding="utf-8")
+        h._private_root(job).mkdir()
         with self.assertRaisesRegex(ValueError, "reserved"):
             with h.execution_context(job):
                 pass
@@ -598,10 +607,15 @@ class EnvironmentTests(TempDirTestCase):
 
     def test_pi_env_uses_isolated_config_directory(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
-        env = h.prepare_env({"PATH": "/usr/bin", "OPENROUTER_API_KEY": "secret"})
-        self.assertEqual(env["PI_CODING_AGENT_DIR"], ".basecamp-bench-pi")
-        self.assertEqual(env["PI_TELEMETRY"], "0")
-        self.assertEqual(env["OPENROUTER_API_KEY"], "secret")
+        job = self._job(harness="pi", model="glm-5.2")
+        with h.execution_context(job):
+            env = h.prepare_env({"PATH": "/usr/bin", "OPENROUTER_API_KEY": "secret"})
+            self.assertEqual(
+                env["PI_CODING_AGENT_DIR"],
+                str(h._private_root(job) / "config"),
+            )
+            self.assertEqual(env["PI_TELEMETRY"], "0")
+            self.assertEqual(env["OPENROUTER_API_KEY"], "secret")
 
     def test_prepare_env_does_not_copy_os_environ_arbitrarily(self) -> None:
         h = ClaudeHarness(binary=str(self.fake_bin))
@@ -861,45 +875,64 @@ class ParseOutputTests(TempDirTestCase):
         self.assertEqual(parsed.last_message, "only text")
         self.assertIsNone(parsed.usage)
 
-    def test_pi_jsonl_usage_and_message(self) -> None:
+    def test_pi_session_usage_and_message(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
         job = self._job(harness="pi", model="glm-5.2")
-        text = "\n".join(
-            [
-                json.dumps({"type": "session", "id": "pi-session"}),
-                json.dumps(
-                    {
-                        "type": "message_end",
-                        "message": {
-                            "role": "assistant",
-                            "content": [{"type": "text", "text": "first"}],
-                            "usage": {
-                                "input": 100,
-                                "output": 20,
-                                "cacheRead": 30,
-                                "cacheWrite": 4,
-                                "cost": {"total": 99},
-                            },
-                        },
-                    }
-                ),
-                json.dumps(
-                    {
-                        "type": "message_end",
-                        "message": {
-                            "role": "assistant",
-                            "content": [{"type": "text", "text": "final"}],
-                            "usage": {"input": 10, "output": 5, "cacheRead": 2},
-                        },
-                    }
-                ),
-            ]
+        session_dir = h._session_dir(job)
+        session_dir.mkdir(parents=True)
+        entries = [
+            {"type": "session", "id": "pi-session", "version": 3},
+            {"type": "message", "message": {"role": "user", "content": "task"}},
+            {
+                "type": "message",
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "first"}],
+                    "usage": {
+                        "input": 100,
+                        "output": 20,
+                        "cacheRead": 30,
+                        "cacheWrite": 4,
+                        "cost": {"total": 99},
+                    },
+                },
+            },
+            {"type": "compaction", "summary": "old history remains billable"},
+            {
+                "type": "message",
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "final"}],
+                    "usage": {
+                        "input": 10,
+                        "output": 5,
+                        "cacheRead": 2,
+                        "cacheWrite": 0,
+                    },
+                },
+            },
+        ]
+        (session_dir / "session.jsonl").write_text(
+            "".join(json.dumps(entry) + "\n" for entry in entries),
+            encoding="utf-8",
         )
-        parsed = h.parse_output(job, text)
+        parsed = h.parse_output(job, "bounded final stdout")
         self.assertEqual(parsed.usage, Usage(110, 32, 4, 25))
         self.assertEqual(parsed.last_message, "final")
         self.assertEqual(parsed.session_id, "pi-session")
         self.assertIsNone(parsed.reported_cost_usd)
+
+    def test_pi_session_capture_fails_closed(self) -> None:
+        h = PiHarness(binary=str(self.fake_bin))
+        job = self._job(harness="pi", model="glm-5.2")
+        self.assertIsNone(h.parse_output(job, "ignored").usage)
+
+        session_dir = h._session_dir(job)
+        session_dir.mkdir(parents=True)
+        (session_dir / "one.jsonl").write_text("{}\n", encoding="utf-8")
+        (session_dir / "two.jsonl").write_text("{}\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            h.parse_output(job, "ignored")
 
     def test_agy_json_usage_and_response(self) -> None:
         h = AgyHarness(binary=str(self.fake_bin))

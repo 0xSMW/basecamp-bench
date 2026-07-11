@@ -210,6 +210,21 @@ class ManifestTests(TempDirTestCase):
 
 
 class VerifyManifestTests(TempDirTestCase):
+    def test_matching_ignore_excludes_ambient_metadata(self) -> None:
+        (self.root / "keep.txt").write_text("keep", encoding="utf-8")
+        manifest = tree_manifest(self.root, ignore=("**/.DS_Store", ".DS_Store"))
+        nested = self.root / "nested"
+        nested.mkdir()
+        (nested / ".DS_Store").write_bytes(b"ambient")
+        self.assertEqual(
+            verify_tree_manifest(
+                self.root,
+                manifest,
+                ignore=("**/.DS_Store", ".DS_Store"),
+            ),
+            [],
+        )
+
     def test_missing_unexpected_changed_sorted(self) -> None:
         (self.root / "a.txt").write_text("a", encoding="utf-8")
         (self.root / "b.txt").write_text("b", encoding="utf-8")

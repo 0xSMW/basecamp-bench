@@ -93,10 +93,12 @@ _SEED_IGNORE = (
     "auth.json",
     "service-account.json",
     ".DS_Store",
+    "**/.DS_Store",
     "__pycache__",
     "__pycache__/**",
     "*.pyc",
 )
+_AMBIENT_IGNORE = (".DS_Store", "**/.DS_Store")
 _PRICING_URL = "https://models.dev/api.json"
 _PRICING_MAX_AGE_S = 7 * 24 * 3600
 _MIN_PUB_REPS, _MIN_PUB_EVALS, _MIN_LOCAL_EVALS = 3, 2, 1
@@ -226,7 +228,14 @@ def materialize_seed(config: BenchConfig, destination: Path) -> dict:
     ref_dest = dest / "reference"
     if os.path.lexists(ref_dest):
         raise ValueError(f"seed materialization left a reference path: {ref_dest}")
-    atomic_snapshot(config.reference_root, ref_dest)
+    # Reference-pack validation intentionally tolerates undeclared Finder
+    # metadata; materialization must exclude the same ambient files so they do
+    # not affect submissions or portable baseline artifacts.
+    atomic_snapshot(
+        config.reference_root,
+        ref_dest,
+        ignore_patterns=_AMBIENT_IGNORE,
+    )
     return tree_manifest(dest)
 
 
@@ -1782,7 +1791,11 @@ def _run_repetition(
     eval_cost_total, eval_cost_known, eval_tokens, eval_duration = 0.0, True, 0, 0.0
     if impl_ok:
         snapshot_path = run_dir / "snapshots" / submission_id
-        for rel, digest in atomic_snapshot(workdir, snapshot_path).items():
+        for rel, digest in atomic_snapshot(
+            workdir,
+            snapshot_path,
+            ignore_patterns=_AMBIENT_IGNORE,
+        ).items():
             artifacts[f"snapshots/{submission_id}/{rel}"] = digest
         checkpoint(jobs, artifacts)
         _emit_progress(
@@ -1931,7 +1944,8 @@ def _run_evaluator(
     output_dir.mkdir()
     materialize_seed(config, seed_dir)
     atomic_snapshot(snapshot_path, submission_dir)
-    pre_seed, pre_sub = tree_manifest(seed_dir), tree_manifest(submission_dir)
+    pre_seed = tree_manifest(seed_dir, ignore=_AMBIENT_IGNORE)
+    pre_sub = tree_manifest(submission_dir, ignore=_AMBIENT_IGNORE)
     report_path, result_path = output_dir / "report.md", output_dir / "result.json"
     prompt_text = build_evaluator_prompt(
         track=track.id,
@@ -1973,9 +1987,9 @@ def _run_evaluator(
     valid_result: dict[str, Any] | None = None
     if not _process_ok(execution.process) or execution.error is not None:
         invalid.append("evaluator_execution_failed")
-    if verify_tree_manifest(seed_dir, pre_seed):
+    if verify_tree_manifest(seed_dir, pre_seed, ignore=_AMBIENT_IGNORE):
         invalid.append("seed_mutated")
-    if verify_tree_manifest(submission_dir, pre_sub):
+    if verify_tree_manifest(submission_dir, pre_sub, ignore=_AMBIENT_IGNORE):
         invalid.append("submission_mutated")
     if not report_path.is_file() or report_path.stat().st_size == 0:
         invalid.append("missing_report")
