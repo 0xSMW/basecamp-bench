@@ -1,8 +1,9 @@
 # Isolated execution
 
-Agent CLIs execute model-directed commands and generated code. Run paid or
-publication benchmarks in a disposable VM with no personal data, ambient
-credentials, or access to production systems.
+Agent CLIs execute model-directed commands and generated code. Local mode runs
+each job in an isolated folder beneath the repository and does not require a
+container. A disposable VM or container is optional hardening for local runs
+and required for publication mode.
 
 ## Reference boundary
 
@@ -17,10 +18,11 @@ credentials, or access to production systems.
 - Export only with `basecamp-bench export-run`; copy the resulting archive out,
   then destroy the VM.
 
-The container recipe in [`containers/`](../containers/) provides a repeatable
-non-root base and resource-limit example. Containers share the host kernel, so
-use a disposable VM around the container for publication runs or any harness
-that needs broad permissions.
+The optional container recipe in [`containers/`](../containers/) provides a
+repeatable non-root base and resource-limit example. Containers share the host
+kernel; an outer disposable VM provides stronger isolation for broad-permission
+or higher-risk runs. Publication requires either a disposable VM or an
+appropriately isolated container.
 
 Directory separation, prompt instructions, environment allowlists, snapshot
 hashes, and mutation checks are integrity controls. They do not provide an OS

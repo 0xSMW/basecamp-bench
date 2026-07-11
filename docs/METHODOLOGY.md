@@ -39,3 +39,17 @@ A result supports only the contract version and evidence it records. It does not
 ## Portable exports
 
 An export contains only `run-manifest.json` and its declared, hash-verified artifacts. Before archive creation, the exporter scans the complete captured contents of every member for high-signal credentials and scans textual members for host-specific POSIX, Windows drive, and UNC paths. JSON string values receive the same checks after escape decoding, and malformed declared JSON fails closed. Configurable safety limits default to 256 MiB per artifact, 256 MiB across all captured members, and 10,000 members; exact-boundary archives remain valid and anything larger fails before payload retention. Textual formats fail closed when they are not valid UTF-8; binary submissions and screenshots are retained as bytes. Undeclared private logs and workspaces remain outside the archive and outside the export scan.
+
+## Official repository baseline
+
+The committed `baseline/<run-id>/` tree is the exact unpacked portable export
+of a verified run. It is immutable evidence: snapshots, attempts, evaluator
+outputs, leaderboards, the manifest, and `report.html` are never hand-edited or
+redacted after execution. Any shareability failure requires a corrected rerun.
+
+The initial baseline uses local mode, one attempt per model and track, and the
+canonical Sol evaluator. It supports transparent observed quality/cost
+comparisons for those exact inputs and recorded versions. Local-mode points do
+not qualify for the publication Pareto frontier; publication claims continue to
+require the configured repetitions, distinct evaluator model IDs, complete
+pricing, and external isolation.

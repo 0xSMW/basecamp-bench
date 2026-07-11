@@ -10,41 +10,28 @@ The runner preserves raw attempts, computes scores and eligibility itself, and
 generates a self-contained HTML quality-versus-cost report. FE and BE results
 remain separate.
 
-## Status
+## Getting Started
 
-This is an alpha benchmark. Contracts are versioned, outputs are auditable, and
-publication mode fails closed. Model APIs and vendor CLIs remain nondeterministic
-external systems; results support only the exact inputs and provenance recorded
-in their run manifest.
+Basecamp Bench runs locally with Python 3.11 or newer and no runtime
+dependencies. Install and authenticate the agent CLIs you plan to compare:
+Codex, Claude Code, Grok, Pi, and/or Google Antigravity (`agy`). External OS
+isolation is optional for local runs and required for publication; the provided
+container is one way to supply it.
 
-The source release includes no model scores or rankings. The credential-free
-test suite validates adapter command shapes and the complete fake-harness
-pipeline; paid live implementation/evaluation runs remain a separate release
-gate before making production-reliability or performance claims.
-
-## Requirements
-
-- Python 3.11 or newer.
-- A clone of this repository; run commands from its root.
-- Any selected agent CLIs installed and authenticated: Codex, Claude Code,
-  Grok, and/or Pi.
-- A disposable VM for real publication runs.
-
-No Python runtime dependencies are required.
-
-## Install
+1. Clone this repository and enter its root.
+2. Install the runner and copy the annotated local configuration.
 
 ```sh
 python -m pip install -e .
-basecamp-bench --help
+cp bench.example.toml bench.toml
 ```
 
-Copy the annotated configuration and adjust models, evaluators, or executable
-paths. `bench.toml` is intentionally ignored.
+3. Adjust the selected models or executable paths, inspect the effective
+   configuration, and start a run.
 
 ```sh
-cp bench.example.toml bench.toml
 basecamp-bench show-config
+basecamp-bench run --harness codex --track fe
 ```
 
 ## Run
@@ -64,14 +51,10 @@ to suppress it. The completed run path remains the only stdout output. At most
 32 paid agent processes run simultaneously by default; adjust the safety cap
 with `--max-parallel-agents`.
 
-Harness and track flags may be repeated or comma-separated. Workspace-only
-execution is the default. A harness without an OS sandbox requires either an
-explicit local acknowledgement or a confirmed disposable boundary:
-
-```sh
-basecamp-bench run --harness grok --track be \
-  --allow-unsafe-host-execution
-```
+Harness and track flags may be repeated or comma-separated. Local jobs use
+isolated folders beneath `runs/<run-id>/workspaces`; `full_access = true`
+requires `--allow-unsafe-host-execution` locally or
+`--confirmed-isolated-environment` inside an external boundary.
 
 Publication mode requires at least three implementation repetitions, two valid
 evaluator model IDs, exact or
@@ -127,6 +110,27 @@ public artifacts, scans them for likely credentials, rejects symlinks and path
 escapes, and writes a deterministic archive without overwriting an existing
 file. Workspaces and private logs are never exported.
 
+## Official baseline
+
+The repository's [`baseline/`](baseline/) directory contains the verified,
+shareability-scanned reference run: model snapshots, evaluator reports and
+results, raw attempts, leaderboards, provenance manifest, and the self-contained
+HTML report. Private logs, prompts, credentials, and execution workspaces are
+excluded.
+
+```sh
+basecamp-bench verify-run baseline/<run-id>
+basecamp-bench report baseline/<run-id>/leaderboards \
+  --output /tmp/basecamp-bench-report.html
+cmp baseline/<run-id>/report.html /tmp/basecamp-bench-report.html
+```
+
+New compatible model runs can be compared by regenerating a report from the
+baseline and additional run directories together. The committed baseline is an
+exploratory local run; its quality and cost points are auditable, while official
+publication eligibility and Pareto-frontier claims require the stricter
+repetition, evaluator, pricing, and isolation rules below.
+
 ## Method
 
 Each track lives under `benchmarks/<track>/`:
@@ -163,14 +167,14 @@ See [Methodology](docs/METHODOLOGY.md) for claim boundaries and detailed rules.
 
 Agent CLIs and generated applications are untrusted code. Directory separation,
 prompt instructions, environment allowlists, hash checks, log caps, and process
-group cleanup provide integrity and operational controls; they are not a host
-security boundary. Never run real agents beside personal files, ambient cloud
-credentials, a Docker socket, an SSH agent, a browser profile, or production
-systems.
+group cleanup provide integrity and operational controls; some harnesses do not
+provide an OS security boundary. Use spend-limited credentials and keep
+personal files, ambient cloud credentials, Docker sockets, SSH agents, browser
+profiles, and production systems outside the run environment.
 
-Use the [isolated execution guide](docs/ISOLATION.md) and the reference
-[`containers/`](containers/) recipe. Publication mode requires an explicit
-confirmation that the external isolation boundary exists.
+The [isolated execution guide](docs/ISOLATION.md) and reference
+[`containers/`](containers/) recipe provide optional local hardening.
+Publication mode requires an explicit external-isolation confirmation.
 
 ## Add models and harnesses
 
@@ -182,8 +186,13 @@ malformed output, permissions, timeouts, and vendor output drift.
 
 The optional `pi` adapter exposes the safe benchmark model ID `glm-5.2` and
 routes it to OpenRouter's `z-ai/glm-5.2`; set `OPENROUTER_API_KEY` and use the
-commented example in `bench.example.toml`. Pi has no OS sandbox, so it requires
-the local unsafe-execution acknowledgement or the documented external boundary.
+commented example in `bench.example.toml`. Pi relies on the per-job workspace
+boundary in local mode; the optional container recipe adds OS isolation.
+
+The optional `agy` adapter supports `gemini-3.5-flash` at `low`, `medium`, or
+`high` effort. It enables Antigravity's terminal sandbox and stages evaluator
+evidence as disposable workspace copies, preserving the immutable originals.
+See the commented `bench.example.toml` entry for setup.
 
 Contract or evaluator-directive changes require a new contract version and
 changelog entry. Published contract versions are immutable.

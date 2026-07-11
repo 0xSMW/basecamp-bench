@@ -39,8 +39,8 @@ enabled = true
 # binary = "/absolute/path/to/the/intended/grok"
 
 # Optional Pi/OpenRouter harness for GLM 5.2. Set OPENROUTER_API_KEY before use.
-# Pi does not provide an OS sandbox, so run it inside the documented disposable
-# boundary or pass --allow-unsafe-host-execution for local testing.
+# Pi relies on the isolated per-job folder in local mode. The optional container
+# recipe adds an OS boundary; publication mode requires external isolation.
 #
 # [harnesses.pi-glm]
 # adapter = "pi"
