@@ -1284,16 +1284,26 @@ class EnrichedReportBehaviorTests(TempDirTestCase):
         points = load_leaderboards([path])
         payload = build_report_payload(points)
         model = payload["sections"][0]["models"][0]
-        self.assertEqual(model["implementation_cost_per_attempt"], 2.0)
+        self.assertIsNone(model["implementation_cost_per_attempt"])
         self.assertEqual(model["evaluation_cost_per_attempt"], 0.25)
         self.assertIsNone(model["expected_cost"])
         self.assertIn("implementation_cost_incomplete", model["ineligible_reasons"])
+        for key in (
+            "cost_per_attempt",
+            "implementation_cost_per_attempt",
+            "cost_mean",
+            "cost_stdev",
+            "cost_min",
+            "cost_max",
+            "cost_range",
+        ):
+            self.assertIsNone(model[key])
         # Aggregate statistics are recomputed from raw attempts; source summary
         # fields cannot override the comparison math.
         self.assertEqual(model["repetitions"], 2)
         self.assertEqual(model["success_rate"], 0.5)
         self.assertEqual(model["score_stdev"], 0.0)
-        self.assertEqual(model["cost_stdev"], 0.0)
+        self.assertIsNone(model["cost_stdev"])
         self.assertEqual(len(model["raw_attempts"]), 2)
         # Deterministic order (json sort key).
         ids = [r["run_id"] for r in model["raw_attempts"]]

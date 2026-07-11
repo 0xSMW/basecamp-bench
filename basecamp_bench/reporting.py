@@ -1191,6 +1191,14 @@ def _point_payload(
     raw_attempts = [
         _raw_attempt_payload(raw) for raw in sorted(point.raw_attempts, key=_raw_attempt_sort_key)
     ]
+    implementation_cost_complete = not any(
+        reason in {"implementation_cost_unknown", "implementation_cost_incomplete"}
+        for reason in point.ineligible_reasons
+    )
+
+    def implementation_cost(value: float) -> float | None:
+        return value if implementation_cost_complete else None
+
     return {
         "point_id": _point_id(point),
         "model_id": point.model_id,
@@ -1203,14 +1211,16 @@ def _point_payload(
         "score_max": point.score_max,
         "score_range": point.score_range,
         "judge_spread": point.judge_spread,
-        "cost_per_attempt": point.cost_per_attempt,
-        "cost_mean": point.cost_mean,
-        "implementation_cost_per_attempt": point.implementation_cost_per_attempt,
+        "cost_per_attempt": implementation_cost(point.cost_per_attempt),
+        "cost_mean": implementation_cost(point.cost_mean),
+        "implementation_cost_per_attempt": implementation_cost(
+            point.implementation_cost_per_attempt
+        ),
         "evaluation_cost_per_attempt": point.evaluation_cost_per_attempt,
-        "cost_stdev": point.cost_stdev,
-        "cost_min": point.cost_min,
-        "cost_max": point.cost_max,
-        "cost_range": point.cost_range,
+        "cost_stdev": implementation_cost(point.cost_stdev),
+        "cost_min": implementation_cost(point.cost_min),
+        "cost_max": implementation_cost(point.cost_max),
+        "cost_range": implementation_cost(point.cost_range),
         "success_rate": point.success_rate,
         "repetitions": point.repetitions,
         "dimensions": dims,
