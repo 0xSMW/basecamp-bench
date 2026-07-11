@@ -429,6 +429,12 @@ class PiCommandTests(TempDirTestCase):
         with self.assertRaisesRegex(ValueError, "unsupported"):
             h.build_command(job)
 
+    def test_glm_requires_high_thinking(self) -> None:
+        h = PiHarness(binary=str(self.fake_bin))
+        job = self._job(harness="pi", model="glm-5.2", effort="medium")
+        with self.assertRaisesRegex(ValueError, "requires thinking effort 'high'"):
+            h.build_command(job)
+
     def test_reserved_paths_fail_closed(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
         job = self._job(harness="pi", model="glm-5.2")

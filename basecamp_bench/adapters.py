@@ -1028,6 +1028,8 @@ class PiHarness(Harness):
 
     def build_command(self, job: AgentJob) -> list[str]:
         native_model = self._native_model(job.model.model)
+        if job.model.effort != "high":
+            raise ValueError("Pi model 'glm-5.2' requires thinking effort 'high'")
         return [
             self.resolve_binary(),
             "--mode",
@@ -1037,7 +1039,7 @@ class PiHarness(Harness):
             "--model",
             native_model,
             "--thinking",
-            job.model.effort,
+            "high",
             "--no-session",
             "--no-extensions",
             "--no-skills",
