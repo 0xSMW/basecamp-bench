@@ -39,6 +39,10 @@ enabled = true
 # binary = "/absolute/path/to/the/intended/grok"
 
 [[evaluators]]
+# Sol 5.6 is intentional. Trials with Fable 5, Grok 4.5, and Sol 5.6 produced
+# comparably fair judgments; Sol was the most detailed and thorough. Another
+# evaluator may reduce cost while affecting detail more than general direction;
+# record that choice explicitly in the run provenance.
 id = "eval-sol"
 harness = "codex"
 model = "gpt-5.6-sol"

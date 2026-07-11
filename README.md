@@ -138,6 +138,12 @@ malformed evidence, failed evaluator processes, and any evidence mutation. It
 then takes the median evaluator score per dimension and computes the weighted
 overall score.
 
+Sol 5.6 is the default evaluator model. Comparative evaluator trials with
+Fable 5, Grok 4.5, and Sol 5.6 produced similarly fair judgments; Sol was the
+most detailed and thorough. Changing the evaluator is therefore a methodology
+and cost-routing choice that may affect the level of detail more than the
+general direction of the judgment.
+
 Leaderboard aggregation is scoped by track, contract version, harness, and
 model. Failed attempts remain visible and contribute to success rate. The
 frontier's primary cost is median implementation cost per attempt divided by

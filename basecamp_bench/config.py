@@ -96,6 +96,12 @@ def _defaults(root: Path) -> dict[str, Any]:
         ),
         "grok": HarnessSpec("grok", "grok", "grok-4.5", "high", "xai", "Grok", None, True),
     }
+    # Evaluator selection may be used for cost routing and remains part of the
+    # recorded methodology.
+    # Fable 5, Grok 4.5, and Sol 5.6 produced comparably fair judgments in our
+    # evaluator trials; Sol 5.6 was the most detailed and thorough, so it is the
+    # canonical default. Substitution may affect the level of detail more than
+    # the general direction of the judgment and must remain explicit in provenance.
     evaluators = (EvaluatorSpec("eval-sol", "codex", "gpt-5.6-sol", "high", "openai", True),)
     tracks = {
         track: TrackSpec(
