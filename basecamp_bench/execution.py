@@ -221,6 +221,8 @@ def _execution_error(process: ProcessResult) -> str | None:
         return "process failed to start"
     if process.returncode != 0:
         return f"exit code {process.returncode}"
+    if process.stdout_truncated or process.stderr_truncated:
+        return "process output exceeded the configured log limit"
     return None
 
 

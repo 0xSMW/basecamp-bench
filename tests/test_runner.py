@@ -70,6 +70,8 @@ def _proc(
     returncode: int | None = 0,
     timed_out: bool = False,
     error: str | None = None,
+    stdout_truncated: bool = False,
+    stderr_truncated: bool = False,
 ) -> ProcessResult:
     return ProcessResult(
         returncode=returncode,
@@ -78,8 +80,8 @@ def _proc(
         interrupted=False,
         stdout_bytes=0,
         stderr_bytes=0,
-        stdout_truncated=False,
-        stderr_truncated=False,
+        stdout_truncated=stdout_truncated,
+        stderr_truncated=stderr_truncated,
         error=error,
     )
 
@@ -538,6 +540,41 @@ class ExecuteTests(Fixture):
             )
         self.assertEqual(result.error, "missing or incomplete required usage capture")
         self.assertIsNone(result.usage)
+
+    def test_successful_process_fails_closed_when_output_is_truncated(self) -> None:
+        work = self.root / "truncated-output"
+        work.mkdir()
+        job = AgentJob(
+            kind="implement",
+            harness="fake",
+            model=ModelSpec(model="contestant-model", effort="high"),
+            workdir=work,
+            prompt_path=self.prompt,
+            log_path=self.root / "truncated.log",
+            last_message_path=self.root / "truncated.last.md",
+        )
+
+        def truncated(command, **kwargs):  # type: ignore[no-untyped-def]
+            kwargs["stdout_path"].write_text(
+                json.dumps(
+                    {
+                        "usage": {"input_tokens": 1, "output_tokens": 1},
+                        "last_message": "partial",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            return _proc(stdout_truncated=True)
+
+        with mock.patch("basecamp_bench.execution.run_managed", side_effect=truncated):
+            result = execute_agent(
+                self.config(),
+                job,
+                pricing_data=self.pricing,
+                pricing_retrieved_at="2026-07-11T00:00:00Z",
+                options=self.options(),
+            )
+        self.assertEqual(result.error, "process output exceeded the configured log limit")
 
 
 class PipelineTests(Fixture):
