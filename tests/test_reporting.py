@@ -407,6 +407,16 @@ class ExpectedCostTests(unittest.TestCase):
         point = _point(success_rate=0.0, eligible=False)
         self.assertIsNone(expected_cost(point))
 
+    def test_unknown_or_incomplete_implementation_cost_returns_none(self) -> None:
+        for reason in ("implementation_cost_unknown", "implementation_cost_incomplete"):
+            with self.subTest(reason=reason):
+                point = _point(
+                    cost_per_attempt=0.0,
+                    ineligible_reasons=(reason,),
+                    eligible=False,
+                )
+                self.assertIsNone(expected_cost(point))
+
     def test_invalid_non_finite_and_negative(self) -> None:
         self.assertIsNone(expected_cost(_point(cost_per_attempt=float("nan"))))
         self.assertIsNone(expected_cost(_point(cost_per_attempt=float("inf"))))
@@ -1276,7 +1286,8 @@ class EnrichedReportBehaviorTests(TempDirTestCase):
         model = payload["sections"][0]["models"][0]
         self.assertEqual(model["implementation_cost_per_attempt"], 2.0)
         self.assertEqual(model["evaluation_cost_per_attempt"], 0.25)
-        self.assertEqual(model["expected_cost"], 4.0)
+        self.assertIsNone(model["expected_cost"])
+        self.assertIn("implementation_cost_incomplete", model["ineligible_reasons"])
         # Aggregate statistics are recomputed from raw attempts; source summary
         # fields cannot override the comparison math.
         self.assertEqual(model["repetitions"], 2)

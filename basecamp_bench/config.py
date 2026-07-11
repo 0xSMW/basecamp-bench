@@ -111,12 +111,19 @@ class BenchConfig:
 def _defaults(root: Path) -> dict[str, Any]:
     harnesses = {
         "codex": HarnessSpec(
-            "codex", "codex", "gpt-5.6-sol", "high", "openai", "Codex", None, True
+            "codex", "codex", "gpt-5.6-sol", "high", "openai", "GPT-5.6 Sol", None, True
         ),
         "claude": HarnessSpec(
-            "claude", "claude", "claude-fable-5", "high", "anthropic", "Claude", None, True
+            "claude",
+            "claude",
+            "claude-fable-5",
+            "high",
+            "anthropic",
+            "Claude Fable 5",
+            None,
+            True,
         ),
-        "grok": HarnessSpec("grok", "grok", "grok-4.5", "high", "xai", "Grok", None, True),
+        "grok": HarnessSpec("grok", "grok", "grok-4.5", "high", "xai", "Grok 4.5", None, True),
     }
     # Evaluator selection may be used for cost routing and remains part of the
     # recorded methodology.

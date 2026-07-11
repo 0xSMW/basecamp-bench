@@ -6,6 +6,8 @@ Basecamp Bench compares unattended coding-agent configurations against one versi
 
 Intelligent evaluator agents own the complete assessment. Each evaluator receives the original seed and an immutable submission snapshot, identifies the delta, decides how to run the chosen implementation, tests it directly, inspects source and behavior, and scores every dimension from cited evidence. The runner does not prescribe filenames, runtimes, frameworks, or product test scripts.
 
+Snapshots omit only standard machine-generated metadata, dependency trees, and runtime caches (`.DS_Store`, Python/tool caches, `node_modules`, Node compile caches, and `.venv`). These paths are also ignored when checking evaluator evidence integrity, so executing a submission cannot create a false mutation failure.
+
 Each track is self-contained under `benchmarks/<track>/`: `prompt.md` is the pure implementation directive, `eval.md` is the complete evaluator context, and `contract.json` owns dimension IDs, scoring anchors, weights, and overall policy.
 
 ## Scoring

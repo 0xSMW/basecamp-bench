@@ -1008,9 +1008,7 @@ class BuildManifestGitIntegrationTests(TempDirTestCase):
     def test_explicit_runner_git_uses_frozen_provenance(self) -> None:
         frozen = {"commit": "b" * 40, "dirty": False, "error": None}
         with mock.patch("basecamp_bench.manifest.git_provenance") as probe:
-            manifest = build_manifest(
-                **_minimal_manifest_kwargs(repo=None, runner_git=frozen)
-            )
+            manifest = build_manifest(**_minimal_manifest_kwargs(repo=None, runner_git=frozen))
         probe.assert_not_called()
         self.assertEqual(manifest["runner"], {"version": "1.0.0a1", **frozen})
 

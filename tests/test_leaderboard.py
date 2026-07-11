@@ -422,6 +422,15 @@ class AggregateStatisticsTests(unittest.TestCase):
         self.assertFalse(entry["eligible"])
         self.assertIn("implementation_cost_unknown", entry["ineligible_reasons"])
 
+    def test_partial_local_implementation_costs_are_explicitly_incomplete(self) -> None:
+        attempts = [
+            _attempt(submission_id="s1", implementation_cost_usd=1.0),
+            _attempt(submission_id="s2", repetition=2, implementation_cost_usd=None),
+        ]
+        roots = aggregate_attempts(attempts, mode="local", generated_at="2026-01-01T00:00:00Z")
+        entry = roots[0]["entries"][0]  # type: ignore[index]
+        self.assertIn("implementation_cost_incomplete", entry["ineligible_reasons"])
+
 
 class EligibilityGateTests(unittest.TestCase):
     def _three_valid(self, **overrides: object) -> list[Attempt]:

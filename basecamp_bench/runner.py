@@ -104,7 +104,26 @@ _SEED_IGNORE = (
     "__pycache__/**",
     "*.pyc",
 )
-_AMBIENT_IGNORE = (".DS_Store", "**/.DS_Store")
+_AMBIENT_IGNORE = (
+    ".DS_Store",
+    "**/.DS_Store",
+    "__pycache__",
+    "**/__pycache__",
+    "*.pyc",
+    "**/*.pyc",
+    ".pytest_cache",
+    "**/.pytest_cache",
+    ".mypy_cache",
+    "**/.mypy_cache",
+    ".ruff_cache",
+    "**/.ruff_cache",
+    "node-compile-cache",
+    "**/node-compile-cache",
+    "node_modules",
+    "**/node_modules",
+    ".venv",
+    "**/.venv",
+)
 _PRICING_URL = "https://models.dev/api.json"
 _PRICING_MAX_AGE_S = 7 * 24 * 3600
 _MIN_PUB_REPS, _MIN_PUB_EVALS, _MIN_LOCAL_EVALS = 3, 2, 1

@@ -584,6 +584,15 @@ class PipelineTests(Fixture):
                 nested = workdir / "generated"
                 nested.mkdir()
                 (nested / ".DS_Store").write_bytes(b"ambient")
+                pycache = nested / "__pycache__"
+                pycache.mkdir()
+                (pycache / "app.cpython-313.pyc").write_bytes(b"ambient")
+                node_cache = nested / "node-compile-cache"
+                node_cache.mkdir()
+                (node_cache / "compiled").write_bytes(b"ambient")
+                node_modules = nested / "node_modules" / "package"
+                node_modules.mkdir(parents=True)
+                (node_modules / "index.js").write_text("ambient\n", encoding="utf-8")
             else:
                 prompt_path = Path(command[command.index("--prompt-file") + 1])
                 prompt = prompt_path.read_text(encoding="utf-8")
@@ -595,12 +604,19 @@ class PipelineTests(Fixture):
                     nested = evidence_dir / "ambient-metadata"
                     nested.mkdir()
                     (nested / ".DS_Store").write_bytes(b"ambient")
+                    pycache = nested / "__pycache__"
+                    pycache.mkdir()
+                    (pycache / "probe.pyc").write_bytes(b"ambient")
+                    node_cache = nested / "node-compile-cache"
+                    node_cache.mkdir()
+                    (node_cache / "compiled").write_bytes(b"ambient")
             return result
 
         self.side_effect = with_ambient_metadata  # type: ignore[method-assign]
         run_dir = self.run_bench(id_factory=_Ids("ambient"))
         snapshot = run_dir / "snapshots" / "ambient002"
-        self.assertFalse(any(path.name == ".DS_Store" for path in snapshot.rglob("*")))
+        excluded_names = {".DS_Store", "__pycache__", "node-compile-cache", "node_modules"}
+        self.assertFalse(any(path.name in excluded_names for path in snapshot.rglob("*")))
         manifest = self.read_run_manifest(run_dir)
         eval_jobs = [job for job in manifest["jobs"] if job["kind"] == "evaluate"]
         self.assertEqual(len(eval_jobs), 2)
@@ -650,9 +666,7 @@ class PipelineTests(Fixture):
         def distinguish_invoked_name(command, **kwargs):  # type: ignore[no-untyped-def]
             if "--version" in command:
                 self.version_probe_count += 1
-                kwargs["stdout_path"].write_text(
-                    f"{Path(command[0]).name} 1.0\n", encoding="utf-8"
-                )
+                kwargs["stdout_path"].write_text(f"{Path(command[0]).name} 1.0\n", encoding="utf-8")
                 return _proc()
             return original(command, **kwargs)
 
@@ -755,7 +769,9 @@ class PipelineTests(Fixture):
         ):
             run_dir = self.run_bench(id_factory=_Ids("git-frozen"))
         capture.assert_called_once_with(self.root)
-        self.assertEqual(self.read_run_manifest(run_dir)["runner"], {"version": "1.0.0a1", **frozen})
+        self.assertEqual(
+            self.read_run_manifest(run_dir)["runner"], {"version": "1.0.0a1", **frozen}
+        )
 
     def test_implementation_exception_checkpoints_failed_manifest(self) -> None:
         self.raise_impl = True

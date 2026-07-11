@@ -197,6 +197,11 @@ def expected_cost(point: ReportPoint) -> float | None:
     Returns None when success_rate is zero or inputs are non-finite, negative,
     or otherwise invalid for normalization. Evaluation overhead is never used.
     """
+    if any(
+        reason in {"implementation_cost_unknown", "implementation_cost_incomplete"}
+        for reason in point.ineligible_reasons
+    ):
+        return None
     cost = point.implementation_cost_per_attempt
     rate = point.success_rate
     if isinstance(cost, bool) or isinstance(rate, bool):

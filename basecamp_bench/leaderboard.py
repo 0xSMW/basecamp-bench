@@ -448,7 +448,7 @@ def _aggregate_group(
         cost_stdev = _population_stdev(impl_costs)
         cost_min, cost_max = min(impl_costs), max(impl_costs)
         cost_range = cost_max - cost_min
-        if len(impl_costs) != total and mode == "publication":
+        if len(impl_costs) != total:
             reasons.append(_REASON_IMPL_COST_INCOMPLETE)
     eval_costs = [
         float(a.evaluation_cost_usd) for a in attempts if a.evaluation_cost_usd is not None

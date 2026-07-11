@@ -1109,7 +1109,11 @@ class PiHarness(Harness):
                         raise ValueError("session entry must be an object")
                     if entry.get("type") == "session":
                         native_id = entry.get("id")
-                        if not isinstance(native_id, str) or not native_id or session_id is not None:
+                        if (
+                            not isinstance(native_id, str)
+                            or not native_id
+                            or session_id is not None
+                        ):
                             raise ValueError("session header is invalid")
                         session_id = native_id
                         continue
