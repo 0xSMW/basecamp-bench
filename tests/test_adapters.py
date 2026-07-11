@@ -253,6 +253,12 @@ class ClaudeCommandTests(TempDirTestCase):
         self.assertIn("--permission-mode", cmd)
         self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "dontAsk")
         self.assertIn("--allowedTools", cmd)
+        settings = json.loads(cmd[cmd.index("--settings") + 1])
+        self.assertTrue(settings["sandbox"]["enabled"])
+        self.assertTrue(settings["sandbox"]["failIfUnavailable"])
+        self.assertFalse(settings["sandbox"]["allowUnsandboxedCommands"])
+        self.assertIn(str(self.workdir), settings["sandbox"]["filesystem"]["allowWrite"])
+        self.assertEqual(settings["sandbox"]["filesystem"]["denyRead"], ["/**"])
         self.assertNotIn("--add-dir", cmd)
         stdin = h.stdin_for(job)
         self.assertIsNotNone(stdin)
@@ -273,6 +279,18 @@ class ClaudeCommandTests(TempDirTestCase):
         self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "dontAsk")
         self.assertIn("--add-dir", cmd)
         self.assertEqual(cmd[cmd.index("--add-dir") + 1], str(self.evidence))
+        settings = json.loads(cmd[cmd.index("--settings") + 1])
+        filesystem = settings["sandbox"]["filesystem"]
+        self.assertIn(str(self.evidence), filesystem["allowRead"])
+        self.assertIn(str(self.evidence), filesystem["denyWrite"])
+        self.assertIn(f"Write({self.evidence}/**)", settings["permissions"]["deny"])
+
+    def test_danger_full_access_does_not_enable_sandbox(self) -> None:
+        h = ClaudeHarness(binary=str(self.fake_bin))
+        job = self._job(harness="claude", sandbox_mode="danger-full-access")
+        cmd = h.build_command(job)
+        self.assertNotIn("--settings", cmd)
+        self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "bypassPermissions")
 
 
 class GrokCommandTests(TempDirTestCase):

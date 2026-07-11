@@ -83,7 +83,7 @@ _SEED_IGNORE = (
     "__pycache__/**",
     "*.pyc",
 )
-_NO_OS_SANDBOX = frozenset({"claude"})
+_NO_OS_SANDBOX: frozenset[str] = frozenset()
 _PRICING_URL = "https://models.dev/api.json"
 _PRICING_MAX_AGE_S = 7 * 24 * 3600
 _MIN_PUB_REPS, _MIN_PUB_EVALS, _MIN_LOCAL_EVALS = 3, 2, 1

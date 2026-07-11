@@ -498,6 +498,64 @@ class ClaudeHarness(Harness):
     def stdin_for(self, job: AgentJob) -> bytes | None:
         return job.prompt_path.read_bytes()
 
+    @staticmethod
+    def _sandbox_settings(job: AgentJob) -> str:
+        """Return fail-closed Bash sandbox settings scoped to this job."""
+        read_only = [job.workdir, *job.evidence_dirs]
+        system_roots = (
+            Path("/System"),
+            Path("/Library"),
+            Path("/bin"),
+            Path("/sbin"),
+            Path("/usr/bin"),
+            Path("/usr/sbin"),
+            Path("/usr/lib"),
+            Path("/lib"),
+            Path("/lib64"),
+            Path("/etc"),
+            Path("/dev"),
+        )
+        for path in system_roots:
+            if path.is_dir() and path not in read_only:
+                read_only.append(path)
+        for entry in os.environ.get("PATH", "").split(os.pathsep):
+            path = Path(entry)
+            if entry and path.is_absolute() and path.is_dir() and path not in read_only:
+                read_only.append(path)
+
+        deny_tools: list[str] = []
+        for evidence in job.evidence_dirs:
+            deny_tools.extend(
+                [
+                    f"Write({evidence})",
+                    f"Write({evidence}/**)",
+                    f"Edit({evidence})",
+                    f"Edit({evidence}/**)",
+                ]
+            )
+        settings = {
+            "permissions": {"deny": deny_tools},
+            "sandbox": {
+                "enabled": True,
+                "failIfUnavailable": True,
+                "autoAllowBashIfSandboxed": True,
+                "allowUnsandboxedCommands": False,
+                "excludedCommands": [],
+                "filesystem": {
+                    "denyRead": ["/**"],
+                    "allowRead": [str(path) for path in read_only],
+                    "allowWrite": [str(job.workdir)],
+                    "denyWrite": [str(path) for path in job.evidence_dirs],
+                },
+                "network": {
+                    "allowedDomains": ["*"],
+                    "allowAllUnixSockets": True,
+                    "allowLocalBinding": True,
+                },
+            },
+        }
+        return json.dumps(settings, separators=(",", ":"), sort_keys=True)
+
     def build_command(self, job: AgentJob) -> list[str]:
         # With no positional prompt, ``-p`` reads the prompt from stdin.
         cmd: list[str] = [
@@ -516,6 +574,8 @@ class ClaudeHarness(Harness):
         else:
             cmd.extend(
                 [
+                    "--settings",
+                    self._sandbox_settings(job),
                     "--permission-mode",
                     "dontAsk",
                     "--allowedTools",
