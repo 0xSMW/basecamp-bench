@@ -97,6 +97,14 @@ _NO_SEED_LIMITATION = "Agent CLI exposes no deterministic seed control."
 
 @dataclass(frozen=True)
 class RunOptions:
+    """Runtime controls that apply to every agent process in a run.
+
+    ``max_parallel_agents`` is a global cap shared by implementation and
+    evaluator work. When supplied, ``progress`` receives an event name and a
+    read-only field mapping; callback failures are deliberately ignored so UI
+    or logging code cannot fail a paid benchmark job.
+    """
+
     allow_unsafe_host_execution: bool = False
     confirmed_isolated_environment: bool = False
     allow_network_pricing: bool = True
@@ -115,6 +123,13 @@ class RunOptions:
 
 @dataclass(frozen=True)
 class AgentExecution:
+    """Normalized outcome of one harness invocation.
+
+    ``cost_usd`` is the runner-resolved cost and may be unknown; the vendor's
+    independently reported value is retained in ``reported_cost_usd``.
+    ``command_preview`` and ``error`` are sanitized for durable run metadata.
+    """
+
     process: ProcessResult
     usage: Usage | None
     cost_usd: float | None
@@ -331,7 +346,14 @@ def run_benchmark(
     pricing_data: Mapping[str, Any] | None = None,
     now: datetime | None = None,
 ) -> Path:
-    """Full implement→snapshot→evaluate→leaderboard run under config.run_root."""
+    """Execute a complete benchmark and return its newly created run directory.
+
+    Implementation tasks run concurrently. Evaluators for a successful,
+    immutable snapshot may overlap other implementations, while one shared
+    semaphore enforces ``options.max_parallel_agents`` across both pools.
+    Checkpoints are written throughout the run; interruption or an unexpected
+    worker failure records a failed manifest when possible and is re-raised.
+    """
     ctx = _open_run(config, options, id_factory, pricing_data, now)
     jobs: list[dict[str, Any]] = []
     attempts: list[Attempt] = []
@@ -456,7 +478,13 @@ def reevaluate_run(
     pricing_data: Mapping[str, Any] | None = None,
     now: datetime | None = None,
 ) -> Path:
-    """Immutable re-evaluation: reuse verified prior snapshots, run current evaluators."""
+    """Re-evaluate verified snapshots and return a separate new run directory.
+
+    The prior run and every declared snapshot are verified before reuse. The
+    copied snapshots are evaluated with the current contracts and evaluator
+    configuration; the source run remains unchanged. Evaluator failures use
+    the same checkpoint-and-reraise behavior as a normal benchmark run.
+    """
     prior = _require_prior_run_dir(config, prior_run_dir)
     errs = verify_run(prior)
     if errs:
@@ -578,6 +606,14 @@ def _open_run(
     pricing_data: Mapping[str, Any] | None,
     now: datetime | None,
 ) -> dict[str, Any]:
+    """Create and validate the initial run state used by later phases.
+
+    This allocates the run directory, records tooling, applies startup gates,
+    resolves pricing and contracts, hashes inputs, and writes the initial
+    ``planned`` checkpoint. The returned mapping is internal shared context;
+    callers must treat its values as authoritative for the rest of the run.
+    """
+
     started = _utc_now(now)
     if id_factory is None:
         run_id = new_run_id(now=now)
@@ -679,6 +715,8 @@ def _finalize_run(
     now: datetime | None,
     options: RunOptions,
 ) -> Path:
+    """Write aggregate artifacts and the terminal manifest, then return the run path."""
+
     run_dir: Path = ctx["run_dir"]
     _emit_progress(options, "aggregate.started", attempts=len(attempts))
     roots = aggregate_attempts(
@@ -1000,6 +1038,16 @@ def _eval_pass(
 ) -> tuple[
     list[dict[str, Any]], list[dict[str, Any]], dict[str, str], list[str], float, bool, int, float
 ]:
+    """Run all evaluators for one snapshot and normalize their outcomes.
+
+    Results are collected concurrently and returned in configured evaluator
+    order. The tuple contains job records, valid judge results, artifact
+    hashes, valid evaluator model IDs, known cost total, whether every cost was
+    known, token total, and wall-clock evaluator duration. Any raised worker
+    error is checkpointed, triggers shared cancellation, and is re-raised after
+    already-completed sibling outcomes have been recorded.
+    """
+
     jobs: list[dict[str, Any]] = []
     artifacts: dict[str, str] = {}
     valid_results: list[dict[str, Any]] = []
@@ -1113,6 +1161,13 @@ def _reeval_submission(
     agent_slots: threading.BoundedSemaphore,
     evaluator_executor: ThreadPoolExecutor,
 ) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
+    """Copy one prior snapshot, evaluate it, and record its replacement attempt.
+
+    The copied tree must exactly match the prior manifest. Historical
+    implementation usage and cost remain attached as provenance, while only
+    the new evaluator calls contribute newly incurred evaluation work.
+    """
+
     jobs: list[dict[str, Any]] = []
     artifacts: dict[str, str] = {}
     run_dir, run_id = ctx["run_dir"], ctx["run_id"]
@@ -1672,6 +1727,13 @@ def _checkpoint_writer(
     jobs: list[dict[str, Any]],
     artifacts: dict[str, str],
 ) -> Callable[..., None]:
+    """Return the serialized, idempotent manifest checkpoint writer.
+
+    Calls may arrive from concurrent workers. New jobs are deduplicated by ID,
+    all jobs are deterministically sorted, artifacts are merged, and a complete
+    manifest snapshot is atomically rewritten while the lock is held.
+    """
+
     seen = {job["id"] for job in jobs}
     lock = threading.RLock()
 
@@ -1911,6 +1973,14 @@ def _run_repetition(
     agent_slots: threading.BoundedSemaphore,
     evaluator_executor: ThreadPoolExecutor,
 ) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
+    """Implement, snapshot, evaluate, and persist one benchmark repetition.
+
+    A successful implementation is snapshotted before evaluators receive it.
+    Implementation process failures become an ineligible attempt; unexpected
+    Python exceptions are checkpointed and propagated. The return value is the
+    attempt plus all job records and public artifact hashes produced here.
+    """
+
     jobs: list[dict[str, Any]] = []
     artifacts: dict[str, str] = {}
     _emit_progress(
@@ -2102,6 +2172,15 @@ def _run_evaluator(
     cancel_event: threading.Event,
     agent_slots: threading.BoundedSemaphore,
 ) -> dict[str, Any]:
+    """Evaluate one immutable submission copy and return a normalized outcome.
+
+    Seed and submission trees are copied into a disposable evaluation area and
+    hashed before execution. A result is valid only when the process succeeds,
+    both evidence trees remain unchanged, and the report and contract-bound
+    JSON result are present and valid. Invalid outputs remain recorded with
+    explicit reasons and artifact hashes for auditability.
+    """
+
     _emit_progress(
         options,
         "evaluate.started",
