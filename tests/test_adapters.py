@@ -298,6 +298,8 @@ class GrokCommandTests(TempDirTestCase):
         self.assertNotIn("--no-subagents", cmd)
         self.assertNotIn("--always-approve", cmd)
         self.assertIn("--tools", cmd)
+        self.assertNotIn("Bash", cmd[cmd.index("--tools") + 1].split(","))
+        self.assertNotIn("Bash(*)", cmd)
         self.assertIsNone(h.stdin_for(job))
         # Prompt lives only in the file referenced by --prompt-file.
         self.assertEqual(self.prompt_path.read_text(encoding="utf-8"), SENTINEL)
@@ -319,8 +321,6 @@ class GrokCommandTests(TempDirTestCase):
         for i, arg in enumerate(cmd):
             if arg in ("--allow", "--deny") and i + 1 < len(cmd):
                 rule = cmd[i + 1]
-                if rule == "Bash(*)":
-                    continue
                 if "(" in rule and ")" in rule:
                     inner = rule[rule.index("(") + 1 : rule.rindex(")")]
                     if inner:

@@ -613,7 +613,7 @@ class GrokHarness(Harness):
                     "--permission-mode",
                     "dontAsk",
                     "--tools",
-                    "Bash,Edit,Glob,Grep,Read,Write",
+                    "Edit,Glob,Grep,Read,Write",
                 ]
             )
             cmd.extend(self._permission_rules(job))
@@ -642,8 +642,6 @@ class GrokHarness(Harness):
         workdir_s = str(workdir)
         rules.extend(
             [
-                "--allow",
-                "Bash(*)",
                 "--allow",
                 f"Write({workdir_s})",
                 "--allow",
