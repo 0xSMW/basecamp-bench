@@ -562,18 +562,29 @@ class AgyCommandTests(TempDirTestCase):
             self.assertEqual(cmd[cmd.index("--add-dir") + 1], str(self.workdir))
             self.assertNotIn("-p", cmd)
 
-            staged_root = self.workdir / ".basecamp-bench-agy"
+            staged_root = h._private_root(job)
             staged_evidence = staged_root / "evidence-0"
             staged_prompt = (staged_root / "prompt.md").read_text(encoding="utf-8")
             launcher = (staged_root / "launch.py").read_text(encoding="utf-8")
             self.assertNotIn(SENTINEL, launcher)
             self.assertIn(str(staged_evidence), staged_prompt)
             self.assertNotIn(str(self.evidence), staged_prompt)
+            self.assertIn("return a concise plain-text summary", staged_prompt)
+            self.assertIn("Do not call artifact creation", staged_prompt)
+            self.assertIn("Treat the remaining context as a hard budget", staged_prompt)
+            self.assertIn("never dump large files or command output", staged_prompt)
+            self.assertEqual(
+                cmd[cmd.index("--log-file") + 1],
+                str(self.log_path.with_name(f"{self.log_path.name}.agy")),
+            )
+            add_dirs = [cmd[index + 1] for index, arg in enumerate(cmd) if arg == "--add-dir"]
+            self.assertEqual(add_dirs, [str(self.workdir), str(staged_evidence)])
+            self.assertFalse(any(self.workdir in path.parents for path in (staged_root,)))
             self.assertEqual(
                 (staged_evidence / "app.py").read_text(encoding="utf-8"),
                 "print('evidence')\n",
             )
-        self.assertFalse((self.workdir / ".basecamp-bench-agy").exists())
+        self.assertFalse(h._private_root(job).exists())
         self.assertEqual(
             (self.evidence / "app.py").read_text(encoding="utf-8"), "print('evidence')\n"
         )
@@ -599,7 +610,7 @@ class AgyCommandTests(TempDirTestCase):
     def test_reserved_path_fails_closed(self) -> None:
         h = AgyHarness(binary=str(self.fake_bin))
         job = self._job(harness="agy", model="gemini-3.5-flash")
-        (self.workdir / ".basecamp-bench-agy").mkdir()
+        h._private_root(job).mkdir()
         with self.assertRaisesRegex(ValueError, "reserved"):
             with h.execution_context(job):
                 pass

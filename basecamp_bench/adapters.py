@@ -1274,7 +1274,7 @@ AGY_MODEL_ALIASES: Mapping[str, Mapping[str, str]] = {
         "low": "Gemini 3.5 Flash (Low)",
         "medium": "Gemini 3.5 Flash (Medium)",
         "high": "Gemini 3.5 Flash (High)",
-    }
+    },
 }
 
 
@@ -1283,9 +1283,24 @@ class AgyHarness(Harness):
     """Google Antigravity CLI with its native terminal sandbox enabled."""
 
     name = "agy"
-    _STATE_DIR = ".basecamp-bench-agy"
+    _COMPLETION_DIRECTIVE = (
+        "\n\nWork only by reading and editing files inside the assigned workspace. "
+        "Do not call artifact creation, artifact export, or artifact presentation tools. "
+        "Treat the remaining context as a hard budget: inventory paths once, use targeted searches "
+        "and bounded reads, never dump large files or command output, and do not reread unchanged "
+        "files. Implement the required deliverable directly and reserve enough output capacity for "
+        "the final response. Once the required implementation is complete, run only brief local "
+        "checks and stop. "
+        "When the implementation and local checks are complete, return a concise plain-text summary "
+        "and exit successfully.\n"
+    )
+    _PRIVATE_SUFFIX = ".agy-state"
     _PROMPT_FILE = "prompt.md"
     _LAUNCHER_FILE = "launch.py"
+
+    @classmethod
+    def _private_root(cls, job: AgentJob) -> Path:
+        return job.log_path.parent / f".{job.log_path.name}{cls._PRIVATE_SUFFIX}"
 
     @staticmethod
     def _native_model(model: str, effort: str) -> str:
@@ -1303,11 +1318,11 @@ class AgyHarness(Harness):
 
     @contextmanager
     def execution_context(self, job: AgentJob) -> Iterator[None]:
-        """Stage the prompt and disposable evidence copies inside the sandbox."""
-        state_dir = job.workdir / self._STATE_DIR
+        """Stage private control files and disposable evidence outside the submission tree."""
+        state_dir = self._private_root(job)
         if state_dir.is_symlink() or state_dir.exists():
             raise ValueError("workspace contains a reserved AGY adapter path")
-        state_dir.mkdir()
+        state_dir.mkdir(parents=True)
         try:
             (state_dir / self._LAUNCHER_FILE).write_text(
                 "import os\n"
@@ -1326,7 +1341,10 @@ class AgyHarness(Harness):
                 staged = state_dir / f"evidence-{index}"
                 shutil.copytree(source, staged)
                 prompt_text = prompt_text.replace(str(source), str(staged))
-            (state_dir / self._PROMPT_FILE).write_text(prompt_text, encoding="utf-8")
+            (state_dir / self._PROMPT_FILE).write_text(
+                prompt_text + self._COMPLETION_DIRECTIVE,
+                encoding="utf-8",
+            )
             yield
         finally:
             if state_dir.is_symlink():
@@ -1336,10 +1354,12 @@ class AgyHarness(Harness):
 
     def build_command(self, job: AgentJob) -> list[str]:
         native_model = self._native_model(job.model.model, job.model.effort)
+        state_dir = self._private_root(job)
+        native_log_path = job.log_path.with_name(f"{job.log_path.name}.agy")
         cmd = [
             sys.executable,
-            str(job.workdir / self._STATE_DIR / self._LAUNCHER_FILE),
-            str(job.workdir / self._STATE_DIR / self._PROMPT_FILE),
+            str(state_dir / self._LAUNCHER_FILE),
+            str(state_dir / self._PROMPT_FILE),
             self.resolve_binary(),
             "--model",
             native_model,
@@ -1350,12 +1370,14 @@ class AgyHarness(Harness):
             "--print-timeout",
             "24h",
             "--log-file",
-            f"{self._STATE_DIR}/agy.log",
+            str(native_log_path),
             "--dangerously-skip-permissions",
             "--new-project",
             "--add-dir",
             str(job.workdir),
         ]
+        for index in range(len(job.evidence_dirs)):
+            cmd.extend(["--add-dir", str(state_dir / f"evidence-{index}")])
         if job.sandbox_mode != "danger-full-access":
             cmd.append("--sandbox")
         return cmd
