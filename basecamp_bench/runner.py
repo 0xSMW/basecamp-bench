@@ -22,10 +22,11 @@ from basecamp_bench.adapters import AgentJob, Harness, ModelSpec, Usage, get_har
 from basecamp_bench.config import BenchConfig, config_to_public_dict
 from basecamp_bench.contracts import (
     EvaluationContract,
+    ValidatedJudgeScores,
     aggregate_judges,
     contract_sha256,
     load_contract,
-    validate_judge_result,
+    normalize_validated_judge_result,
 )
 from basecamp_bench.execution import (
     AgentExecution,
@@ -48,13 +49,18 @@ from basecamp_bench.layout import (
     recover_pending_layouts,
     validate_planned_layout,
 )
-from basecamp_bench.leaderboard import Attempt, aggregate_attempts, write_leaderboards
+from basecamp_bench.leaderboard import (
+    Attempt,
+    aggregate_attempts,
+    attempt_to_raw,
+    build_attempt_ledgers,
+    write_attempt_ledgers,
+)
 from basecamp_bench.locks import acquire_lane_locks
 from basecamp_bench.manifest import (
     build_manifest,
     git_provenance,
     hash_inputs,
-    verify_run,
     write_manifest,
 )
 from basecamp_bench.naming import run_path_name, submission_path_name
@@ -200,6 +206,39 @@ class _RunContext:
     tooling: list[dict[str, Any]]
 
 
+@dataclass(frozen=True)
+class _PreparedSubmission:
+    """Fresh or reused implementation provenance for shared evaluation."""
+
+    submission_id: str
+    track_id: str
+    harness_id: str
+    model_id: str
+    display_name: str
+    repetition: int
+    snapshot_path: Path | None
+    implementation_success: bool
+    jobs: tuple[dict[str, Any], ...]
+    artifacts: Mapping[str, str]
+    implementation_cost_usd: float | None
+    implementation_tokens: int
+    implementation_duration_s: float
+    extra_ineligible_reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _ExecutionContext:
+    """Shared controls for concurrent submission and evaluator workers."""
+
+    config: BenchConfig
+    options: RunOptions
+    run: _RunContext
+    checkpoint: Callable[..., None]
+    cancel_event: threading.Event
+    agent_slots: threading.BoundedSemaphore
+    evaluator_executor: ThreadPoolExecutor
+
+
 def _emit_progress(options: RunOptions, event: str, **fields: object) -> None:
     """Emit best-effort structured progress without affecting benchmark results."""
     if options.progress is None:
@@ -303,6 +342,87 @@ def run_benchmark(
         )
 
 
+def _execute_plan(
+    config: BenchConfig,
+    options: RunOptions,
+    ctx: _RunContext,
+    now: datetime | None,
+    *,
+    prepare: Callable[[], Sequence[Any]],
+    evaluator_attempts: Callable[[Any], Sequence[tuple[Any, str]]],
+    submission_row: Callable[[Any], tuple[str, str, str, str, str, int]],
+    progress_event: str,
+    progress_count: str,
+    work_pool_prefix: str,
+    worker: Callable[
+        [_ExecutionContext, Any], tuple[Attempt, list[dict[str, Any]], dict[str, str]]
+    ],
+) -> Path:
+    """Execute either submission source through one checkpointed lifecycle."""
+    jobs: list[dict[str, Any]] = []
+    attempts: list[Attempt] = []
+    artifacts: dict[str, str] = {}
+    checkpoint = _checkpoint_writer(config, ctx, jobs, artifacts)
+    cancel_event = threading.Event()
+    agent_slots = threading.BoundedSemaphore(options.max_parallel_agents)
+    restore_signal = _install_termination_cancellation(cancel_event)
+    try:
+        items = list(prepare())
+        checkpoint(status="running")
+        validate_planned_layout(
+            run_root=config.run_root,
+            run_id=ctx.run_id,
+            submissions=[submission_row(item) for item in items],
+            judges=[
+                (
+                    submission_row(item)[0],
+                    attempt_id,
+                    evaluator.harness,
+                    evaluator.provider_family,
+                    evaluator.model,
+                )
+                for item in items
+                for evaluator, attempt_id in evaluator_attempts(item)
+            ],
+        )
+        evaluator_count = sum(len(evaluator_attempts(item)) for item in items)
+        _emit_progress(
+            options,
+            progress_event,
+            **{progress_count: len(items), "evaluators": evaluator_count},
+        )
+        with (
+            executor_pool(
+                workers=worker_count(evaluator_count, options.max_parallel_agents),
+                thread_name_prefix="basecamp-bench-evaluate",
+            ) as evaluator_executor,
+            executor_pool(
+                workers=worker_count(len(items), options.max_parallel_agents),
+                thread_name_prefix=work_pool_prefix,
+            ) as work_executor,
+        ):
+            execution = _ExecutionContext(
+                config, options, ctx, checkpoint, cancel_event, agent_slots, evaluator_executor
+            )
+            results = collect_indexed(
+                items,
+                executor=work_executor,
+                cancel_event=cancel_event,
+                submit=lambda executor, item: executor.submit(worker, execution, item),
+            )
+        for attempt, new_jobs, new_artifacts in results:
+            attempts.append(attempt)
+            checkpoint(new_jobs, new_artifacts)
+        checkpoint()
+        return _finalize_run(config, ctx, jobs, attempts, artifacts, now, options)
+    except (Exception, KeyboardInterrupt) as exc:
+        _emit_progress(options, "run.failed", error=type(exc).__name__)
+        _fail_run_without_masking(config, ctx.run_dir, checkpoint, exc)
+        raise
+    finally:
+        restore_signal()
+
+
 def _run_benchmark_once(
     config: BenchConfig,
     *,
@@ -320,15 +440,8 @@ def _run_benchmark_once(
     worker failure records a failed manifest when possible and is re-raised.
     """
     ctx = _open_run(config, options, id_factory, pricing_data, now)
-    jobs: list[dict[str, Any]] = []
-    attempts: list[Attempt] = []
-    arts: dict[str, str] = {}
-    checkpoint = _checkpoint_writer(config, ctx, jobs, arts)
-    cancel_event = threading.Event()
-    agent_slots = threading.BoundedSemaphore(options.max_parallel_agents)
-    restore_signal = _install_termination_cancellation(cancel_event)
-    try:
-        checkpoint(status="running")
+
+    def prepare() -> list[_RunTask]:
         harnesses = [
             config.harnesses[h] for h in sorted(config.harnesses) if config.harnesses[h].enabled
         ]
@@ -358,88 +471,28 @@ def _run_benchmark_once(
                             evaluator_attempts=evaluator_attempts,
                         )
                     )
-        validate_planned_layout(
-            run_root=config.run_root,
-            run_id=ctx.run_id,
-            submissions=[
-                (
-                    task.submission_id,
-                    task.track.id,
-                    task.harness.id,
-                    task.harness.provider_family,
-                    task.harness.model,
-                    task.repetition,
-                )
-                for task in tasks
-            ],
-            judges=[
-                (
-                    task.submission_id,
-                    eval_attempt_id,
-                    evaluator.harness,
-                    evaluator.provider_family,
-                    evaluator.model,
-                )
-                for task in tasks
-                for evaluator, eval_attempt_id in task.evaluator_attempts
-            ],
-        )
-        _emit_progress(
-            options,
-            "run.planned",
-            implementations=len(tasks),
-            evaluators=sum(len(task.evaluator_attempts) for task in tasks),
-        )
-        evaluator_count = sum(len(task.evaluator_attempts) for task in tasks)
-        with (
-            executor_pool(
-                workers=worker_count(evaluator_count, options.max_parallel_agents),
-                thread_name_prefix="basecamp-bench-evaluate",
-            ) as evaluator_executor,
-            executor_pool(
-                workers=worker_count(len(tasks), options.max_parallel_agents),
-                thread_name_prefix="basecamp-bench-implement",
-            ) as implementation_executor,
-        ):
-            results = collect_indexed(
-                tasks,
-                executor=implementation_executor,
-                cancel_event=cancel_event,
-                submit=lambda executor, task: executor.submit(
-                    _run_repetition,
-                    config,
-                    options,
-                    ctx.run_dir,
-                    ctx.run_id,
-                    task.harness,
-                    task.track,
-                    task.repetition,
-                    task.submission_id,
-                    ctx.contracts,
-                    ctx.contract_hashes,
-                    task.evaluator_attempts,
-                    ctx.pricing_payload,
-                    ctx.pricing_retrieved_at,
-                    ctx.pricing_ok,
-                    ctx.pricing_reasons,
-                    ctx.ineligible,
-                    checkpoint,
-                    cancel_event,
-                    agent_slots,
-                    evaluator_executor,
-                ),
-            )
-        for result in results:
-            attempt, j, a = result
-            attempts.append(attempt)
-            checkpoint(j, a)
-        return _finalize_run(config, ctx, jobs, attempts, arts, now, options)
-    except (Exception, KeyboardInterrupt) as exc:
-        _emit_progress(options, "run.failed", error=type(exc).__name__)
-        _fail_run_without_masking(config, ctx.run_dir, checkpoint, exc)
-        raise
-    finally:
-        restore_signal()
+        return tasks
+
+    return _execute_plan(
+        config,
+        options,
+        ctx,
+        now,
+        prepare=prepare,
+        evaluator_attempts=lambda task: task.evaluator_attempts,
+        submission_row=lambda task: (
+            task.submission_id,
+            task.track.id,
+            task.harness.id,
+            task.harness.provider_family,
+            task.harness.model,
+            task.repetition,
+        ),
+        progress_event="run.planned",
+        progress_count="implementations",
+        work_pool_prefix="basecamp-bench-implement",
+        worker=_run_repetition,
+    )
 
 
 def reevaluate_run(
@@ -473,6 +526,8 @@ def reevaluate_run(
                 requested_prior = candidate
                 break
     prior = _require_prior_run_dir(config, requested_prior)
+    from basecamp_bench.manifest import verify_run  # publication/reeval boundary
+
     errs = verify_run(prior)
     if errs:
         raise ValueError(f"prior run verification failed: {errs[0]}")
@@ -508,14 +563,8 @@ def _reevaluate_reserved(
 ) -> Path:
     """Evaluate prevalidated snapshots while their paid-work lanes are reserved."""
     ctx = _open_run(config, options, id_factory, pricing_data, now)
-    jobs: list[dict[str, Any]] = []
-    attempts: list[Attempt] = []
-    arts: dict[str, str] = {}
-    checkpoint = _checkpoint_writer(config, ctx, jobs, arts)
-    cancel_event = threading.Event()
-    agent_slots = threading.BoundedSemaphore(options.max_parallel_agents)
-    restore_signal = _install_termination_cancellation(cancel_event)
-    try:
+
+    def prepare() -> list[tuple[dict[str, Any], tuple[tuple[Any, str], ...]]]:
         _require_reevaluation_inputs_match(
             prior_man,
             ctx.input_hashes,
@@ -530,7 +579,6 @@ def _reevaluate_reserved(
         ctx.input_hashes[f"prior_run:{prior_man['run_id']}"] = sha256_file(
             prior / "run-manifest.json"
         )
-        checkpoint(status="running")
         evaluators = [e for e in config.evaluators if e.enabled]
         allocated_ids = {ctx.run_id, *(str(item["submission_id"]) for item in reusable)}
         planned = [
@@ -546,79 +594,34 @@ def _reevaluate_reserved(
             )
             for item in reusable
         ]
-        validate_planned_layout(
-            run_root=config.run_root,
-            run_id=ctx.run_id,
-            submissions=[
-                (
-                    str(item["submission_id"]),
-                    str(item["attempt"]["track"]),
-                    str(item["attempt"]["harness"]),
-                    config.harnesses[str(item["attempt"]["harness"])].provider_family,
-                    str(item["attempt"]["model_id"]),
-                    int(item["attempt"]["repetition"]),
-                )
-                for item, _ in planned
-            ],
-            judges=[
-                (
-                    str(item["submission_id"]),
-                    eval_attempt_id,
-                    evaluator.harness,
-                    evaluator.provider_family,
-                    evaluator.model,
-                )
-                for item, evaluator_attempts in planned
-                for evaluator, eval_attempt_id in evaluator_attempts
-            ],
-        )
-        _emit_progress(
-            options,
-            "reevaluate.planned",
-            submissions=len(planned),
-            evaluators=sum(len(evaluator_attempts) for _, evaluator_attempts in planned),
-        )
-        evaluator_count = sum(len(attempts) for _, attempts in planned)
-        with (
-            executor_pool(
-                workers=worker_count(evaluator_count, options.max_parallel_agents),
-                thread_name_prefix="basecamp-bench-evaluate",
-            ) as evaluator_executor,
-            executor_pool(
-                workers=worker_count(len(planned), options.max_parallel_agents),
-                thread_name_prefix="basecamp-bench-reevaluate",
-            ) as reevaluation_executor,
-        ):
-            results = collect_indexed(
-                planned,
-                executor=reevaluation_executor,
-                cancel_event=cancel_event,
-                submit=lambda executor, planned_item: executor.submit(
-                    _reeval_submission,
-                    config,
-                    options,
-                    ctx,
-                    prior_man["run_id"],
-                    planned_item[0],
-                    planned_item[1],
-                    checkpoint,
-                    cancel_event,
-                    agent_slots,
-                    evaluator_executor,
-                ),
-            )
-        for (item, _), result in zip(planned, results, strict=True):
-            attempt, j, a = result
-            attempts.append(attempt)
-            checkpoint(j, a)
-        checkpoint()
-        return _finalize_run(config, ctx, jobs, attempts, arts, now, options)
-    except (Exception, KeyboardInterrupt) as exc:
-        _emit_progress(options, "run.failed", error=type(exc).__name__)
-        _fail_run_without_masking(config, ctx.run_dir, checkpoint, exc)
-        raise
-    finally:
-        restore_signal()
+        return planned
+
+    def run_verified(
+        execution: _ExecutionContext,
+        planned: tuple[dict[str, Any], tuple[tuple[Any, str], ...]],
+    ) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
+        return _run_verified_submission(execution, str(prior_man["run_id"]), *planned)
+
+    return _execute_plan(
+        config,
+        options,
+        ctx,
+        now,
+        prepare=prepare,
+        evaluator_attempts=lambda planned: planned[1],
+        submission_row=lambda planned: (
+            str(planned[0]["submission_id"]),
+            str(planned[0]["attempt"]["track"]),
+            str(planned[0]["attempt"]["harness"]),
+            config.harnesses[str(planned[0]["attempt"]["harness"])].provider_family,
+            str(planned[0]["attempt"]["model_id"]),
+            int(planned[0]["attempt"]["repetition"]),
+        ),
+        progress_event="reevaluate.planned",
+        progress_count="submissions",
+        work_pool_prefix="basecamp-bench-reevaluate",
+        worker=run_verified,
+    )
 
 
 def _open_run(
@@ -744,21 +747,22 @@ def _finalize_run(
 
     run_dir: Path = ctx.run_dir
     _emit_progress(options, "aggregate.started", attempts=len(attempts))
-    roots = aggregate_attempts(
+    generated_at = _utc_now(now)
+    dimension_profiles = {
+        tid: [
+            {"id": dim.id, "label": dim.label, "weight": dim.weight} for dim in contract.dimensions
+        ]
+        for tid, contract in ctx.contracts.items()
+    }
+    ledgers = build_attempt_ledgers(
         attempts,
         mode=config.mode,
-        generated_at=_utc_now(now),
+        generated_at=generated_at,
         comparison_provenance=ctx.comparison_provenance,
-        dimension_profiles={
-            tid: [
-                {"id": dim.id, "label": dim.label, "weight": dim.weight}
-                for dim in contract.dimensions
-            ]
-            for tid, contract in ctx.contracts.items()
-        },
+        dimension_profiles=dimension_profiles,
     )
-    written = write_leaderboards(run_dir / "leaderboards", roots)
-    _emit_progress(options, "aggregate.finished", leaderboards=len(roots))
+    written = write_attempt_ledgers(run_dir / "leaderboards", ledgers)
+    _emit_progress(options, "aggregate.finished", leaderboards=len(ledgers))
     lb_json = [p for p in written if p.suffix == ".json"]
     for path in written:
         rel = portable_path(path, run_dir)
@@ -773,6 +777,20 @@ def _finalize_run(
         ap = run_dir / "attempts" / f"{attempt.submission_id}.json"
         if ap.is_file():
             artifact_hashes[f"attempts/{attempt.submission_id}.json"] = sha256_file(ap)
+    # Publication final status uses the same in-memory aggregate eligibility as
+    # pre-ledger finalization: any derived entry with eligible=False forces
+    # status ineligible. Local mode never consults entry eligibility.
+    roots = (
+        aggregate_attempts(
+            attempts,
+            mode=config.mode,
+            generated_at=generated_at,
+            comparison_provenance=ctx.comparison_provenance,
+            dimension_profiles=dimension_profiles,
+        )
+        if config.mode == "publication"
+        else ()
+    )
     final_status = (
         "ineligible"
         if config.mode == "publication"
@@ -1126,24 +1144,23 @@ def _select_reusable_submissions(
 
 
 def _eval_pass(
-    config: BenchConfig,
-    options: RunOptions,
-    run_dir: Path,
+    execution: _ExecutionContext,
     sid: str,
     snapshot: Path,
     track: Any,
     contract: EvaluationContract,
     contract_hash: str,
     evaluator_attempts: Sequence[tuple[Any, str]],
-    pricing_data: Mapping[str, Any] | None,
-    pricing_retrieved_at: str | None,
     repetition: int,
-    checkpoint: Callable[..., None],
-    cancel_event: threading.Event,
-    agent_slots: threading.BoundedSemaphore,
-    evaluator_executor: ThreadPoolExecutor,
 ) -> tuple[
-    list[dict[str, Any]], list[dict[str, Any]], dict[str, str], list[str], float, bool, int, float
+    list[dict[str, Any]],
+    list[ValidatedJudgeScores],
+    dict[str, str],
+    list[str],
+    float,
+    bool,
+    int,
+    float,
 ]:
     """Run all evaluators for one snapshot and normalize their outcomes.
 
@@ -1157,19 +1174,18 @@ def _eval_pass(
 
     jobs: list[dict[str, Any]] = []
     artifacts: dict[str, str] = {}
-    valid_results: list[dict[str, Any]] = []
+    valid_results: list[ValidatedJudgeScores] = []
     valid_eval_ids: list[str] = []
     eval_cost_total, eval_cost_known, eval_tokens, eval_duration = 0.0, True, 0, 0.0
+
     results: list[dict[str, Any] | None] = [None] * len(evaluator_attempts)
     futures: dict[Future[Any], tuple[int, Any, str]] = {}
     first_error: BaseException | None = None
     for index, (evaluator, eval_attempt_id) in enumerate(evaluator_attempts):
         futures[
-            evaluator_executor.submit(
+            execution.evaluator_executor.submit(
                 _run_evaluator,
-                config,
-                options,
-                run_dir,
+                execution,
                 sid,
                 snapshot,
                 track,
@@ -1177,11 +1193,7 @@ def _eval_pass(
                 contract_hash,
                 evaluator,
                 eval_attempt_id,
-                pricing_data,
-                pricing_retrieved_at,
                 repetition,
-                cancel_event,
-                agent_slots,
             )
         ] = (index, evaluator, eval_attempt_id)
     for future in as_completed(futures):
@@ -1189,10 +1201,10 @@ def _eval_pass(
         try:
             ev = future.result()
         except BaseException as exc:
-            cancel_event.set()
+            execution.cancel_event.set()
             failure = _raised_job_record(
-                config=config,
-                run_dir=run_dir,
+                config=execution.config,
+                run_dir=execution.run.run_dir,
                 job_id=f"evaluate-{eval_attempt_id}",
                 kind="evaluate",
                 harness_id=evaluator.harness,
@@ -1208,12 +1220,12 @@ def _eval_pass(
                 },
             )
             jobs.append(failure)
-            checkpoint((failure,), artifacts)
+            execution.checkpoint((failure,), artifacts)
             if first_error is None:
                 first_error = exc
             continue
         results[index] = ev
-        checkpoint((ev["job_record"],), ev["artifacts"])
+        execution.checkpoint((ev["job_record"],), ev["artifacts"])
     if first_error is not None:
         raise first_error
     for (evaluator, _), ev in zip(evaluator_attempts, results, strict=True):
@@ -1242,62 +1254,118 @@ def _eval_pass(
     )
 
 
-def _score_results(
-    valid_results: Sequence[dict[str, Any]],
-    contract: EvaluationContract,
-) -> tuple[float | None, dict[str, float], float | None]:
-    if not valid_results:
-        return None, {}, None
-    agg = aggregate_judges(list(valid_results), contract)
-    score = float(agg["overall"])
-    dimensions = {dim_id: float(stats["median"]) for dim_id, stats in agg["dimensions"].items()}
-    overalls = [float(j["overall"]) for j in agg["judges"]]
-    spread = 0.0 if len(overalls) <= 1 else float(statistics.pstdev(overalls))
-    return score, dimensions, spread
+def _evaluate_and_persist_attempt(
+    execution: _ExecutionContext,
+    prepared: _PreparedSubmission,
+    evaluator_attempts: Sequence[tuple[Any, str]],
+) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
+    """Evaluate one prepared submission, write its Attempt, and checkpoint.
+
+    Shared by build and verified-snapshot sources so scoring, eligibility,
+    attempt codec, and evaluator policy remain single.
+    """
+
+    jobs = list(prepared.jobs)
+    artifacts = dict(prepared.artifacts)
+    track_id = prepared.track_id
+    track = execution.config.tracks[track_id]
+    contract = execution.run.contracts[track_id]
+    contract_hash = execution.run.contract_hashes[track_id]
+    valid_results: list[ValidatedJudgeScores] = []
+    valid_eval_ids: list[str] = []
+    eval_cost_total, eval_cost_known, eval_tokens, eval_duration = 0.0, True, 0, 0.0
+    if prepared.implementation_success:
+        if prepared.snapshot_path is None:
+            raise RuntimeError("successful implementation missing snapshot path")
+        (
+            ej,
+            valid_results,
+            ea,
+            valid_eval_ids,
+            eval_cost_total,
+            eval_cost_known,
+            eval_tokens,
+            eval_duration,
+        ) = _eval_pass(
+            execution,
+            prepared.submission_id,
+            prepared.snapshot_path,
+            track,
+            contract,
+            contract_hash,
+            evaluator_attempts,
+            prepared.repetition,
+        )
+        jobs.extend(ej)
+        artifacts.update(ea)
+    min_evals = _MIN_PUB_EVALS if execution.config.mode == "publication" else _MIN_LOCAL_EVALS
+    evaluation_success = prepared.implementation_success and len(valid_results) >= min_evals
+    reasons = [*execution.run.ineligible, *prepared.extra_ineligible_reasons]
+    if prepared.implementation_success and not evaluation_success:
+        reasons.append("insufficient_valid_evaluators")
+    if evaluation_success:
+        agg = aggregate_judges(list(valid_results), contract)
+        score = float(agg["overall"])
+        dimensions = {d: float(s["median"]) for d, s in agg["dimensions"].items()}
+        overalls = [float(j["overall"]) for j in agg["judges"]]
+        judge_spread = 0.0 if len(overalls) <= 1 else float(statistics.pstdev(overalls))
+    else:
+        score, dimensions, judge_spread = None, {}, None
+    eval_cost = (
+        (eval_cost_total if eval_cost_known else None) if prepared.implementation_success else None
+    )
+    attempt = Attempt(
+        run_id=execution.run.run_id,
+        submission_id=prepared.submission_id,
+        repetition=prepared.repetition,
+        track=track_id,
+        contract_version=contract.contract_version,
+        contract_sha256=contract_hash,
+        harness=prepared.harness_id,
+        model_id=prepared.model_id,
+        display_name=prepared.display_name,
+        implementation_success=prepared.implementation_success,
+        evaluation_success=evaluation_success,
+        score=score,
+        dimensions=dimensions,
+        judge_spread=judge_spread,
+        implementation_cost_usd=prepared.implementation_cost_usd,
+        evaluation_cost_usd=eval_cost,
+        tokens=prepared.implementation_tokens + eval_tokens,
+        duration_s=prepared.implementation_duration_s + eval_duration,
+        evaluator_ids=tuple(valid_eval_ids),
+        ineligible_reasons=tuple(reasons),
+    )
+    attempt_path = execution.run.run_dir / "attempts" / f"{prepared.submission_id}.json"
+    atomic_write_json(attempt_path, attempt_to_raw(attempt))
+    artifacts[f"attempts/{prepared.submission_id}.json"] = sha256_file(attempt_path)
+    execution.checkpoint(jobs, artifacts)
+    return attempt, jobs, artifacts
 
 
-def _reeval_submission(
-    config: BenchConfig,
-    options: RunOptions,
-    ctx: _RunContext,
+def _run_verified_submission(
+    execution: _ExecutionContext,
     prior_run_id: str,
     item: Mapping[str, Any],
     evaluator_attempts: Sequence[tuple[Any, str]],
-    checkpoint: Callable[..., None],
-    cancel_event: threading.Event,
-    agent_slots: threading.BoundedSemaphore,
-    evaluator_executor: ThreadPoolExecutor,
 ) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
-    """Copy one prior snapshot, evaluate it, and record its replacement attempt.
+    """Copy one prior snapshot (preparation only), then share evaluation/persistence."""
 
-    The copied tree must exactly match the prior manifest. Historical
-    implementation usage and cost remain attached as provenance, while only
-    the new evaluator calls contribute newly incurred evaluation work.
-    """
-
-    jobs: list[dict[str, Any]] = []
-    artifacts: dict[str, str] = {}
-    run_dir, run_id = ctx.run_dir, ctx.run_id
-    contracts, contract_hashes = ctx.contracts, ctx.contract_hashes
     sid, prior_att, impl_job = item["submission_id"], item["attempt"], item["impl_job"]
     track_id = prior_att["track"]
-    if track_id not in config.tracks or track_id not in contracts:
+    if track_id not in execution.config.tracks or track_id not in execution.run.contracts:
         raise ValueError(f"prior track is missing from current config: {track_id}")
-    track, contract, contract_hash = (
-        config.tracks[track_id],
-        contracts[track_id],
-        contract_hashes[track_id],
-    )
+    contract = execution.run.contracts[track_id]
+    contract_hash = execution.run.contract_hashes[track_id]
     impl_tokens = _usage_token_total(impl_job.get("usage"))
     impl_duration = float(impl_job["duration_s"])
     impl_cost = float(impl_job["cost_usd"]) if impl_job.get("cost_usd") is not None else None
-    new_snap = run_dir / "snapshots" / sid
+    new_snap = execution.run.run_dir / "snapshots" / sid
     snap_manifest = atomic_snapshot(item["snapshot_path"], new_snap)
     if snap_manifest != item["declared"]:
         raise ValueError(f"copied snapshot does not match prior declared hashes: {sid}")
-    for rel, digest in snap_manifest.items():
-        artifacts[f"snapshots/{sid}/{rel}"] = digest
-    jobs.append(
+    artifacts = {f"snapshots/{sid}/{rel}": digest for rel, digest in snap_manifest.items()}
+    jobs: tuple[dict[str, Any], ...] = (
         {
             "id": f"implement-{sid}",
             "kind": "implement",
@@ -1320,66 +1388,30 @@ def _reeval_submission(
             "cost_usd": impl_cost,
             "reported_cost_usd": impl_job.get("reported_cost_usd"),
             "usage": impl_job.get("usage"),
-        }
+        },
     )
-    checkpoint(jobs, artifacts)
-    ej, valid_results, ea, valid_eval_ids, eval_cost, eval_known, eval_tokens, eval_dur = (
-        _eval_pass(
-            config,
-            options,
-            run_dir,
-            sid,
-            new_snap,
-            track,
-            contract,
-            contract_hash,
-            evaluator_attempts,
-            ctx.pricing_payload,
-            ctx.pricing_retrieved_at,
-            int(prior_att["repetition"]),
-            checkpoint,
-            cancel_event,
-            agent_slots,
-            evaluator_executor,
-        )
-    )
-    jobs.extend(ej)
-    artifacts.update(ea)
-    min_evals = _MIN_PUB_EVALS if config.mode == "publication" else _MIN_LOCAL_EVALS
-    evaluation_success = len(valid_results) >= min_evals
-    score, dimensions, judge_spread = (
-        _score_results(valid_results, contract) if evaluation_success else (None, {}, None)
-    )
-    reasons: list[str] = list(ctx.ineligible)
-    if not evaluation_success:
-        reasons.append("insufficient_valid_evaluators")
-    attempt = Attempt(
-        run_id=run_id,
+    execution.checkpoint(jobs, artifacts)
+    prepared = _PreparedSubmission(
         submission_id=sid,
-        repetition=int(prior_att["repetition"]),
-        track=track_id,
-        contract_version=contract.contract_version,
-        contract_sha256=contract_hash,
-        harness=prior_att["harness"],
+        track_id=track_id,
+        harness_id=prior_att["harness"],
         model_id=validate_identifier(prior_att["model_id"], field="model_id"),
         display_name=prior_att["display_name"],
+        repetition=int(prior_att["repetition"]),
+        snapshot_path=new_snap,
         implementation_success=True,
-        evaluation_success=evaluation_success,
-        score=score,
-        dimensions=dimensions,
-        judge_spread=judge_spread,
+        jobs=jobs,
+        artifacts=artifacts,
         implementation_cost_usd=impl_cost,
-        evaluation_cost_usd=eval_cost if eval_known else None,
-        tokens=impl_tokens + eval_tokens,
-        duration_s=impl_duration + eval_dur,
-        evaluator_ids=tuple(valid_eval_ids),
-        ineligible_reasons=tuple(reasons),
+        implementation_tokens=impl_tokens,
+        implementation_duration_s=impl_duration,
+        extra_ineligible_reasons=(),
     )
-    attempt_path = run_dir / "attempts" / f"{sid}.json"
-    atomic_write_json(attempt_path, _attempt_public(attempt))
-    artifacts[f"attempts/{sid}.json"] = sha256_file(attempt_path)
-    checkpoint(jobs, artifacts)
-    return attempt, jobs, artifacts
+    return _evaluate_and_persist_attempt(
+        execution,
+        prepared,
+        evaluator_attempts,
+    )
 
 
 def _utc_now(now: datetime | None = None) -> str:
@@ -1850,32 +1882,6 @@ def _manifest_payload(
     )
 
 
-def _attempt_public(attempt: Attempt) -> dict[str, Any]:
-    dims = {k: float(attempt.dimensions[k]) for k in sorted(attempt.dimensions)}
-    return {
-        "run_id": attempt.run_id,
-        "submission_id": attempt.submission_id,
-        "repetition": attempt.repetition,
-        "track": attempt.track,
-        "contract_version": attempt.contract_version,
-        "contract_sha256": attempt.contract_sha256,
-        "harness": attempt.harness,
-        "model_id": attempt.model_id,
-        "display_name": attempt.display_name,
-        "implementation_success": attempt.implementation_success,
-        "evaluation_success": attempt.evaluation_success,
-        "score": attempt.score,
-        "dimensions": dims,
-        "judge_spread": attempt.judge_spread,
-        "implementation_cost_usd": attempt.implementation_cost_usd,
-        "evaluation_cost_usd": attempt.evaluation_cost_usd,
-        "tokens": attempt.tokens,
-        "duration_s": attempt.duration_s,
-        "evaluator_ids": list(attempt.evaluator_ids),
-        "ineligible_reasons": list(attempt.ineligible_reasons),
-    }
-
-
 def _job_record(
     *,
     job_id: str,
@@ -1966,28 +1972,10 @@ def _tokens(usage: Usage | None) -> int:
 
 
 def _run_repetition(
-    config: BenchConfig,
-    options: RunOptions,
-    run_dir: Path,
-    run_id: str,
-    harness: Any,
-    track: Any,
-    repetition: int,
-    submission_id: str,
-    contracts: Mapping[str, EvaluationContract],
-    contract_hashes: Mapping[str, str],
-    evaluator_attempts: Sequence[tuple[Any, str]],
-    pricing_data: Mapping[str, Any] | None,
-    pricing_retrieved_at: str | None,
-    pricing_ok: bool,
-    pricing_reasons: Sequence[str],
-    global_ineligible_reasons: Sequence[str],
-    checkpoint: Callable[..., None],
-    cancel_event: threading.Event,
-    agent_slots: threading.BoundedSemaphore,
-    evaluator_executor: ThreadPoolExecutor,
+    execution: _ExecutionContext,
+    task: _RunTask,
 ) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
-    """Implement, snapshot, evaluate, and persist one benchmark repetition.
+    """Implement and snapshot one repetition, then share evaluation/persistence.
 
     A successful implementation is snapshotted before evaluators receive it.
     Implementation process failures become an ineligible attempt; unexpected
@@ -1995,48 +1983,50 @@ def _run_repetition(
     attempt plus all job records and public artifact hashes produced here.
     """
 
+    harness, track = task.harness, task.track
+    repetition, submission_id = task.repetition, task.submission_id
     jobs: list[dict[str, Any]] = []
     artifacts: dict[str, str] = {}
-    _emit_progress(
-        options,
-        "build.started",
-        harness=harness.id,
-        model=harness.model,
-        track=track.id,
-        repetition=repetition,
-        submission_id=submission_id,
-    )
-    workspace = create_unique_directory(run_dir / "workspaces" / submission_id)
-    materialize_seed(config, workspace / "tree")
+    progress_fields = {
+        "harness": harness.id,
+        "model": harness.model,
+        "track": track.id,
+        "repetition": repetition,
+        "submission_id": submission_id,
+    }
+    _emit_progress(execution.options, "build.started", **progress_fields)
+    workspace = create_unique_directory(execution.run.run_dir / "workspaces" / submission_id)
+    materialize_seed(execution.config, workspace / "tree")
     workdir = workspace / "tree"
-    prompt_path = run_dir / "prompts" / f"implement-{submission_id}.md"
+    prompt_path = execution.run.run_dir / "prompts" / f"implement-{submission_id}.md"
     prompt_path.write_bytes(implementation_prompt_bytes(track.prompt_file))
-    impl_job = AgentJob(
-        kind="implement",
-        harness=harness.adapter,
-        model=ModelSpec(model=harness.model, effort=harness.effort),
-        workdir=workdir,
-        prompt_path=prompt_path,
-        log_path=run_dir / "logs" / f"implement-{submission_id}.log",
-        last_message_path=run_dir / "private" / f"implement-{submission_id}.last.md",
-        evidence_dirs=(),
-        sandbox_mode=_sandbox(config),
-    )
     try:
-        with agent_slots:
+        with execution.agent_slots:
             impl = execute_agent(
-                config,
-                impl_job,
-                pricing_data=pricing_data,
-                pricing_retrieved_at=pricing_retrieved_at,
-                options=options,
-                cancel_event=cancel_event,
+                execution.config,
+                AgentJob(
+                    kind="implement",
+                    harness=harness.adapter,
+                    model=ModelSpec(model=harness.model, effort=harness.effort),
+                    workdir=workdir,
+                    prompt_path=prompt_path,
+                    log_path=(execution.run.run_dir / "logs" / f"implement-{submission_id}.log"),
+                    last_message_path=(
+                        execution.run.run_dir / "private" / f"implement-{submission_id}.last.md"
+                    ),
+                    evidence_dirs=(),
+                    sandbox_mode=_sandbox(execution.config),
+                ),
+                pricing_data=execution.run.pricing_payload,
+                pricing_retrieved_at=execution.run.pricing_retrieved_at,
+                options=execution.options,
+                cancel_event=execution.cancel_event,
             )
     except (Exception, KeyboardInterrupt) as exc:
         jobs.append(
             _raised_job_record(
-                config=config,
-                run_dir=run_dir,
+                config=execution.config,
+                run_dir=execution.run.run_dir,
                 job_id=f"implement-{submission_id}",
                 kind="implement",
                 harness_id=harness.id,
@@ -2046,7 +2036,7 @@ def _run_repetition(
                 exc=exc,
             )
         )
-        checkpoint(jobs, artifacts)
+        execution.checkpoint(jobs, artifacts)
         raise
     jobs.append(
         _job_record(
@@ -2059,114 +2049,51 @@ def _run_repetition(
             execution=impl,
         )
     )
-    checkpoint(jobs, artifacts)
+    execution.checkpoint(jobs, artifacts)
     impl_ok = _process_ok(impl.process) and impl.error is None
     snapshot_path: Path | None = None
-    valid_results: list[dict[str, Any]] = []
-    valid_eval_ids: list[str] = []
-    eval_cost_total, eval_cost_known, eval_tokens, eval_duration = 0.0, True, 0, 0.0
     if impl_ok:
-        snapshot_path = run_dir / "snapshots" / submission_id
+        snapshot_path = execution.run.run_dir / "snapshots" / submission_id
         for rel, digest in atomic_snapshot(
             workdir,
             snapshot_path,
             ignore_patterns=_AMBIENT_IGNORE,
         ).items():
             artifacts[f"snapshots/{submission_id}/{rel}"] = digest
-        checkpoint(jobs, artifacts)
-        _emit_progress(
-            options,
-            "build.finished",
-            harness=harness.id,
-            model=harness.model,
-            track=track.id,
-            repetition=repetition,
-            submission_id=submission_id,
-            status="succeeded",
-            duration_s=round(float(impl.process.duration_s), 3),
-        )
-        (
-            ej,
-            valid_results,
-            ea,
-            valid_eval_ids,
-            eval_cost_total,
-            eval_cost_known,
-            eval_tokens,
-            eval_duration,
-        ) = _eval_pass(
-            config,
-            options,
-            run_dir,
-            submission_id,
-            snapshot_path,
-            track,
-            contracts[track.id],
-            contract_hashes[track.id],
-            evaluator_attempts,
-            pricing_data,
-            pricing_retrieved_at,
-            repetition,
-            checkpoint,
-            cancel_event,
-            agent_slots,
-            evaluator_executor,
-        )
-        jobs.extend(ej)
-        artifacts.update(ea)
-    else:
-        _emit_progress(
-            options,
-            "build.finished",
-            harness=harness.id,
-            model=harness.model,
-            track=track.id,
-            repetition=repetition,
-            submission_id=submission_id,
-            status="failed",
-            duration_s=round(float(impl.process.duration_s), 3),
-        )
-    min_evals = _MIN_PUB_EVALS if config.mode == "publication" else _MIN_LOCAL_EVALS
-    evaluation_success = impl_ok and len(valid_results) >= min_evals
-    reasons: list[str] = list(global_ineligible_reasons)
-    if not impl_ok:
-        reasons.append("implementation_failed")
-        if impl.process.timed_out:
-            reasons.append("implementation_timeout")
-    elif not evaluation_success:
-        reasons.append("insufficient_valid_evaluators")
-    score, dimensions, judge_spread = (
-        _score_results(valid_results, contracts[track.id])
-        if evaluation_success
-        else (None, {}, None)
+        execution.checkpoint(jobs, artifacts)
+    _emit_progress(
+        execution.options,
+        "build.finished",
+        **progress_fields,
+        status="succeeded" if impl_ok else "failed",
+        duration_s=round(float(impl.process.duration_s), 3),
     )
-    attempt = Attempt(
-        run_id=run_id,
+    extra: list[str] = []
+    if not impl_ok:
+        extra.append("implementation_failed")
+        if impl.process.timed_out:
+            extra.append("implementation_timeout")
+    prepared = _PreparedSubmission(
         submission_id=submission_id,
-        repetition=repetition,
-        track=track.id,
-        contract_version=contracts[track.id].contract_version,
-        contract_sha256=contract_hashes[track.id],
-        harness=harness.id,
+        track_id=track.id,
+        harness_id=harness.id,
         model_id=_model_identifier(harness.model),
         display_name=harness.display_name,
+        repetition=repetition,
+        snapshot_path=snapshot_path,
         implementation_success=impl_ok,
-        evaluation_success=evaluation_success,
-        score=score,
-        dimensions=dimensions,
-        judge_spread=judge_spread,
+        jobs=tuple(jobs),
+        artifacts=artifacts,
         implementation_cost_usd=impl.cost_usd,
-        evaluation_cost_usd=None if not impl_ok else (eval_cost_total if eval_cost_known else None),
-        tokens=_tokens(impl.usage) + eval_tokens,
-        duration_s=float(impl.process.duration_s) + eval_duration,
-        evaluator_ids=tuple(valid_eval_ids),
-        ineligible_reasons=tuple(reasons),
+        implementation_tokens=_tokens(impl.usage),
+        implementation_duration_s=float(impl.process.duration_s),
+        extra_ineligible_reasons=tuple(extra),
     )
-    attempt_path = run_dir / "attempts" / f"{submission_id}.json"
-    atomic_write_json(attempt_path, _attempt_public(attempt))
-    artifacts[f"attempts/{submission_id}.json"] = sha256_file(attempt_path)
-    checkpoint(jobs, artifacts)
-    return attempt, jobs, artifacts
+    return _evaluate_and_persist_attempt(
+        execution,
+        prepared,
+        task.evaluator_attempts,
+    )
 
 
 def _model_identifier(model: str) -> str:
@@ -2174,9 +2101,7 @@ def _model_identifier(model: str) -> str:
 
 
 def _run_evaluator(
-    config: BenchConfig,
-    options: RunOptions,
-    run_dir: Path,
+    execution_context: _ExecutionContext,
     submission_id: str,
     snapshot_path: Path,
     track: Any,
@@ -2184,11 +2109,7 @@ def _run_evaluator(
     contract_hash: str,
     evaluator: Any,
     eval_attempt_id: str,
-    pricing_data: Mapping[str, Any] | None,
-    pricing_retrieved_at: str | None,
     repetition: int,
-    cancel_event: threading.Event,
-    agent_slots: threading.BoundedSemaphore,
 ) -> dict[str, Any]:
     """Evaluate one immutable submission copy and return a normalized outcome.
 
@@ -2200,7 +2121,7 @@ def _run_evaluator(
     """
 
     _emit_progress(
-        options,
+        execution_context.options,
         "evaluate.started",
         evaluator=evaluator.id,
         model=evaluator.model,
@@ -2209,6 +2130,7 @@ def _run_evaluator(
         submission_id=submission_id,
         eval_attempt_id=eval_attempt_id,
     )
+    run_dir = execution_context.run.run_dir
     eval_parent = run_dir / "evaluations" / submission_id
     eval_parent.mkdir(parents=True, exist_ok=True)
     eval_root = create_unique_directory(eval_parent / eval_attempt_id)
@@ -2218,7 +2140,7 @@ def _run_evaluator(
         eval_root / "output",
     )
     output_dir.mkdir()
-    materialize_seed(config, seed_dir)
+    materialize_seed(execution_context.config, seed_dir)
     atomic_snapshot(snapshot_path, submission_dir)
     pre_seed = tree_manifest(seed_dir, ignore=_AMBIENT_IGNORE)
     pre_sub = tree_manifest(submission_dir, ignore=_AMBIENT_IGNORE)
@@ -2237,7 +2159,7 @@ def _run_evaluator(
     )
     prompt_path = eval_root / "prompt.md"
     prompt_path.write_text(prompt_text, encoding="utf-8")
-    href = config.harnesses[evaluator.harness]
+    href = execution_context.config.harnesses[evaluator.harness]
     job = AgentJob(
         kind="evaluate",
         harness=href.adapter,
@@ -2249,18 +2171,18 @@ def _run_evaluator(
         evidence_dirs=(seed_dir, submission_dir),
         sandbox_mode="workspace-write",
     )
-    with agent_slots:
+    with execution_context.agent_slots:
         execution = execute_agent(
-            config,
+            execution_context.config,
             job,
-            pricing_data=pricing_data,
-            pricing_retrieved_at=pricing_retrieved_at,
-            options=options,
-            cancel_event=cancel_event,
+            pricing_data=execution_context.run.pricing_payload,
+            pricing_retrieved_at=execution_context.run.pricing_retrieved_at,
+            options=execution_context.options,
+            cancel_event=execution_context.cancel_event,
         )
     artifacts: dict[str, str] = {}
     invalid: list[str] = []
-    valid_result: dict[str, Any] | None = None
+    valid_result: ValidatedJudgeScores | None = None
     if not _process_ok(execution.process) or execution.error is not None:
         invalid.append("evaluator_execution_failed")
     if verify_tree_manifest(seed_dir, pre_seed, ignore=_AMBIENT_IGNORE):
@@ -2278,25 +2200,27 @@ def _run_evaluator(
             invalid.append("malformed_result_json")
             result_data = None
         if result_data is not None:
-            errs = validate_judge_result(
-                result_data,
-                contract,
-                expected_track=track.id,
-                expected_submission_id=submission_id,
-                expected_contract_sha256=contract_hash,
-                expected_judge_id=evaluator.id,
-            )
-            if errs:
+            try:
+                normalized = normalize_validated_judge_result(
+                    result_data,
+                    contract,
+                    expected_track=track.id,
+                    expected_submission_id=submission_id,
+                    expected_contract_sha256=contract_hash,
+                    expected_judge_id=evaluator.id,
+                )
+            except ValueError:
                 invalid.append("invalid_judge_result")
-            elif not invalid:
-                valid_result = result_data
+            else:
+                if not invalid:
+                    valid_result = normalized
     rel = f"evaluations/{submission_id}/{eval_attempt_id}"
     if report_path.is_file():
         artifacts[f"{rel}/output/report.md"] = sha256_file(report_path)
     if result_path.is_file():
         artifacts[f"{rel}/output/result.json"] = sha256_file(result_path)
     _emit_progress(
-        options,
+        execution_context.options,
         "evaluate.finished",
         evaluator=evaluator.id,
         model=evaluator.model,

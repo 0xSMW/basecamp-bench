@@ -23,7 +23,8 @@ from basecamp_bench.adapters import (
 )
 from basecamp_bench.config import BenchConfig, EvaluatorSpec, HarnessSpec, TrackSpec
 from basecamp_bench.manifest import export_run, verify_run
-from basecamp_bench.runner import RunOptions, run_benchmark
+from basecamp_bench.runner import RunOptions, reevaluate_run, run_benchmark
+from basecamp_bench.safety import tree_manifest
 
 _PROMPT = b"Build the strongest complete implementation from the supplied materials.\n"
 _RUBRIC = "# Evaluation\n\nScore craft from directly observed behavior.\n"
@@ -295,8 +296,29 @@ class PublicationLifecycleTests(E2EFixture):
         leaderboard = json.loads(
             next((run_dir / "leaderboards").glob("*.json")).read_text(encoding="utf-8")
         )
-        self.assertEqual(len(leaderboard["entries"]), 1)
-        self.assertTrue(leaderboard["entries"][0]["eligible"])
+        self.assertEqual(leaderboard["schema_version"], "2.0")
+        self.assertEqual(leaderboard["mode"], "publication")
+        self.assertNotIn("entries", leaderboard)
+        self.assertIn("attempts", leaderboard)
+        ledger_attempts = leaderboard["attempts"]
+        self.assertEqual(len(ledger_attempts), 3)
+        self.assertEqual(
+            sorted(item["repetition"] for item in ledger_attempts),
+            [1, 2, 3],
+        )
+        self.assertTrue(all(item["implementation_success"] is True for item in ledger_attempts))
+        self.assertTrue(all(item["evaluation_success"] is True for item in ledger_attempts))
+        self.assertTrue(all(len(item["evaluator_ids"]) == 2 for item in ledger_attempts))
+        self.assertTrue(all(item["ineligible_reasons"] == [] for item in ledger_attempts))
+        self.assertTrue(all(item["track"] == "fe" for item in ledger_attempts))
+        self.assertEqual(leaderboard["track"], "fe")
+        self.assertTrue(
+            all(
+                item["contract_version"] == leaderboard["contract_version"]
+                and item["contract_sha256"] == leaderboard["contract_sha256"]
+                for item in ledger_attempts
+            )
+        )
         report = (run_dir / "report.html").read_text(encoding="utf-8")
         self.assertIn("Expected implementation cost per valid result", report)
         self.assertIn("attempts-table", report)
@@ -304,6 +326,80 @@ class PublicationLifecycleTests(E2EFixture):
         export_run(run_dir, first)
         export_run(run_dir, second)
         self.assertEqual(first.read_bytes(), second.read_bytes())
+
+
+class ReevaluateLifecycleTests(E2EFixture):
+    def test_reevaluate_immutable_prior_snapshot_fresh_evaluators(self) -> None:
+        """Reevaluate a local prior: fresh evaluators, no new implementation, lineage intact."""
+
+        config = self.config(mode="local", repetitions=1)
+        prior = self.run_benchmark_e2e(config, prefix="reeval-prior")
+        prior_tree = tree_manifest(prior)
+        prior_manifest = self.manifest(prior)
+        prior_id = prior_manifest["run"]["id"]
+        prior_attempt = self.attempts(prior)[0]
+        prior_sid = prior_attempt["submission_id"]
+        prior_impl_cost = prior_attempt["implementation_cost_usd"]
+        impl_jobs_prior = [j for j in prior_manifest["jobs"] if j.get("kind") == "implement"]
+        self.assertEqual(len(impl_jobs_prior), 1)
+        usage = impl_jobs_prior[0].get("usage") or {}
+        prior_impl_tokens = (
+            int(usage.get("input_tokens", 0))
+            + int(usage.get("cached_input_tokens", 0))
+            + int(usage.get("cache_write_tokens", 0))
+            + int(usage.get("output_tokens", 0))
+        )
+        models = [spec.model for spec in config.harnesses.values() if spec.enabled]
+        models.extend(spec.model for spec in config.evaluators if spec.enabled)
+        new_dir = reevaluate_run(
+            config,
+            prior,
+            options=RunOptions(
+                allow_unsafe_host_execution=False,
+                confirmed_isolated_environment=True,
+                allow_network_pricing=False,
+            ),
+            id_factory=Ids("reeval-new"),
+            pricing_data=self.pricing(*models),
+            now=datetime(2026, 7, 11, 13, 0, 0, tzinfo=UTC),
+        )
+        self.assertEqual(tree_manifest(prior), prior_tree)
+        self.assertEqual(verify_run(prior), [])
+        self.assertEqual(verify_run(new_dir), [])
+        self.assertNotEqual(new_dir.resolve(), prior.resolve())
+        man = self.manifest(new_dir)
+        self.assertEqual(man["status"], "complete")
+        impl_jobs = [j for j in man["jobs"] if j.get("kind") == "implement"]
+        self.assertEqual(len(impl_jobs), 1)
+        self.assertIn("reuse prior_run=", impl_jobs[0]["command_preview"])
+        self.assertIn(f"prior_run={prior_id}", impl_jobs[0]["command_preview"])
+        eval_jobs = [j for j in man["jobs"] if j.get("kind") == "evaluate"]
+        self.assertEqual(len(eval_jobs), 2)
+        self.assertTrue(all(job.get("valid") for job in eval_jobs))
+        # Reuse records implementation provenance without materializing a workspace tree.
+        workspace_root = new_dir / "workspaces"
+        self.assertFalse(workspace_root.exists() and any(workspace_root.iterdir()))
+        att = self.attempts(new_dir)[0]
+        self.assertEqual(att["submission_id"], prior_sid)
+        self.assertEqual(att["run_id"], man["run"]["id"])
+        self.assertTrue(att["implementation_success"])
+        self.assertTrue(att["evaluation_success"])
+        # Historical attribution retained on the attempt; incurred run costs are eval-only.
+        self.assertEqual(att["implementation_cost_usd"], prior_impl_cost)
+        self.assertEqual(man["costs"]["known_implementation_usd"], 0)
+        self.assertEqual(
+            man["costs"]["known_total_usd"],
+            man["costs"]["known_evaluation_usd"],
+        )
+        self.assertTrue(man["costs"]["complete"])
+        self.assertEqual(man["costs"]["unknown_job_count"], 0)
+        # Two evaluators × (7+1+0+3) tokens plus historical implementation tokens.
+        self.assertEqual(att["tokens"], prior_impl_tokens + 22)
+        self.assertIn(f"reuse_snapshot_tree:{prior_sid}", man["inputs"])
+        self.assertIn(f"prior_run:{prior_id}", man["inputs"])
+        snaps = [path for path in (new_dir / "snapshots").iterdir() if path.is_dir()]
+        self.assertEqual(len(snaps), 1)
+        self.assertTrue((snaps[0] / "artifact.py").is_file())
 
 
 class FailureIntegrityTests(E2EFixture):

@@ -668,6 +668,16 @@ class PipelineTests(Fixture):
             self.assertFalse(str(key).startswith("logs/"))
             self.assertFalse(str(key).startswith("workspaces/"))
         self.assertGreaterEqual(len(list((run_dir / "leaderboards").glob("*.json"))), 1)
+        # Normal finalization writes only JSON ledgers (plus HTML), never CSV/Markdown.
+        self.assertEqual(list((run_dir / "leaderboards").glob("*.csv")), [])
+        self.assertEqual(list((run_dir / "leaderboards").glob("*.md")), [])
+        artifact_keys = list(man["artifacts"])
+        self.assertFalse(any(str(k).endswith(".csv") for k in artifact_keys))
+        self.assertFalse(
+            any(
+                str(k).startswith("leaderboards/") and str(k).endswith(".md") for k in artifact_keys
+            )
+        )
 
     def test_ambient_metadata_is_excluded_from_snapshots_and_eval_integrity(self) -> None:
         original = self.side_effect
@@ -1281,6 +1291,29 @@ class PublicationTests(Fixture):
             )
         self.assertIn("isolated", str(ctx.exception).lower())
 
+    def test_publication_complete_when_derived_entries_eligible(self) -> None:
+        """Happy-path publication: eligible aggregates → complete; ledger stays attempt-only."""
+        run_dir = self.run_bench(
+            config=self.config(mode="publication", repetitions=3),
+            id_factory=_Ids("pub-ok"),
+        )
+        man = self.read_run_manifest(run_dir)
+        self.assertEqual(man["status"], "complete")
+        lb_paths = sorted((run_dir / "leaderboards").glob("*.json"))
+        self.assertGreaterEqual(len(lb_paths), 1)
+        for path in lb_paths:
+            board = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(board["schema_version"], "2.0")
+            self.assertEqual(board["mode"], "publication")
+            self.assertIn("attempts", board)
+            self.assertNotIn("entries", board)
+            self.assertGreaterEqual(len(board["attempts"]), 3)
+        from basecamp_bench.reporting import load_leaderboards
+
+        points = load_leaderboards(lb_paths)
+        self.assertTrue(points)
+        self.assertTrue(all(point.eligible for point in points))
+
     def test_missing_pricing_ineligible(self) -> None:
         run_dir = self.run_bench(
             config=self.config(mode="publication", repetitions=3),
@@ -1308,7 +1341,16 @@ class PublicationTests(Fixture):
             )
         for path in (run_dir / "leaderboards").glob("*.json"):
             board = json.loads(path.read_text(encoding="utf-8"))
-            self.assertTrue(all(not entry["eligible"] for entry in board["entries"]))
+            # Canonical ledger stores raw attempts only; eligibility is derived.
+            self.assertEqual(board["schema_version"], "2.0")
+            self.assertIn("attempts", board)
+            self.assertNotIn("entries", board)
+            self.assertTrue(board["attempts"])
+            from basecamp_bench.reporting import load_leaderboards
+
+            points = load_leaderboards([path])
+            self.assertTrue(points)
+            self.assertTrue(all(not point.eligible for point in points))
 
     def test_two_evaluators_required(self) -> None:
         cfg = self.config(
@@ -1320,6 +1362,15 @@ class PublicationTests(Fixture):
         self.assertEqual(self.read_run_manifest(run_dir)["status"], "ineligible")
         for path in (run_dir / "attempts").glob("*.json"):
             self.assertFalse(json.loads(path.read_text(encoding="utf-8"))["evaluation_success"])
+        for path in (run_dir / "leaderboards").glob("*.json"):
+            board = json.loads(path.read_text(encoding="utf-8"))
+            self.assertIn("attempts", board)
+            self.assertNotIn("entries", board)
+            from basecamp_bench.reporting import load_leaderboards
+
+            points = load_leaderboards([path])
+            self.assertTrue(points)
+            self.assertTrue(all(not point.eligible for point in points))
 
 
 class UnsafeTests(Fixture):
@@ -1609,7 +1660,15 @@ class ReevaluateTests(Fixture):
         self.assertEqual(att["run_id"], man["run"]["id"])
         self.assertTrue(att["implementation_success"])
         self.assertTrue(att["evaluation_success"])
+        # Historical attribution retained on the attempt; incurred run costs are eval-only.
         self.assertEqual(att["implementation_cost_usd"], prior_impl_cost)
+        self.assertEqual(man["costs"]["known_implementation_usd"], 0)
+        self.assertEqual(
+            man["costs"]["known_total_usd"],
+            man["costs"]["known_evaluation_usd"],
+        )
+        self.assertTrue(man["costs"]["complete"])
+        self.assertEqual(man["costs"]["unknown_job_count"], 0)
         self.assertEqual(att["tokens"], prior_impl_tokens + 10)
         # Evaluators run concurrently, so attempt wall time follows the slowest
         # evaluator rather than the sum of evaluator durations.
