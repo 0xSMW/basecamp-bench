@@ -12,6 +12,8 @@ remain separate.
 
 ## Frontier, July 11, 2026
 
+<img width="1326" height="994" alt="Fable's BC5 app shell" src="https://github.com/user-attachments/assets/90e68cf7-538c-42d5-b7bd-b31ec2163504" />
+
 Basecamp Bench asks each agent to build two parts of a Basecamp 5 clone from a
 fixed specification: a single-file frontend SPA and a production-shaped backend
 API. An independent evaluator scores every submission across weighted quality
