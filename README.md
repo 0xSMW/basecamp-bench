@@ -10,7 +10,7 @@ The runner preserves raw attempts, computes scores and eligibility itself, and
 generates a self-contained HTML quality-versus-cost report. FE and BE results
 remain separate.
 
-## Baseline results: July 11, 2026
+## Frontier, July 11, 2026
 
 Basecamp Bench asks each agent to build two parts of a Basecamp 5 clone from a
 fixed specification: a single-file frontend SPA and a production-shaped backend
