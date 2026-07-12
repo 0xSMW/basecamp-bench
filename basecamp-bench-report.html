@@ -19,6 +19,7 @@
     --accent: #c15f3c;
     --fable: #d97757;
     --sonnet: #8a63d2;
+    --opus: #c05a9d;
     --grok: #2f3640;
     --sol: #10a37f;
     --gpt55: #74c6ad;
@@ -74,6 +75,7 @@
   .swatch { width: 14px; height: 14px; border-radius: 2px; flex: none; }
   .m-fable .swatch { background: var(--fable); }
   .m-sonnet .swatch { background: var(--sonnet); }
+  .m-opus .swatch { background: var(--opus); }
   .m-grok .swatch { background: var(--grok); }
   .m-sol .swatch { background: var(--sol); }
   .m-gpt55 .swatch { background: var(--gpt55); }
@@ -138,6 +140,7 @@
   <a href="#models">Deep dives</a>
   <a href="#m-fable" class="toc-model m-fable"><span class="swatch"></span>Fable 5</a>
   <a href="#m-sonnet" class="toc-model m-sonnet"><span class="swatch"></span>Sonnet 5</a>
+  <a href="#m-opus" class="toc-model m-opus"><span class="swatch"></span>Opus 4.8</a>
   <a href="#m-grok" class="toc-model m-grok"><span class="swatch"></span>Grok 4.5</a>
   <a href="#m-sol" class="toc-model m-sol"><span class="swatch"></span>GPT-5.6 Sol</a>
   <a href="#m-gpt55" class="toc-model m-gpt55"><span class="swatch"></span>GPT-5.5</a>
@@ -157,16 +160,17 @@
 <section id="briefing">
   <p>Basecamp Bench measures a model's ability to ship production-grade software from a fixed specification on a well-known application. Each workspace begins like a real greenfield project: <code>AGENTS.md</code> maps the source material and sets its order of precedence, <code>DESIGN.md</code> provides production design tokens, and <code>INIT.md</code> specifies the product, domain model, and sample data. Each project item uses a shared <code>Recording</code> model that unifies identity, lifecycle, visibility, comments, reactions, subscriptions, and events across tools. Agents build two parts of a Basecamp 5 clone: a single-file frontend SPA evaluated as a release-ready product across 11 weighted dimensions and nine reference screenshots, and a production-ready backend API implementing all 203 operations in the canonical OpenAPI contract across 9 weighted dimensions. All implementation and architecture decisions are evaluated as written for direct production use. Each model starts without an existing implementation, so it must translate the same complete requirements and reference materials into its own architecture and product decisions. The benchmark reveals how well each model exercises greenfield engineering judgment, prioritizes competing concerns, and carries those decisions through to working software.</p>
 
-  <p>The results reveal how each model applies engineering judgment and effort from the same starting point. Fable 5 leads both tracks because it builds the shared Recording model described in the specification and connects every surface and endpoint to it. This decision strengthens product modeling, surface coverage, seed fidelity, and behavioral depth. The original five backends cluster tightly because most models register the complete route surface and implement substantial behavior behind it. Gemini 3.1 Pro also registers nearly every route, but leaves 201 of 203 canonical operations as explicit stubs, demonstrating why coverage alone cannot substitute for behavioral depth. Frontend scores vary more because models make different tradeoffs between breadth and functional depth. Sonnet prioritizes working, persistent workflows, while GPT-5.5 prioritizes visual polish and leaves many controls inert. Grok 4.5 remains the strongest balance of quality, cost, and functional depth among the original field. Gemini 3.1 Pro is the cheapest and fastest completed run because both artifacts stop far earlier than the stronger submissions, leaving a static frontend tour, a skeletal backend, and the largest engineering follow-up.</p>
+  <p>The results reveal how each model applies engineering judgment and effort from the same starting point. Fable 5 leads both tracks because it builds the shared Recording model described in the specification and connects every surface and endpoint to it. This decision strengthens product modeling, surface coverage, seed fidelity, and behavioral depth. Opus 4.8 enters third on frontend with strong product modeling, visual fidelity, and broad persisted workflows, while its backend ranks last among qualifying frontier coding models. The strongest qualifying backends cluster tightly because most models register the complete route surface and implement substantial behavior behind it. Gemini 3.1 Pro also registers nearly every route, but leaves 201 of 203 canonical operations as explicit stubs, demonstrating why coverage alone cannot substitute for behavioral depth. Grok 4.5 remains the strongest balance of quality, cost, and functional depth among models scoring above 6. Gemini 3.1 Pro is the cheapest and fastest completed run because both artifacts stop far earlier than the stronger submissions, leaving a static frontend tour, a skeletal backend, and the largest engineering follow-up.</p>
 
   <ul>
     <li>Fable 5 wins FE (7.578) and BE (8.392) decisively, at 2.3 to 18.8 times the cost of every other model. Fable implements broad capability and still has four hardening defects: unsanitized stored HTML, corrupted copy IDs, wildcard CORS with Authorization, and production logs that expose seed tokens.</li>
     <li>Sonnet 5 is the clear FE runner-up (6.982) with real persisted workflows and the field's only rich-text sanitizer. Its backend contains two critical authorization defects. A client token can delete the sample project, and an unauthenticated endpoint exposes every raw credential.</li>
+    <li>Opus 4.8 places third on FE (6.587) with faithful surfaces and persisted workflows. Its BE (6.590) registers all 203 routes and broad CRUD, but leaks the owner token, exposes unauthenticated reset, and lets nonmembers edit projects.</li>
     <li>Grok 4.5 is the strongest value result among models scoring above 6, at $9.30 across both tracks in 37 minutes. Its main deductions come from validation, partial feature handling, narrow-screen navigation, and malformed stored state.</li>
     <li>GPT-5.6 Sol places second on backend with strong operability and 71 explicit <code>501</code> stubs. Its frontend places fourth and leaves most controls inert. Its generic router introduces a type error that allows a todo request to return a Message.</li>
     <li>GPT-5.5 ships the only backend with restart persistence. Its frontend scores 5.670. The Post button fires a "Comment posted" toast without reading the textarea or writing state, and malformed storage crashes the app at boot.</li>
     <li>Gemini 3.1 Pro is the cheapest and fastest run at $4.57 and about 11 minutes per track because both artifacts are substantially incomplete. Its FE score is 3.190 because nearly every workflow is inert, and its BE score is 3.872 because only one canonical operation works while 201 return explicit <code>501</code> stubs.</li>
-    <li>Shared failure modes across all six: zero tests, incomplete lifecycle behavior, contract drift, weak validation, and enabled-looking controls with no handler behind them.</li>
+    <li>Shared failure modes across all seven: incomplete lifecycle behavior, contract drift, weak validation, and enabled-looking controls with no handler behind them.</li>
   </ul>
 
   <table id="results">
@@ -176,13 +180,14 @@
     <tbody>
       <tr><td>Fable 5</td><td class="num winner">7.578</td><td class="num">1:02:14</td><td class="num">$32.40</td><td class="num winner">8.392</td><td class="num">1:04:26</td><td class="num">$53.47</td><td class="num">$85.87</td></tr>
       <tr><td>Sonnet 5</td><td class="num">6.982</td><td class="num">44:17</td><td class="num">$14.22</td><td class="num">7.243</td><td class="num">42:52</td><td class="num">$22.01</td><td class="num">$36.23</td></tr>
+      <tr><td>Opus 4.8</td><td class="num">6.587</td><td class="num">43:28</td><td class="num">$11.58</td><td class="num">6.590</td><td class="num">47:53</td><td class="num">$18.26</td><td class="num">$29.83</td></tr>
       <tr><td>Grok 4.5</td><td class="num">6.384</td><td class="num winner">15:22</td><td class="num winner">$3.95</td><td class="num">7.278</td><td class="num winner">21:26</td><td class="num winner">$5.35</td><td class="num winner">$9.30</td></tr>
       <tr><td>GPT-5.6 Sol</td><td class="num">5.765</td><td class="num">25:45</td><td class="num">$7.96</td><td class="num">7.310</td><td class="num">34:03</td><td class="num">$7.17</td><td class="num">$15.13</td></tr>
       <tr><td>GPT-5.5</td><td class="num">5.670</td><td class="num">18:21</td><td class="num">$4.73</td><td class="num">7.084</td><td class="num">25:53</td><td class="num">$6.21</td><td class="num">$10.94</td></tr>
       <tr><td>Gemini 3.1 Pro</td><td class="num">3.190</td><td class="num">11:16</td><td class="num">$2.63</td><td class="num">3.872</td><td class="num">10:52</td><td class="num">$1.94</td><td class="num">$4.57</td></tr>
     </tbody>
   </table>
-  <p class="caption">Scores are weighted composites computed by the benchmark runner from per-dimension judge scores (0–10). Cost and time winners require a score of at least 5.0 on the corresponding track.</p>
+  <p class="caption">Scores are weighted composites computed by the benchmark runner from per-dimension judge scores (0–10). Cost and time winners require an FE score of at least 6.0 or a BE score of at least 7.0 on the corresponding track.</p>
 </section>
 
 <!-- ============ VISUALIZATIONS ============ -->
@@ -345,6 +350,69 @@
         <span class="tile score-good" data-tip="Configuration, health, logging, shutdown, packaging, testability" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Ops</span></span>
         <span class="tile score-mixed" data-tip="Readability, structure, naming, safe extensibility" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Code</span></span>
         <span class="tile score-weak" data-tip="Incomplete features fail explicitly, never fake success" tabindex="0"><span class="tile-box">5.0</span><span class="tile-label">Hnsty</span></span>
+      </div>
+    </details>
+  </div>
+
+  <!-- OPUS 4.8 -->
+  <div class="model m-opus" id="m-opus">
+    <h3><span class="swatch"></span>Opus 4.8 — broad product depth with unsafe trust boundaries</h3>
+    <p class="scores">FE 6.587 · BE 6.590 · $29.83 total · 1:31:21 total</p>
+    <p>Opus 4.8 builds substantial, usable prototypes on both tracks. Its frontend covers every screenshot-backed surface and many optional destinations through a rich local model with persisted mutations. Its backend registers all 203 operations and implements broad process-lifetime CRUD on a shared Recording spine. Security and relationship invariants are the limiting factors: owner credentials leak through health, reset is unauthenticated, project membership is not enforced, and cross-project moves can corrupt hierarchy.</p>
+
+    <h4>Where it shines</h4>
+    <ul>
+      <li><b data-scores="FE Product model:8.5|FE Surface:8.0">Rich product model and broad UI</b>All screenshot-backed surfaces are reachable alongside calendars, Activity, Everything, Reports, Adminland, assignments, profiles, notifications, pings, and My Bar trays.</li>
+      <li><b data-scores="FE Reference:7.5|FE Craft:7.5">Strong visual correspondence</b>The centered navigation, layered sheets, three-column home, project dock, fixed My Bar, overlays, dark/light tokens, and component treatments closely follow the supplied references.</li>
+      <li><b data-scores="BE Surface:10.0|BE Architecture:7.0">Complete routes on a shared stateful model</b>All 203 canonical method/path shapes register with zero missing routes. Shared recordings, hierarchy, lifecycle, subscriptions, events, comments, and boosts support real cross-request behavior.</li>
+    </ul>
+
+    <h4>Where it's okay</h4>
+    <ul>
+      <li><b data-scores="BE Depth:6.5|FE State:6.5">Meaningful persisted workflows</b>Frontend creation, completion, comments, card movement, docs, chat, pings, notes, and preferences persist locally; backend create/read/update/reset probes preserve process-lifetime state.</li>
+      <li><b data-scores="BE Contract:6.5|BE Operability:6.0">Solid HTTP and runtime foundations</b>Central JSON headers, ETags, request IDs, errors, pagination, health, logging, body limits, and signal shutdown work, while canonical request shapes, durability, readiness, and safe operational endpoints remain incomplete.</li>
+      <li><b data-scores="BE Code:6.5|BE Scope honesty:5.5|FE Architecture:6.5">Readable monoliths with uneven claims</b>Both large single-file submissions are systematically sectioned with reusable helpers, but transport, state, rendering, authorization, and domain behavior remain tightly coupled, and several documented completeness claims exceed verified behavior.</li>
+    </ul>
+
+    <h4>Where it underperforms</h4>
+    <ul>
+      <li><b data-scores="BE Validation:3.0">Critical trust-boundary failures</b>Unauthenticated health exposes the owner bearer token, unauthenticated reset destroys mutable state, and an employee outside a project's membership can read and rename it.</li>
+      <li><b data-scores="BE Architecture:7.0|BE Depth:6.5">Hierarchy invariants break</b>A cross-project card move keeps the old bucket while adopting a parent from another project, and trashing a project leaves its child Card Table directly readable.</li>
+      <li><b data-scores="FE Depth:6.0|FE Interaction:5.8">Visible breadth includes false-success controls</b>Nineteen controls are explicit stubs. Archive and trash only toast or navigate without changing state, while copy-link writes only <code>#</code> and still reports success.</li>
+      <li><b data-scores="FE Accessibility:4.0|FE Responsive:5.0">Mobile and accessibility need another pass</b>Clickable divs remain keyboard-inaccessible, dialogs lack focus management, toasts lack live regions, and one breakpoint leaves fixed navigation, calendars, catalogs, and My Bar fragile on phones.</li>
+      <li><b data-scores="FE Reliability:5.3|BE Operability:6.0">Unsafe persistence and operations</b>Stored project descriptions can inject markup into <code>innerHTML</code>, malformed stored state can crash boot, backend state is memory-only, and wildcard credentialed CORS ships as the default.</li>
+    </ul>
+
+    <h4>Failure modes</h4>
+    <p>Opus 4.8 fails at the boundary between broad implementation and production safety. The backend exposes the plaintext owner bearer token through unauthenticated health, lets unauthenticated callers reset all mutable state, ships wildcard credentialed CORS, and allows a nonmember employee to read and rename another project. Its domain model accepts cross-project card moves that split parent and bucket identity, leaves child tools readable after project trash, and reports success for empty template construction, fabricated upload metadata, and arbitrary occurrence dates. The frontend stores project descriptions as raw HTML and renders them through <code>innerHTML</code>, accepts malformed persisted shapes that can crash boot, and tells users archive, trash, and copy-link actions succeeded when no valid state change occurred. These failures come from maximizing surface area inside two large monoliths without adversarial tests for authorization, hierarchy, schema conformance, stored content, or false-success behavior. The result needs security-boundary repair and invariant reconstruction before feature iteration can be trusted.</p>
+
+    <details class="dims">
+      <summary>Dimension scores</summary>
+      <div class="dims-track">FRONTEND</div>
+      <div class="dims-row">
+        <span class="tile score-good" data-tip="Accuracy against the nine reference screenshots and specs" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Ref</span></span>
+        <span class="tile score-good" data-tip="Typography, color, spacing, token, and motion consistency" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Craft</span></span>
+        <span class="tile score-strong" data-tip="Accuracy and richness of Basecamp concepts and relationships" tabindex="0"><span class="tile-box">8.5</span><span class="tile-label">Model</span></span>
+        <span class="tile score-strong" data-tip="Breadth of reachable screens, routes, overlays, empty states" tabindex="0"><span class="tile-box">8.0</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-mixed" data-tip="Workflows run end-to-end instead of ending in stubs" tabindex="0"><span class="tile-box">6.0</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-weak" data-tip="Discoverability, feedback, keyboard efficiency, focus, error recovery" tabindex="0"><span class="tile-box">5.8</span><span class="tile-label">Inter</span></span>
+        <span class="tile score-mixed" data-tip="Correct state across mutations, navigation, reloads, resets" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">State</span></span>
+        <span class="tile score-weak" data-tip="Usability and feature preservation across viewport sizes" tabindex="0"><span class="tile-box">5.0</span><span class="tile-label">Resp</span></span>
+        <span class="tile score-poor" data-tip="Semantics, accessible names, keyboard operability, focus, contrast" tabindex="0"><span class="tile-box">4.0</span><span class="tile-label">A11y</span></span>
+        <span class="tile score-mixed" data-tip="Readability, modularity, reuse, ease of safe modification" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-weak" data-tip="Runtime stability, input escaping, defensive handling, performance" tabindex="0"><span class="tile-box">5.3</span><span class="tile-label">Rely</span></span>
+      </div>
+      <div class="dims-track">BACKEND</div>
+      <div class="dims-row">
+        <span class="tile score-good" data-tip="Coherent shared domain model with enforced invariants" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-strong" data-tip="All 203 canonical operations registered and reachable" tabindex="0"><span class="tile-box">10.0</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-mixed" data-tip="Real stateful mutations, lifecycle, cross-resource behavior" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-mixed" data-tip="Statuses, headers, pagination, response shapes match OpenAPI" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">HTTP</span></span>
+        <span class="tile score-good" data-tip="Sample data matches the specified deterministic inventory" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Seed</span></span>
+        <span class="tile score-poor" data-tip="Authentication, authorization, input validation, request hardening" tabindex="0"><span class="tile-box">3.0</span><span class="tile-label">Valid</span></span>
+        <span class="tile score-mixed" data-tip="Configuration, health, logging, shutdown, packaging, testability" tabindex="0"><span class="tile-box">6.0</span><span class="tile-label">Ops</span></span>
+        <span class="tile score-mixed" data-tip="Readability, structure, naming, safe extensibility" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Code</span></span>
+        <span class="tile score-weak" data-tip="Incomplete features fail explicitly, never fake success" tabindex="0"><span class="tile-box">5.5</span><span class="tile-label">Hnsty</span></span>
       </div>
     </details>
   </div>
@@ -599,8 +667,8 @@
 <section id="commentary">
   <h2>Commentary</h2>
   <p>Software teams rarely expect a model to produce finished production software from one prompt and a specification. They work iteratively, review the output, run tests, identify gaps, and ask the model to refine what it built. Basecamp Bench removes that correction loop for the initial build, revealing the decisions and failure modes each model introduces before an engineer intervenes.</p>
-  <p>Every model leaves different work for the engineer. Fable builds the deepest product model and the most complete workflows, yet still ships unsafe stored content, schema errors, and exposed credentials. Sonnet builds many working workflows but misses critical authorization, reset, and state-integrity safeguards. Grok moves quickly and covers substantial ground while cutting depth in validation, mobile behavior, and lifecycle handling. Sol clearly marks unsupported backend operations, but leaves 71 of them unfinished and produces a shallow frontend. GPT-5.5 builds the only durable backend, yet its frontend leaves core controls inert and its API drifts from the contract. Gemini 3.1 Pro finishes fastest and cheapest, but leaves nearly all frontend workflows inert and 201 backend operations explicitly unimplemented.</p>
-  <p>This creates a practical value question. Grok 4.5 reaches roughly 85–87% of Fable 5's score for about 11% of the total cost and finishes in 37 minutes instead of more than two hours. Gemini costs half as much as Grok and finishes sooner, but reaches only 42–46% of Fable's score and leaves a much larger implementation burden. Fable delivers a substantially stronger starting point, yet it still requires review and hardening before release. Teams must decide whether additional initial quality justifies the higher cost, or whether a cheaper model plus deliberate engineering iteration produces better overall value. The answer depends on the team's expertise, the risk of missed defects, and the cost of bringing each result across the finish line.</p>
+  <p>Every model leaves different work for the engineer. Fable builds the deepest product model and the most complete workflows, yet still ships unsafe stored content, schema errors, and exposed credentials. Sonnet builds many working workflows but misses critical authorization, reset, and state-integrity safeguards. Opus 4.8 builds a broad, visually strong frontend and a genuinely stateful backend, but exposes owner credentials and fails core membership and cross-project invariants. Grok moves quickly and covers substantial ground while cutting depth in validation, mobile behavior, and lifecycle handling. Sol clearly marks unsupported backend operations, but leaves 71 of them unfinished and produces a shallow frontend. GPT-5.5 builds the only durable backend, yet its frontend leaves core controls inert and its API drifts from the contract. Gemini 3.1 Pro finishes fastest and cheapest because it leaves nearly all frontend workflows inert and 201 backend operations explicitly unimplemented.</p>
+  <p>This creates a practical value question. Grok 4.5 reaches roughly 85–87% of Fable 5's score for about 11% of the total cost and finishes in 37 minutes instead of more than two hours. Opus 4.8 costs more than three times as much as Grok while scoring only slightly higher on frontend and materially lower on backend, making its stronger visual and product-model work expensive relative to its trust-boundary defects. Gemini 3.1 Pro costs half as much as Grok and finishes sooner, but reaches only 42–46% of Fable's score and leaves a much larger implementation burden. Fable delivers a substantially stronger starting point, yet it still requires review and hardening before release. Teams must decide whether additional initial quality justifies the higher cost, or whether a cheaper model plus deliberate engineering iteration produces better overall value.</p>
   <p>The results suggest that a skilled prompter and experienced engineer can use any of these agent combinations to reach a strong result through iteration. Model choice primarily changes the starting point, working style, and review burden. Preference for output style and the time available for review may matter more than the final attainable outcome.</p>
 </section>
 
@@ -632,7 +700,7 @@
   <p>GPT-5.6 Sol, at high reasoning effort, judges every submission and produces one review each. The evaluator bases its scores on repository diffs, executed code, schema validation, and cited file evidence. It diffs the full seed-to-submission delta, enumerates every route against the OpenAPI document, and executes each submission's actual code, using in-process request handlers for backends and DOM and localStorage harnesses for frontends. Where applicable it sweeps all 203 operations, validates responses against their schemas, and probes malformed input, authorization boundaries, lifecycle cascades, and reload persistence. The evaluation sandbox denies socket binding and browser startup, so the judge exercises servers through their real handlers in process and withholds pixel-level claims rather than assuming them. Every score cites file and line evidence.</p>
 
   <h4>Cost</h4>
-  <p>Evaluation is a separate spend from implementation. Judging all twelve submissions with Sol 5.6 at high reasoning effort cost $30.48 in 1:45:22 of evaluator time, averaging $2.54 per review, against $158.45 of implementation spend.</p>
+  <p>Evaluation is a separate spend from implementation. Judging all fourteen submissions with Sol 5.6 at high reasoning effort cost $35.23 in 2:01:33 of evaluator time, averaging $2.52 per review, against $183.53 of implementation spend.</p>
   <table>
     <thead>
       <tr><th>Benchmarked model</th><th class="num">FE review cost</th><th class="num">FE review time</th><th class="num">BE review cost</th><th class="num">BE review time</th><th class="num">Combined</th></tr>
@@ -640,11 +708,12 @@
     <tbody>
       <tr><td>Fable 5</td><td class="num">$3.01</td><td class="num">8:26</td><td class="num">$2.16</td><td class="num">8:08</td><td class="num">$5.17 · 16:33</td></tr>
       <tr><td>Sonnet 5</td><td class="num">$3.58</td><td class="num">11:17</td><td class="num">$2.45</td><td class="num">8:05</td><td class="num">$6.03 · 19:22</td></tr>
+      <tr><td>Opus 4.8</td><td class="num">$2.60</td><td class="num">8:07</td><td class="num">$2.15</td><td class="num">8:04</td><td class="num">$4.75 · 16:11</td></tr>
       <tr><td>Grok 4.5</td><td class="num">$2.85</td><td class="num">8:15</td><td class="num">$3.23</td><td class="num">12:31</td><td class="num">$6.08 · 20:46</td></tr>
       <tr><td>GPT-5.6 Sol</td><td class="num">$3.41</td><td class="num">9:15</td><td class="num">$1.37</td><td class="num">8:32</td><td class="num">$4.77 · 17:47</td></tr>
       <tr><td>GPT-5.5</td><td class="num">$2.36</td><td class="num">6:56</td><td class="num">$2.48</td><td class="num">7:53</td><td class="num">$4.84 · 14:49</td></tr>
       <tr><td>Gemini 3.1 Pro</td><td class="num">$2.12</td><td class="num">8:05</td><td class="num">$1.47</td><td class="num">7:59</td><td class="num">$3.59 · 16:05</td></tr>
-      <tr><td>All</td><td class="num">$17.32</td><td class="num">52:14</td><td class="num">$13.16</td><td class="num">53:07</td><td class="num">$30.48 · 1:45:22</td></tr>
+      <tr><td>All</td><td class="num">$19.92</td><td class="num">1:00:21</td><td class="num">$15.31</td><td class="num">1:01:11</td><td class="num">$35.23 · 2:01:33</td></tr>
     </tbody>
   </table>
 
@@ -667,11 +736,11 @@ baseline/         verified runs behind this report</pre>
 </div>
 
 <script>
-const MODELS = ["Fable 5", "Sonnet 5", "Grok 4.5", "GPT-5.6 Sol", "GPT-5.5", "Gemini 3.1 Pro"];
-const COLORS = ["#d97757", "#8a63d2", "#2f3640", "#10a37f", "#74c6ad", "#4285f4"];
+const MODELS = ["Fable 5", "Sonnet 5", "Opus 4.8", "Grok 4.5", "GPT-5.6 Sol", "GPT-5.5", "Gemini 3.1 Pro"];
+const COLORS = ["#d97757", "#8a63d2", "#c05a9d", "#2f3640", "#10a37f", "#74c6ad", "#4285f4"];
 
-const FE = { score: [7.578, 6.982, 6.384, 5.765, 5.670, 3.190], cost: [32.40, 14.22, 3.95, 7.96, 4.73, 2.63] };
-const BE = { score: [8.392, 7.243, 7.278, 7.310, 7.084, 3.872], cost: [53.47, 22.01, 5.35, 7.17, 6.21, 1.94] };
+const FE = { score: [7.578, 6.982, 6.587, 6.384, 5.765, 5.670, 3.190], cost: [32.40, 14.22, 11.58, 3.95, 7.96, 4.73, 2.63] };
+const BE = { score: [8.392, 7.243, 6.590, 7.278, 7.310, 7.084, 3.872], cost: [53.47, 22.01, 18.26, 5.35, 7.17, 6.21, 1.94] };
 
 
 
@@ -800,6 +869,7 @@ const FE_PROFILE_DIMS = ["Product model", "Surface coverage", "Visual craft", "R
 const FE_PROFILE = [
   [9.2, 9.0, 8.1, 8.0, 7.5, 8.1, 6.2, 6.5, 7.2, 6.8, 5.0],  // Fable
   [8.8, 8.2, 7.5, 7.8, 6.5, 7.1, 6.5, 5.9, 6.0, 5.8, 5.2],  // Sonnet
+  [8.5, 8.0, 7.5, 7.5, 6.5, 6.0, 5.3, 5.0, 5.8, 6.5, 4.0],  // Opus 4.8
   [8.0, 7.5, 7.2, 7.0, 5.5, 6.5, 6.0, 4.0, 6.1, 6.0, 4.8],  // Grok
   [6.5, 7.0, 7.0, 6.5, 5.0, 4.0, 5.0, 6.5, 5.0, 4.5, 6.0],  // Sol
   [8.0, 7.5, 7.5, 6.5, 5.5, 3.5, 5.0, 5.5, 4.0, 4.5, 4.0],  // GPT-5.5
@@ -809,6 +879,7 @@ const BE_PROFILE_DIMS = ["Surface coverage", "Seed fidelity", "Architecture & mo
 const BE_PROFILE = [
   [10.0, 8.8, 8.4, 7.4, 8.6, 7.9, 8.2, 7.3, 7.9],  // Fable
   [10.0, 7.5, 8.0, 7.5, 7.5, 6.5, 6.8, 4.5, 5.0],  // Sonnet
+  [10.0, 7.0, 7.0, 6.0, 6.5, 6.5, 6.5, 3.0, 5.5],  // Opus 4.8
   [9.7, 9.0, 7.5, 6.5, 7.5, 6.5, 7.0, 5.0, 4.5],   // Grok
   [10.0, 8.0, 7.0, 8.5, 6.0, 7.0, 6.0, 6.5, 8.0],  // Sol
   [10.0, 7.0, 7.2, 7.3, 7.3, 6.5, 5.3, 7.0, 4.5],  // GPT-5.5
