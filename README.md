@@ -31,7 +31,8 @@ harder problem.
 | GPT-5.6 Sol | 5.765 | 7.310 | 59:48 | $15.13 |
 | GPT-5.5 | 5.670 | 7.084 | 44:14 | $10.94 |
 
-Full evidence and the combined report are available in [baseline/](baseline/).
+Full evidence is available in [baseline/](baseline/). Read the
+[full report](https://basecamp-bench-report.smw-ai.chatgpt.site).
 
 ## Getting Started
 
