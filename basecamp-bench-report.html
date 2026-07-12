@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Basecamp Bench — Model Evaluation Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --faint: #9a9a9a;
+    --line: #e4e0da;
+    --bg: #faf9f7;
+    --card: #ffffff;
+    --accent: #c15f3c;
+    --fable: #d97757;
+    --sonnet: #8a63d2;
+    --grok: #2f3640;
+    --sol: #10a37f;
+    --gpt55: #74c6ad;
+  }
+  /* LAYOUT RULE — learned the hard way, do not repeat:
+     Constrain page width ONCE, on .wrap. Nothing inside .wrap gets its own
+     max-width. Nested max-widths (78ch on p/ul, 72ch on .sub) made text stop
+     short of the container's right edge, which read as broken, uneven right
+     padding. Every child fills 100% of its parent. If line length needs to
+     change, change .wrap. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.55; font-size: 15.5px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 56px 28px 96px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 36px; }
+  .masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+  .masthead .date { color: var(--muted); font-size: 14.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  h1 { font-size: 28px; letter-spacing: -0.4px; line-height: 1.2; }
+  h2 { font-size: 20px; margin: 52px 0 14px; letter-spacing: -0.2px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { font-size: 16px; margin: 26px 0 8px; }
+  h4 { font-size: 13px; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 16px 20px; }
+  li { margin-bottom: 8px; }
+  table { border-collapse: collapse; width: 100%; margin: 18px 0 8px; font-size: 14px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); border-bottom: 1px solid var(--line); padding: 8px 10px; white-space: nowrap; }
+  th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td { border-bottom: 1px solid var(--line); padding: 8px 10px; }
+  td.winner { font-weight: 600; }
+  .caption { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .score-badge { display: inline-block; padding: 1px 7px; border: 1px solid transparent; border-radius: 999px; font-weight: 600; line-height: 1.35; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .score-strong { color: #175c38; background: #e1f2e8; border-color: #b8ddc7; }
+  .score-good { color: #52611e; background: #eef2dc; border-color: #d4dda9; }
+  .score-mixed { color: #785400; background: #fff0c7; border-color: #efd58b; }
+  .score-weak { color: #864100; background: #fde3c8; border-color: #edbd8b; }
+  .score-poor { color: #882626; background: #f8dddd; border-color: #e9b7b7; }
+  .score-legend { display: flex; flex-wrap: wrap; gap: 7px 12px; align-items: center; margin: 8px 0 22px; color: var(--muted); font-size: 12px; }
+  .score-legend .score-badge { font-size: 11px; }
+  .score-note { margin-left: 6px; color: var(--muted); font-size: 0.78em; font-weight: 500; }
+  .chart-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 24px; margin: 22px 0 30px; }
+  .chart-card h3 { margin-top: 0; }
+  .chart-box { position: relative; height: 380px; margin-top: 12px; }
+  .chart-box.tall { height: 440px; }
+  .model { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 24px; margin: 24px 0; }
+  .model h3 { margin-top: 0; display: flex; align-items: center; gap: 9px; }
+  /* Swatch = chart legend key, not decoration. Same size/shape as the
+     Chart.js legend boxes so the color links each card to its chart series. */
+  .swatch { width: 14px; height: 14px; border-radius: 2px; flex: none; }
+  .m-fable .swatch { background: var(--fable); }
+  .m-sonnet .swatch { background: var(--sonnet); }
+  .m-grok .swatch { background: var(--grok); }
+  .m-sol .swatch { background: var(--sol); }
+  .m-gpt55 .swatch { background: var(--gpt55); }
+  .model li b { display: block; font-weight: 600; margin-bottom: 2px; }
+  .model p:last-child { margin-bottom: 0; }
+  .model .scores { color: var(--muted); font-size: 13.5px; margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+  .legend-note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .foot { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 13px; text-align: center; }
+  .foot a { color: inherit; text-decoration: none; }
+  .foot a:hover { color: var(--muted); text-decoration: underline; }
+  /* Dimension score tiles inside each model card. Bands reuse the
+     score-badge palette above (>=8 strong, 7s good, 6s mixed, 5s weak, <5 poor).
+     Chip tooltip on hover/focus (data-tip) states the rubric criteria. */
+  .dims { margin-top: 16px; }
+  .dims summary { cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  .dims-track { font-size: 11px; letter-spacing: 0.08em; color: var(--faint); font-weight: 600; margin: 14px 0 6px; }
+  .dims-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  /* Capsule tile: ONE rounded container carries the band tint. Score and label
+     both live inside it in the band's dark hue. Never nest a second rounded
+     box inside — mismatched corners read as unfinished CSS. */
+  .tile { display: flex; flex-direction: column; align-items: center; gap: 1px; position: relative; width: 56px; padding: 8px 4px 7px; border-radius: 8px; }
+  .tile.score-strong { color: #175c38; background: #e1f2e8; }
+  .tile.score-good { color: #52611e; background: #eef2dc; }
+  .tile.score-mixed { color: #785400; background: #fff0c7; }
+  .tile.score-weak { color: #864100; background: #fde3c8; }
+  .tile.score-poor { color: #882626; background: #f8dddd; }
+  .tile-box { font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .tile-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.75; }
+  .tile:hover::after, .tile:focus-visible::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 5px 9px; border-radius: 6px; font-size: 12px; line-height: 1.3; white-space: nowrap; z-index: 10; pointer-events: none; }
+  .tile:hover::before, .tile:focus-visible::before { content: ""; position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--ink); z-index: 10; pointer-events: none; }
+  /* Sidebar nav: desktop-only fixed rail in the left gutter. Active item is
+     ink + weight, no pills, no accent bars. Model entries reuse the legend
+     swatch grammar (same .swatch, smaller). Hidden below 1400px. */
+  html { scroll-behavior: smooth; }
+  section[id], .model[id], #results { scroll-margin-top: 28px; }
+  .toc { display: none; }
+  @media (min-width: 1400px) {
+    .toc { display: flex; flex-direction: column; gap: 7px; position: fixed; top: 64px; left: max(24px, calc(50% - 700px)); width: 170px; font-size: 13px; }
+    .toc a { color: var(--muted); text-decoration: none; line-height: 1.4; }
+    .toc a:hover { color: var(--ink); }
+    .toc a.active { color: var(--ink); font-weight: 600; }
+    .toc .toc-model { display: flex; align-items: center; gap: 7px; padding-left: 12px; }
+    .toc .swatch { width: 8px; height: 8px; }
+  }
+  /* Repo chip: a linked code span with the GitHub mark. Square corners like
+     code spans (pills are reserved for score bands). */
+  .repo-chip { display: inline-flex; align-items: center; gap: 5px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.88em; background: #f1efeb; padding: 2px 8px; border-radius: 4px; color: var(--ink); text-decoration: none; }
+  .repo-chip:hover { text-decoration: underline; }
+  .repo-chip svg { width: 12px; height: 12px; flex: none; }
+  .repo-map { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.7; background: #f1efeb; padding: 10px 14px; border-radius: 6px; margin: 0 0 14px; overflow-x: auto; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.88em; background: #f1efeb; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc" aria-label="Sections">
+  <a href="#briefing">Briefing</a>
+  <a href="#results">Results</a>
+  <a href="#charts">Charts</a>
+  <a href="#models">Deep dives</a>
+  <a href="#m-fable" class="toc-model m-fable"><span class="swatch"></span>Fable 5</a>
+  <a href="#m-sonnet" class="toc-model m-sonnet"><span class="swatch"></span>Sonnet 5</a>
+  <a href="#m-grok" class="toc-model m-grok"><span class="swatch"></span>Grok 4.5</a>
+  <a href="#m-sol" class="toc-model m-sol"><span class="swatch"></span>GPT-5.6 Sol</a>
+  <a href="#m-gpt55" class="toc-model m-gpt55"><span class="swatch"></span>GPT-5.5</a>
+  <a href="#commentary">Commentary</a>
+  <a href="#methodology">Methodology</a>
+</nav>
+
+<header>
+  <div class="masthead">
+    <h1>Basecamp Bench</h1>
+    <span class="date">eval 2026-07-11.2 · July 11, 2026</span>
+  </div>
+</header>
+
+<!-- ============ EXECUTIVE BRIEFING ============ -->
+<section id="briefing">
+  <p>Basecamp Bench measures a model's ability to ship production-grade software from a fixed specification on a well-known application. Each workspace begins like a real greenfield project: <code>AGENTS.md</code> maps the source material and sets its order of precedence, <code>DESIGN.md</code> provides production design tokens, and <code>INIT.md</code> specifies the product, domain model, and sample data. Each project item uses a shared <code>Recording</code> model that unifies identity, lifecycle, visibility, comments, reactions, subscriptions, and events across tools. Agents build two parts of a Basecamp 5 clone: a single-file frontend SPA evaluated as a release-ready product across 11 weighted dimensions and nine reference screenshots, and a production-ready backend API implementing all 203 operations in the canonical OpenAPI contract across 9 weighted dimensions. All implementation and architecture decisions are evaluated as written for direct production use. Each model starts without an existing implementation, so it must translate the same complete requirements and reference materials into its own architecture and product decisions. The benchmark reveals how well each model exercises greenfield engineering judgment, prioritizes competing concerns, and carries those decisions through to working software.</p>
+
+  <p>The results reveal how each model applies engineering judgment and effort from the same starting point. Fable 5 leads both tracks because it builds the shared Recording model described in the specification and connects every surface and endpoint to it. This decision strengthens product modeling, surface coverage, seed fidelity, and behavioral depth. Backend scores cluster tightly because most models register the complete route surface. Invariant enforcement, contract-correct responses, and honest failure handling separate them. Frontend scores vary more because models make different tradeoffs between breadth and functional depth. Sonnet prioritizes working, persistent workflows, while GPT-5.5 prioritizes visual polish and leaves many controls inert, creating a 1.3-point gap. Grok 4.5 delivers the strongest balance of speed, cost, and functional depth, outperforming Sol 5.6 on the frontend and nearly matching it on the backend. Sol 5.6 shows greater backend discipline through explicit failure handling and operational safeguards, but its shallow frontend workflows limit its overall performance.</p>
+
+  <ul>
+    <li>Fable 5 wins FE (7.578) and BE (8.392) decisively, at 2.3 to 10 times the cost of every other model. Fable implements broad capability and still has four hardening defects: unsanitized stored HTML, corrupted copy IDs, wildcard CORS with Authorization, and production logs that expose seed tokens.</li>
+    <li>Sonnet 5 is the clear FE runner-up (6.982) with real persisted workflows and the field's only rich-text sanitizer. Its backend contains two critical authorization defects. A client token can delete the sample project, and an unauthenticated endpoint exposes every raw credential.</li>
+    <li>Grok 4.5 has the lowest total cost at $9.30 and completes both tracks in 37 minutes. Its main deductions come from validation, partial feature handling, narrow-screen navigation, and malformed stored state.</li>
+    <li>GPT-5.6 Sol places second on backend with strong operability and 71 explicit <code>501</code> stubs. Its frontend places fourth and leaves most controls inert. Its generic router introduces a type error that allows a todo request to return a Message.</li>
+    <li>GPT-5.5 ships the only backend with restart persistence. Its frontend scores last at 5.670. The Post button fires a "Comment posted" toast without reading the textarea or writing state, and malformed storage crashes the app at boot.</li>
+    <li>Shared failure modes across all five: zero tests, no lifecycle cascade (archiving a parent strands active children), null-versus-string schema drift, permissive defaults (wildcard CORS, unauthenticated reset, credentials in logs), and enabled-looking controls with no handler behind them.</li>
+  </ul>
+
+  <table id="results">
+    <thead>
+      <tr><th>Model</th><th class="num">FE score</th><th class="num">FE time</th><th class="num">FE cost</th><th class="num">BE score</th><th class="num">BE time</th><th class="num">BE cost</th><th class="num">Total cost</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Fable 5</td><td class="num winner">7.578</td><td class="num">1:02:14</td><td class="num">$32.40</td><td class="num winner">8.392</td><td class="num">1:04:26</td><td class="num">$53.47</td><td class="num">$85.87</td></tr>
+      <tr><td>Sonnet 5</td><td class="num">6.982</td><td class="num">44:17</td><td class="num">$14.22</td><td class="num">7.243</td><td class="num">42:52</td><td class="num">$22.01</td><td class="num">$36.23</td></tr>
+      <tr><td>Grok 4.5</td><td class="num">6.384</td><td class="num winner">15:22</td><td class="num winner">$3.95</td><td class="num">7.278</td><td class="num winner">21:26</td><td class="num winner">$5.35</td><td class="num winner">$9.30</td></tr>
+      <tr><td>GPT-5.6 Sol</td><td class="num">5.765</td><td class="num">25:45</td><td class="num">$7.96</td><td class="num">7.310</td><td class="num">34:03</td><td class="num">$7.17</td><td class="num">$15.13</td></tr>
+      <tr><td>GPT-5.5</td><td class="num">5.670</td><td class="num">18:21</td><td class="num">$4.73</td><td class="num">7.084</td><td class="num">25:53</td><td class="num">$6.21</td><td class="num">$10.94</td></tr>
+    </tbody>
+  </table>
+  <p class="caption">Scores are weighted composites computed by the benchmark runner from per-dimension judge scores (0–10).</p>
+</section>
+
+<!-- ============ VISUALIZATIONS ============ -->
+<section id="charts">
+  <h2>Charts</h2>
+
+  <div class="chart-card">
+    <h3>Quality versus cost</h3>
+    <p class="caption">Each model appears twice: circle = frontend, triangle = backend</p>
+    <div class="chart-box"><canvas id="scatter"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <h3>Frontend dimensions</h3>
+    <p class="caption">Functional depth spans 3.5 to 8.1, accessibility never clears 6.0</p>
+    <div class="chart-box tall"><canvas id="feProfile"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <h3>Backend dimensions</h3>
+    <p class="caption">Four perfect 10s on coverage, scope honesty falls to 4.5</p>
+    <div class="chart-box tall"><canvas id="beDims"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <h3>Frontend versus backend gap</h3>
+    <p class="caption">All models score higher on backend, gaps +0.3 to +1.5</p>
+    <div class="chart-box"><canvas id="gap"></canvas></div>
+  </div>
+</section>
+
+<!-- ============ MODEL DEEP DIVES ============ -->
+<section id="models">
+  <h2>Model deep dives</h2>
+  <div class="score-legend" aria-label="Score color bands">
+    <span class="score-badge score-strong">8.0–10 Strong</span>
+    <span class="score-badge score-good">7.0–7.9 Good</span>
+    <span class="score-badge score-mixed">6.0–6.9 Mixed</span>
+    <span class="score-badge score-weak">5.0–5.9 Weak</span>
+    <span class="score-badge score-poor">0–4.9 Poor</span>
+  </div>
+
+  <!-- FABLE -->
+  <div class="model m-fable" id="m-fable">
+    <h3><span class="swatch"></span>Fable 5 — highest scores and greatest functional depth</h3>
+    <p class="scores">FE 7.578 · BE 8.392 · $85.87 total · 2:06:40 total</p>
+    <p>Fable treated both tracks as systems problems. Its backend registered all 203 operations with explicit handlers and no stubs, and its frontend routes every screen through one shared recording store, so activity, search, trash, and notifications read the same data. It is the only model whose lifecycle invariants held under testing: archiving a parent propagated to children, archived content rejected mutation, and unarchiving reversed it.</p>
+
+    <h4>Where it shines</h4>
+    <ul>
+      <li><b data-scores="BE Surface:10.0">Complete API with deep workflows</b>203/203 operations implemented, 35 of 37 state assertions passed, cross-resource invariants enforced explicitly: assignees must see the project, todo moves stay in-bucket, card moves stay in-board.</li>
+      <li><b data-scores="BE Seed:8.8|FE Product model:9.2">Exact seed across both tracks</b>The exact nine-person cast, five threaded messages with mentions and boosts, the full Kanban state, and a 16-line chat, reproduced nearly verbatim.</li>
+      <li><b data-scores="FE Surface:9.0|FE Depth:8.1">Broad product with persistent workflows</b>Nine required surfaces plus Adminland, Trash, Reports, Search, and profiles, with create/edit/comment/move/archive/restore workflows that mutate and persist.</li>
+      <li><b>HTTP plumbing</b>ETags with 304s, HEAD, 405 + Allow, pagination with Link headers, consistent error envelopes, graceful shutdown.</li>
+    </ul>
+
+    <h4>Where it's okay</h4>
+    <ul>
+      <li><b data-scores="BE Validation:7.3">Malformed input and SSRF checks remain weak</b>Accepts <code>2025-02-31</code> as a date, accepts JSON without a Content-Type, coerces <code>active: "false"</code> to true, and webhook SSRF checks compare URL strings and never resolve DNS, so a hostname pointing at an internal IP passes.</li>
+      <li><b data-scores="BE Operability:7.4">Healthy runtime with an incomplete reset</b>Zero-install with health endpoints and structured logs, but no tests, no manifest, and reset doesn't clear the rate limiter: requests stayed 429-limited after reset.</li>
+      <li><b data-scores="FE State:6.8|FE Interaction:7.2">Persistent shared state with weak modal UX</b>Nearly every mutation persists through one graph, but modals don't trap or restore focus and editing leans on deprecated <code>execCommand</code> and native prompts.</li>
+    </ul>
+
+    <h4>Where it underperforms</h4>
+    <ul>
+      <li><b data-scores="FE Accessibility:5.0">Mobile controls lose accessible names</b>Below 760px five fixed controls lose their accessible names entirely, star buttons nest inside links, menus lack menu-item semantics.</li>
+      <li><b data-scores="FE Reliability:6.2">Stored HTML creates an XSS risk</b>Rich text is stored from <code>innerHTML</code> and rendered raw across comments, docs, chat, and notes, so any markup that reaches storage executes on render. URLs accepted without scheme validation.</li>
+      <li><b>Data integrity</b>"Make a copy" passes an undefined ID that overwrites the generated one, corrupting the copied record. Permanent delete removes a record and its direct children only, leaving grandchildren, events, boosts, and bookmarks pointing at dead IDs.</li>
+    </ul>
+
+    <h4>Failure modes</h4>
+    <p>Fable's remaining defects cluster in security, configuration, and data-integrity review. The submission renders stored HTML without sanitization, prints production tokens by default, allows wildcard CORS with Authorization, and overstates support for operations whose prerequisite state remains unreachable. A sanitizer, safer configuration defaults, and a corrected copy operation address these defects within the existing architecture.</p>
+
+    <details class="dims">
+      <summary>Dimension scores</summary>
+      <div class="dims-track">FRONTEND</div>
+      <div class="dims-row">
+        <span class="tile score-strong" data-tip="Accuracy against the nine reference screenshots and specs" tabindex="0"><span class="tile-box">8.0</span><span class="tile-label">Ref</span></span>
+        <span class="tile score-strong" data-tip="Typography, color, spacing, token, and motion consistency" tabindex="0"><span class="tile-box">8.1</span><span class="tile-label">Craft</span></span>
+        <span class="tile score-strong" data-tip="Accuracy and richness of Basecamp concepts and relationships" tabindex="0"><span class="tile-box">9.2</span><span class="tile-label">Model</span></span>
+        <span class="tile score-strong" data-tip="Breadth of reachable screens, routes, overlays, empty states" tabindex="0"><span class="tile-box">9.0</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-strong" data-tip="Workflows run end-to-end instead of ending in stubs" tabindex="0"><span class="tile-box">8.1</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-good" data-tip="Discoverability, feedback, keyboard efficiency, focus, error recovery" tabindex="0"><span class="tile-box">7.2</span><span class="tile-label">Inter</span></span>
+        <span class="tile score-mixed" data-tip="Correct state across mutations, navigation, reloads, resets" tabindex="0"><span class="tile-box">6.8</span><span class="tile-label">State</span></span>
+        <span class="tile score-mixed" data-tip="Usability and feature preservation across viewport sizes" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Resp</span></span>
+        <span class="tile score-weak" data-tip="Semantics, accessible names, keyboard operability, focus, contrast" tabindex="0"><span class="tile-box">5.0</span><span class="tile-label">A11y</span></span>
+        <span class="tile score-good" data-tip="Readability, modularity, reuse, ease of safe modification" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-mixed" data-tip="Runtime stability, input escaping, defensive handling, performance" tabindex="0"><span class="tile-box">6.2</span><span class="tile-label">Rely</span></span>
+      </div>
+      <div class="dims-track">BACKEND</div>
+      <div class="dims-row">
+        <span class="tile score-strong" data-tip="Coherent shared domain model with enforced invariants" tabindex="0"><span class="tile-box">8.4</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-strong" data-tip="All 203 canonical operations registered and reachable" tabindex="0"><span class="tile-box">10.0</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-strong" data-tip="Real stateful mutations, lifecycle, cross-resource behavior" tabindex="0"><span class="tile-box">8.6</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-strong" data-tip="Statuses, headers, pagination, response shapes match OpenAPI" tabindex="0"><span class="tile-box">8.2</span><span class="tile-label">HTTP</span></span>
+        <span class="tile score-strong" data-tip="Sample data matches the specified deterministic inventory" tabindex="0"><span class="tile-box">8.8</span><span class="tile-label">Seed</span></span>
+        <span class="tile score-good" data-tip="Authentication, authorization, input validation, request hardening" tabindex="0"><span class="tile-box">7.3</span><span class="tile-label">Valid</span></span>
+        <span class="tile score-good" data-tip="Configuration, health, logging, shutdown, packaging, testability" tabindex="0"><span class="tile-box">7.4</span><span class="tile-label">Ops</span></span>
+        <span class="tile score-good" data-tip="Readability, structure, naming, safe extensibility" tabindex="0"><span class="tile-box">7.9</span><span class="tile-label">Code</span></span>
+        <span class="tile score-good" data-tip="Incomplete features fail explicitly, never fake success" tabindex="0"><span class="tile-box">7.9</span><span class="tile-label">Hnsty</span></span>
+      </div>
+    </details>
+  </div>
+
+  <!-- SONNET -->
+  <div class="model m-sonnet" id="m-sonnet">
+    <h3><span class="swatch"></span>Sonnet 5 — strong frontend with critical backend authorization defects</h3>
+    <p class="scores">FE 6.982 · BE 7.243 · $36.23 total · 1:27:09 total</p>
+    <p>Sonnet builds the second-highest-scoring frontend with a shared recordings map, faithful sample data, and persistent workflows. Its backend earns the second-highest architecture and modeling score at 8.0. Backend authorization defects drive its largest deductions.</p>
+
+    <h4>Where it shines</h4>
+    <ul>
+      <li><b data-scores="FE Product model:8.8">One shared graph powers every surface</b>74 recordings with events, comments, boosts, readings, and bookmarks in one deterministic graph. All eight screenshot surfaces reachable plus ten optional destinations.</li>
+      <li><b>FE workflows</b>Verified creation of messages, docs, to-dos, cards, projects, and columns, plus completion, comments, boosts, card moves, and trash/restore, all surviving reload.</li>
+      <li><b>Rich-text sanitizer</b>The only allowlist sanitizer in the field. Every other model either escaped everything or rendered raw HTML.</li>
+      <li><b data-scores="BE Surface:10.0">Complete routes with working lifecycles</b>Verified end-to-end project, message, and todo lifecycles, 403 on non-owner edits, reset invalidating pre-reset tokens.</li>
+    </ul>
+
+    <h4>Where it's okay</h4>
+    <ul>
+      <li><b data-scores="BE Contract:6.8">Pagination and response schemas drift</b>Correct statuses and envelopes, but 18 of 44 paginated operations skip pagination, sort/direction params are ignored, and nulls appear where the schema requires strings.</li>
+      <li><b data-scores="FE Interaction:6.0|FE Responsive:5.9">Rerenders break focus and mobile actions</b>Whole-app rerenders drop focus, hover-only actions vanish on touch, the calendar stays seven columns at every width.</li>
+      <li><b data-scores="BE Operability:7.5">Healthy runtime with memory-only state</b>Health checks, structured logs, graceful shutdown. State is memory-only and there are no tests.</li>
+    </ul>
+
+    <h4>Where it underperforms</h4>
+    <ul>
+      <li><b data-scores="BE Validation:4.5">Client tokens can trash projects</b>A client token issued <code>DELETE /1/projects/1011</code> and got 204, trashing the sample project. Unauthenticated <code>GET /_seed/tokens</code> returns every raw bearer credential, and reset ships enabled by default.</li>
+      <li><b>Broken emitted URLs</b>Resource URLs append <code>.json</code> where the registered routes don't, so following a returned project URL yields 400. Navigability breaks on the API's own links.</li>
+      <li><b>FE loose ends</b>19 explicit no-op controls, and the primary Message Board "New message" button has no dispatch case at all while the quick-add path works. Reset leaves bookmarks, readings, and notes behind.</li>
+    </ul>
+
+    <h4>Failure modes</h4>
+    <p>Sonnet implements substantial functionality but leaves 19 controls and several primary actions disconnected from their handlers. The frontend's New message button has no dispatch case. The backend exposes credentials by default, and its <code>notImplemented</code> error helper is never called. Partial features return successful empty responses.</p>
+
+    <details class="dims">
+      <summary>Dimension scores</summary>
+      <div class="dims-track">FRONTEND</div>
+      <div class="dims-row">
+        <span class="tile score-good" data-tip="Accuracy against the nine reference screenshots and specs" tabindex="0"><span class="tile-box">7.8</span><span class="tile-label">Ref</span></span>
+        <span class="tile score-good" data-tip="Typography, color, spacing, token, and motion consistency" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Craft</span></span>
+        <span class="tile score-strong" data-tip="Accuracy and richness of Basecamp concepts and relationships" tabindex="0"><span class="tile-box">8.8</span><span class="tile-label">Model</span></span>
+        <span class="tile score-strong" data-tip="Breadth of reachable screens, routes, overlays, empty states" tabindex="0"><span class="tile-box">8.2</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-good" data-tip="Workflows run end-to-end instead of ending in stubs" tabindex="0"><span class="tile-box">7.1</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-mixed" data-tip="Discoverability, feedback, keyboard efficiency, focus, error recovery" tabindex="0"><span class="tile-box">6.0</span><span class="tile-label">Inter</span></span>
+        <span class="tile score-weak" data-tip="Correct state across mutations, navigation, reloads, resets" tabindex="0"><span class="tile-box">5.8</span><span class="tile-label">State</span></span>
+        <span class="tile score-weak" data-tip="Usability and feature preservation across viewport sizes" tabindex="0"><span class="tile-box">5.9</span><span class="tile-label">Resp</span></span>
+        <span class="tile score-weak" data-tip="Semantics, accessible names, keyboard operability, focus, contrast" tabindex="0"><span class="tile-box">5.2</span><span class="tile-label">A11y</span></span>
+        <span class="tile score-mixed" data-tip="Readability, modularity, reuse, ease of safe modification" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-mixed" data-tip="Runtime stability, input escaping, defensive handling, performance" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Rely</span></span>
+      </div>
+      <div class="dims-track">BACKEND</div>
+      <div class="dims-row">
+        <span class="tile score-strong" data-tip="Coherent shared domain model with enforced invariants" tabindex="0"><span class="tile-box">8.0</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-strong" data-tip="All 203 canonical operations registered and reachable" tabindex="0"><span class="tile-box">10.0</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-good" data-tip="Real stateful mutations, lifecycle, cross-resource behavior" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-mixed" data-tip="Statuses, headers, pagination, response shapes match OpenAPI" tabindex="0"><span class="tile-box">6.8</span><span class="tile-label">HTTP</span></span>
+        <span class="tile score-good" data-tip="Sample data matches the specified deterministic inventory" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Seed</span></span>
+        <span class="tile score-poor" data-tip="Authentication, authorization, input validation, request hardening" tabindex="0"><span class="tile-box">4.5</span><span class="tile-label">Valid</span></span>
+        <span class="tile score-good" data-tip="Configuration, health, logging, shutdown, packaging, testability" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Ops</span></span>
+        <span class="tile score-mixed" data-tip="Readability, structure, naming, safe extensibility" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Code</span></span>
+        <span class="tile score-weak" data-tip="Incomplete features fail explicitly, never fake success" tabindex="0"><span class="tile-box">5.0</span><span class="tile-label">Hnsty</span></span>
+      </div>
+    </details>
+  </div>
+
+  <!-- GROK -->
+  <div class="model m-grok" id="m-grok">
+    <h3><span class="swatch"></span>Grok 4.5 — lowest cost with competitive scores</h3>
+    <p class="scores">FE 6.384 · BE 7.278 · $9.30 total · 36:48 total</p>
+    <p>Grok produces roughly 85% of Fable's score for 11% of the cost and 29% of the time. Its backend earns the field's highest seed-data score at 9.0, and its frontend has stronger functional depth than either OpenAI entry. The lower cost corresponds with weaker input validation, edge-case handling, and reporting of incomplete features.</p>
+
+    <h4>Where it shines</h4>
+    <ul>
+      <li><b>Speed and cost</b>Both tracks done in 37 minutes for under $10, while landing above both OpenAI models on FE and within 0.11 of second place on BE.</li>
+      <li><b data-scores="BE Seed:9.0">Rich seed data with stable API IDs</b>The full verified inventory of five messages, ten todos, thirteen cards, and sixteen chat lines, navigable through the live API with stable IDs.</li>
+      <li><b>Verified stateful flows</b>Project and todo CRUD with lifecycle, comments incrementing counts, boosts, subscriptions, and correct pagination across 21 projects with proper Link headers.</li>
+      <li><b data-scores="FE Product model:8.0">Dense sample data connects every tool</b>Categories, pinned messages, watchers, on-hold lanes, and a coherent cross-tool narrative.</li>
+    </ul>
+
+    <h4>Where it's okay</h4>
+    <ul>
+      <li><b data-scores="FE Depth:6.5">Core workflows persist, but editing is absent</b>Creation, completion, comments, boosts, card moves, and chat all work and persist. Editing and deletion don't exist, and Bubble Up is a toast with no state change.</li>
+      <li><b data-scores="BE Architecture:7.5">Shared recordings stop cascading too early</b>A real shared recording table with generic events and lifecycle actions, but cascade stops at immediate children: archiving a board archived its message and left the message's comment active.</li>
+      <li><b data-scores="BE Contract:7.0">Response statuses drift at the edges</b>Rich canonical shapes and correct statuses in most places, undermined by two operations returning 200 bodies where the spec requires 204.</li>
+    </ul>
+
+    <h4>Where it underperforms</h4>
+    <ul>
+      <li><b data-scores="BE Validation:5.0">Invalid input reaches server errors</b>An invalid numeric ID returns 500, router literals are compiled as unescaped regex so <code>/projects/1000Xjson</code> matched and returned project 1000, and the default unauthenticated reset destroyed runtime state in testing.</li>
+      <li><b>Route shadowing</b>The canonical <code>projects/recordings.json</code> operation is intercepted by an earlier route and 500s, the only unreachable canonical operation in the field.</li>
+      <li><b data-scores="FE Responsive:4.0">Mobile layouts and malformed state break</b>No mobile navigation model, a fixed footer that overflows at every narrow width, and stored state containing only <code>{version: 1}</code> crashes boot. Creating projects across a reload produces duplicate IDs.</li>
+      <li><b data-scores="BE Scope honesty:4.5">Partial features report success</b>The header claims no hollow surface while cloning copies the tool container and none of its content yet reports success, template construction reports completion on an empty project, and reminders always return an empty success.</li>
+    </ul>
+
+    <h4>Failure modes</h4>
+    <p>Grok's failures concentrate in validation, malformed state, responsive behavior, and partial features. Client mistakes become 500s, malformed persistence causes crashes, partial features report success, and the public root response exposes credentials. Its four lowest dimensions are responsive adaptation at 4.0, scope honesty at 4.5, accessibility at 4.8, and validation at 5.0. Addressing these dimensions requires additional implementation and review time.</p>
+
+    <details class="dims">
+      <summary>Dimension scores</summary>
+      <div class="dims-track">FRONTEND</div>
+      <div class="dims-row">
+        <span class="tile score-good" data-tip="Accuracy against the nine reference screenshots and specs" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Ref</span></span>
+        <span class="tile score-good" data-tip="Typography, color, spacing, token, and motion consistency" tabindex="0"><span class="tile-box">7.2</span><span class="tile-label">Craft</span></span>
+        <span class="tile score-strong" data-tip="Accuracy and richness of Basecamp concepts and relationships" tabindex="0"><span class="tile-box">8.0</span><span class="tile-label">Model</span></span>
+        <span class="tile score-good" data-tip="Breadth of reachable screens, routes, overlays, empty states" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-mixed" data-tip="Workflows run end-to-end instead of ending in stubs" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-mixed" data-tip="Discoverability, feedback, keyboard efficiency, focus, error recovery" tabindex="0"><span class="tile-box">6.1</span><span class="tile-label">Inter</span></span>
+        <span class="tile score-mixed" data-tip="Correct state across mutations, navigation, reloads, resets" tabindex="0"><span class="tile-box">6.0</span><span class="tile-label">State</span></span>
+        <span class="tile score-poor" data-tip="Usability and feature preservation across viewport sizes" tabindex="0"><span class="tile-box">4.0</span><span class="tile-label">Resp</span></span>
+        <span class="tile score-poor" data-tip="Semantics, accessible names, keyboard operability, focus, contrast" tabindex="0"><span class="tile-box">4.8</span><span class="tile-label">A11y</span></span>
+        <span class="tile score-weak" data-tip="Readability, modularity, reuse, ease of safe modification" tabindex="0"><span class="tile-box">5.5</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-mixed" data-tip="Runtime stability, input escaping, defensive handling, performance" tabindex="0"><span class="tile-box">6.0</span><span class="tile-label">Rely</span></span>
+      </div>
+      <div class="dims-track">BACKEND</div>
+      <div class="dims-row">
+        <span class="tile score-good" data-tip="Coherent shared domain model with enforced invariants" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-strong" data-tip="All 203 canonical operations registered and reachable" tabindex="0"><span class="tile-box">9.7</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-good" data-tip="Real stateful mutations, lifecycle, cross-resource behavior" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-good" data-tip="Statuses, headers, pagination, response shapes match OpenAPI" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">HTTP</span></span>
+        <span class="tile score-strong" data-tip="Sample data matches the specified deterministic inventory" tabindex="0"><span class="tile-box">9.0</span><span class="tile-label">Seed</span></span>
+        <span class="tile score-weak" data-tip="Authentication, authorization, input validation, request hardening" tabindex="0"><span class="tile-box">5.0</span><span class="tile-label">Valid</span></span>
+        <span class="tile score-mixed" data-tip="Configuration, health, logging, shutdown, packaging, testability" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Ops</span></span>
+        <span class="tile score-mixed" data-tip="Readability, structure, naming, safe extensibility" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Code</span></span>
+        <span class="tile score-poor" data-tip="Incomplete features fail explicitly, never fake success" tabindex="0"><span class="tile-box">4.5</span><span class="tile-label">Hnsty</span></span>
+      </div>
+    </details>
+  </div>
+
+  <!-- SOL -->
+  <div class="model m-sol" id="m-sol">
+    <h3><span class="swatch"></span>GPT-5.6 Sol — strong operability with explicit backend limitations</h3>
+    <p class="scores">FE 5.765 · BE 7.310 · $15.13 total · 59:48 total</p>
+    <p>Sol implements 132 backend operations, marks the remaining 71 with explicit <code>501</code> responses, and provides the strongest operational scaffolding in the field. These decisions earn it second place on BE. Its frontend leaves twelve controls marked as prototypes and provides no complete create, edit, comment, or delete workflow.</p>
+
+    <h4>Where it shines</h4>
+    <ul>
+      <li><b data-scores="BE Scope honesty:8.0">Unsupported operations return explicit 501s</b>Every unimplemented operation returns an explicit <code>501 not_implemented</code>. Binary and multipart uploads return explicit 501s instead of pretending to store files. No fabricated CRUD.</li>
+      <li><b data-scores="BE Operability:8.5">Strongest production scaffolding in the field</b>Environment validation, allowlisted CORS, atomic mode-0600 state persistence, structured logs with request IDs, graceful shutdown, and exported router/state/reset functions so tests can drive it without a socket.</li>
+      <li><b>Genuinely stateful idempotency</b>Replaying a creation key returned the same ID with <code>Idempotency-Replayed: true</code>, and changing the payload under that key returned 409.</li>
+      <li><b data-scores="BE Surface:10.0">The contract generates every route</b>Compiles all 203 operations directly from the OpenAPI document and asserts the count, giving coverage by construction.</li>
+    </ul>
+
+    <h4>Where it's okay</h4>
+    <ul>
+      <li><b data-scores="BE Seed:8.0">Core seed data omits events and assignees</b>The right project, cast, dock, and counts, with specific gaps: missing assignees on the Review card, eight chat authors instead of five, absent completion events.</li>
+      <li><b data-scores="FE Visual:7.0">Coherent design with weak iconography</b>Coherent tokens, dark/light themes, reduced motion, and detailed empty states, all wrapped around emoji icons and gradient-initial avatars.</li>
+      <li><b data-scores="FE Accessibility:6.0">Best focus management in the field</b>Labeled jump dialog, focus restoration, inert closed layers, foundations most other models skipped. It is the only frontend that restores focus to the triggering control.</li>
+    </ul>
+
+    <h4>Where it underperforms</h4>
+    <ul>
+      <li><b>The generic router erases types</b>A GET for a todo returned a Message with 200, and a POST created a Todo whose parent was a Message. Both defects trace to one function, <code>routedRecording()</code>, which resolves an ID without ever checking resource type or parent.</li>
+      <li><b data-scores="BE Depth:6.0">Explicit stubs limit workflow depth</b>71 stubs cap it, trashed todos still appear in normal lists, archive doesn't cascade despite serializing <code>inherits_status</code>, and a valid chunked request body is rejected for lacking Content-Length.</li>
+      <li><b data-scores="FE Depth:4.0">Core workflows remain prototypes</b>Twelve controls self-report prototype status and more are silently inert. No create, edit, comment, or delete workflow exists end to end. Persistence covers four localStorage keys.</li>
+      <li><b>FE state handling</b>Malformed JSON aborts boot, wrong-shaped data crashes renderers, and invalid detail IDs silently render the first record, so a broken link shows wrong data with no error.</li>
+    </ul>
+
+    <h4>Failure modes</h4>
+    <p>Sol's backend reports 71 unsupported operations explicitly. Its frontend leaves twelve controls marked as prototypes, keeps other controls inert without feedback, and routes invalid detail links to the wrong record. The generic recording router simplifies dispatch but removes type context, causing the submission's most serious correctness defects. This loss of type context makes each new handler vulnerable to the same errors.</p>
+
+    <details class="dims">
+      <summary>Dimension scores</summary>
+      <div class="dims-track">FRONTEND</div>
+      <div class="dims-row">
+        <span class="tile score-mixed" data-tip="Accuracy against the nine reference screenshots and specs" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Ref</span></span>
+        <span class="tile score-good" data-tip="Typography, color, spacing, token, and motion consistency" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Craft</span></span>
+        <span class="tile score-mixed" data-tip="Accuracy and richness of Basecamp concepts and relationships" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Model</span></span>
+        <span class="tile score-good" data-tip="Breadth of reachable screens, routes, overlays, empty states" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-poor" data-tip="Workflows run end-to-end instead of ending in stubs" tabindex="0"><span class="tile-box">4.0</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-weak" data-tip="Discoverability, feedback, keyboard efficiency, focus, error recovery" tabindex="0"><span class="tile-box">5.0</span><span class="tile-label">Inter</span></span>
+        <span class="tile score-poor" data-tip="Correct state across mutations, navigation, reloads, resets" tabindex="0"><span class="tile-box">4.5</span><span class="tile-label">State</span></span>
+        <span class="tile score-mixed" data-tip="Usability and feature preservation across viewport sizes" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Resp</span></span>
+        <span class="tile score-mixed" data-tip="Semantics, accessible names, keyboard operability, focus, contrast" tabindex="0"><span class="tile-box">6.0</span><span class="tile-label">A11y</span></span>
+        <span class="tile score-weak" data-tip="Readability, modularity, reuse, ease of safe modification" tabindex="0"><span class="tile-box">5.0</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-weak" data-tip="Runtime stability, input escaping, defensive handling, performance" tabindex="0"><span class="tile-box">5.0</span><span class="tile-label">Rely</span></span>
+      </div>
+      <div class="dims-track">BACKEND</div>
+      <div class="dims-row">
+        <span class="tile score-good" data-tip="Coherent shared domain model with enforced invariants" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-strong" data-tip="All 203 canonical operations registered and reachable" tabindex="0"><span class="tile-box">10.0</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-mixed" data-tip="Real stateful mutations, lifecycle, cross-resource behavior" tabindex="0"><span class="tile-box">6.0</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-mixed" data-tip="Statuses, headers, pagination, response shapes match OpenAPI" tabindex="0"><span class="tile-box">6.0</span><span class="tile-label">HTTP</span></span>
+        <span class="tile score-strong" data-tip="Sample data matches the specified deterministic inventory" tabindex="0"><span class="tile-box">8.0</span><span class="tile-label">Seed</span></span>
+        <span class="tile score-mixed" data-tip="Authentication, authorization, input validation, request hardening" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Valid</span></span>
+        <span class="tile score-strong" data-tip="Configuration, health, logging, shutdown, packaging, testability" tabindex="0"><span class="tile-box">8.5</span><span class="tile-label">Ops</span></span>
+        <span class="tile score-good" data-tip="Readability, structure, naming, safe extensibility" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Code</span></span>
+        <span class="tile score-strong" data-tip="Incomplete features fail explicitly, never fake success" tabindex="0"><span class="tile-box">8.0</span><span class="tile-label">Hnsty</span></span>
+      </div>
+    </details>
+  </div>
+
+  <!-- GPT-5.5 -->
+  <div class="model m-gpt55" id="m-gpt55">
+    <h3><span class="swatch"></span>GPT-5.5 — durable backend with limited frontend behavior</h3>
+    <p class="scores">FE 5.670 · BE 7.084 · $10.94 total · 44:14 total</p>
+    <p>GPT-5.5 ships the only backend in the field with durable persistence: a SQLite store whose created todos and comments survive a full restart. Complete route coverage and solid hardening basics support its 7.084 backend score. Its frontend scores 5.670, last in the field. All nine required screens render, but no creation, editing, commenting, or movement works, and toasts confirm actions that never ran.</p>
+
+    <h4>Where it shines</h4>
+    <ul>
+      <li><b>Durability</b>Verified restart persistence over the same SQLite file, WAL mode, atomic idempotency replay with 409 on conflict, and owner reset restoring the stable seed. No other model kept state across a process.</li>
+      <li><b data-scores="BE Surface:10.0">Every contract operation is registered</b>All 203 operations loaded from the spec into the route table with zero collisions.</li>
+      <li><b>Hardening basics</b>415 on wrong media types, 413 over 10 MiB, 405 with Allow, malformed JSON errors with line and column, client-mutation 403s, and client tokens blocked from reading internal-only content.</li>
+      <li><b>Cheap and fast</b>$10.94 and 44 minutes for both tracks.</li>
+    </ul>
+
+    <h4>Where it's okay</h4>
+    <ul>
+      <li><b data-scores="BE Modeling:7.2">Shared records develop projection drift</b>A real shared recording foundation over SQLite, weakened by projection drift: disabling a tool updated the tool row while the project's embedded dock still said enabled.</li>
+      <li><b data-scores="BE Seed:7.0">Seed data is incomplete and nondeterministic</b>The main graph matches the specification, but subscriptions, chat volume, and deterministic timestamps do not. The kickoff has zero required subscriptions, the seed contains eight chat lines instead of sixteen, and wall-clock timestamps break the determinism requirement.</li>
+      <li><b data-scores="FE Visual:7.5">Polished shell with disciplined tokens</b>A coherent token system and disciplined dark shell give GPT-5.5 higher visual-craft scores than Grok and Sol.</li>
+    </ul>
+
+    <h4>Where it underperforms</h4>
+    <ul>
+      <li><b data-scores="BE Contract:5.3" data-score-note="worst in field">Schemas and success statuses drift</b>16 of 26 seeded responses failed schema validation, 14 operations returned undocumented success statuses, and a spec-valid schedule entry was rejected because the generic creator demands a <code>title</code>.</li>
+      <li><b data-scores="BE Scope honesty:4.5">Missing parents still return success</b>Creating an answer under nonexistent question 999999 returned 201, template construction under a nonexistent template returned 201, and MarkAsRead reports success while every notification stays unread.</li>
+      <li><b data-scores="FE Depth:3.5" data-score-note="worst in field">Controls confirm actions without mutations</b>Toasts announce "Comment posted" and "Chat line posted" without reading the textarea or touching state. No creation, editing, commenting, movement, or deletion works anywhere.</li>
+      <li><b>FE fragility</b>Stored state is parsed with no try/catch, so malformed JSON prevents startup. The filter rerenders the whole app per keystroke and drops focus after one character. Jump's Enter key ignores the filtered results.</li>
+    </ul>
+
+    <h4>Failure modes</h4>
+    <p>GPT-5.5 frequently reports success without completing the requested behavior. Examples include orphan-resource creation, unchanged notification state, and frontend confirmation messages that perform no mutation. Nonnumeric IDs and invalid UTF-8 produce uncaught exceptions and <code>500</code> responses. In-memory mode fails across threads because each thread receives a separate SQLite database. Sol returns explicit <code>501</code> responses for missing features. GPT-5.5 returns <code>200</code> and <code>201</code> responses for several incomplete operations.</p>
+
+    <details class="dims">
+      <summary>Dimension scores</summary>
+      <div class="dims-track">FRONTEND</div>
+      <div class="dims-row">
+        <span class="tile score-mixed" data-tip="Accuracy against the nine reference screenshots and specs" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Ref</span></span>
+        <span class="tile score-good" data-tip="Typography, color, spacing, token, and motion consistency" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Craft</span></span>
+        <span class="tile score-strong" data-tip="Accuracy and richness of Basecamp concepts and relationships" tabindex="0"><span class="tile-box">8.0</span><span class="tile-label">Model</span></span>
+        <span class="tile score-good" data-tip="Breadth of reachable screens, routes, overlays, empty states" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-poor" data-tip="Workflows run end-to-end instead of ending in stubs" tabindex="0"><span class="tile-box">3.5</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-poor" data-tip="Discoverability, feedback, keyboard efficiency, focus, error recovery" tabindex="0"><span class="tile-box">4.0</span><span class="tile-label">Inter</span></span>
+        <span class="tile score-poor" data-tip="Correct state across mutations, navigation, reloads, resets" tabindex="0"><span class="tile-box">4.5</span><span class="tile-label">State</span></span>
+        <span class="tile score-weak" data-tip="Usability and feature preservation across viewport sizes" tabindex="0"><span class="tile-box">5.5</span><span class="tile-label">Resp</span></span>
+        <span class="tile score-poor" data-tip="Semantics, accessible names, keyboard operability, focus, contrast" tabindex="0"><span class="tile-box">4.0</span><span class="tile-label">A11y</span></span>
+        <span class="tile score-weak" data-tip="Readability, modularity, reuse, ease of safe modification" tabindex="0"><span class="tile-box">5.5</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-weak" data-tip="Runtime stability, input escaping, defensive handling, performance" tabindex="0"><span class="tile-box">5.0</span><span class="tile-label">Rely</span></span>
+      </div>
+      <div class="dims-track">BACKEND</div>
+      <div class="dims-row">
+        <span class="tile score-good" data-tip="Coherent shared domain model with enforced invariants" tabindex="0"><span class="tile-box">7.2</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-strong" data-tip="All 203 canonical operations registered and reachable" tabindex="0"><span class="tile-box">10.0</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-good" data-tip="Real stateful mutations, lifecycle, cross-resource behavior" tabindex="0"><span class="tile-box">7.3</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-weak" data-tip="Statuses, headers, pagination, response shapes match OpenAPI" tabindex="0"><span class="tile-box">5.3</span><span class="tile-label">HTTP</span></span>
+        <span class="tile score-good" data-tip="Sample data matches the specified deterministic inventory" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Seed</span></span>
+        <span class="tile score-good" data-tip="Authentication, authorization, input validation, request hardening" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Valid</span></span>
+        <span class="tile score-good" data-tip="Configuration, health, logging, shutdown, packaging, testability" tabindex="0"><span class="tile-box">7.3</span><span class="tile-label">Ops</span></span>
+        <span class="tile score-mixed" data-tip="Readability, structure, naming, safe extensibility" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Code</span></span>
+        <span class="tile score-poor" data-tip="Incomplete features fail explicitly, never fake success" tabindex="0"><span class="tile-box">4.5</span><span class="tile-label">Hnsty</span></span>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ CLOSING ============ -->
+<section id="commentary">
+  <h2>Commentary</h2>
+  <p>Software teams rarely expect a model to produce finished production software from one prompt and a specification. They work iteratively, review the output, run tests, identify gaps, and ask the model to refine what it built. Basecamp Bench removes that correction loop for the initial build, revealing the decisions and failure modes each model introduces before an engineer intervenes.</p>
+  <p>Every model leaves different work for the engineer. Fable builds the deepest product model and the most complete workflows, yet still ships unsafe stored content, schema errors, and exposed credentials. Sonnet builds many working workflows but misses critical authorization, reset, and state-integrity safeguards. Grok moves quickly and covers substantial ground while cutting depth in validation, mobile behavior, and lifecycle handling. Sol clearly marks unsupported backend operations, but leaves 71 of them unfinished and produces a shallow frontend. GPT-5.5 builds the only durable backend, yet its frontend leaves core controls inert and its API drifts from the contract.</p>
+  <p>This creates a practical value question. Grok 4.5 reaches roughly 85–87% of Fable 5's score for about 11% of the total cost and finishes in 37 minutes instead of more than two hours. Fable delivers a substantially stronger starting point, yet it still requires review and hardening before release. Teams must decide whether that additional quality justifies the higher cost, or whether a cheaper model plus deliberate engineering iteration produces better overall value. The answer depends on the team's expertise, the risk of missed defects, and the cost of bringing each result across the finish line.</p>
+  <p>The results suggest that a skilled prompter and experienced engineer can use any of these agent combinations to reach a strong result through iteration. Model choice primarily changes the starting point, working style, and review burden. Preference for output style and the time available for review may matter more than the final attainable outcome.</p>
+</section>
+
+<!-- ============ METHODOLOGY ============ -->
+<!-- WRITING GUIDELINES for method sections (keep, and follow in future edits):
+     1. Present tense, active voice. The benchmark is a standing process, not a
+        past event. "The rubric scores", never "submissions are scored".
+     2. Name the actor in every sentence: the prompt asks, the repo contains,
+        the judge diffs, the runner computes.
+     3. No em dashes, no semicolons. Short declarative sentences.
+     4. Every claim concrete and checkable: counts, weights, file names,
+        line counts. If a sentence carries no verifiable fact, cut it.
+     5. Past tense only for facts specific to one run. -->
+<section id="methodology">
+  <h2>Methodology</h2>
+
+  <h4>Prompts</h4>
+  <p>Each model receives one prompt per track. The frontend prompt asks for a complete single-file SPA prototype of Basecamp 5, built from the product specification and reference screenshots, with every decision suitable for direct inclusion in the final production release. The backend prompt asks for a single-file production-ready API implementing the canonical SDK contract. Both tracks carry the same standing instruction from the spec. Prefer explicit stubs over fake success. When the spec and instinct disagree, the spec wins.</p>
+
+  <h4>Resources in the seed repo</h4>
+  <p>Every model starts from an identical repository containing everything needed to score 10 on every dimension. <code>INIT.md</code> (572 lines) defines the product model, the shell and its nine tools, the shared Recording domain rules, and a per-screen surface checklist. It also specifies the deterministic "Launch the new website" sample seed down to named people, message threads, card lanes, and chat lines. <code>DESIGN.md</code> (681 lines) supplies the production design tokens for light and dark color ramps, the 10px root scale, spacing, radii, shadows, and motion, and instructs the model to use these values rather than invent its own. <code>reference/screens/</code> holds nine 3456×1780 dark-mode captures of the real app covering Home, Jump, the project dock, and all six core tools. <code>reference/basecamp-sdk/</code> is the backend contract. It contains <code>openapi.json</code> with 131 path templates, 203 operations, and full request and response schemas, plus a 1,403-line <code>SPEC.md</code> and <code>behavior-model.json</code>. <code>AGENTS.md</code> orients the agent and sets precedence between these sources of truth.</p>
+
+  <h4>Evaluation criteria</h4>
+  <p>The frontend rubric scores submissions on 11 weighted dimensions: reference fidelity (14%), functional depth (12%), visual craft (10%), surface coverage (10%), state and persistence (10%), product-model fidelity (9%), interaction quality (8%), responsive adaptation (8%), accessibility (7%), code architecture (6%), and reliability, safety, and performance (6%). </p>
+  <p>The backend rubric scores submissions on 9 dimensions: architecture and domain modeling, endpoint surface coverage, behavioral depth and statefulness, HTTP and schema contract fidelity, seed data fidelity, validation and hardening, operability and packaging, code quality, and scope honesty. </p>
+  <p>The judge scores each dimension 0 to 10 from direct evidence, and the benchmark runner computes the weighted overall. The rubric requires the judge to distinguish absent, visually present, stubbed, working, and persistent functionality, and forbids crediting the same capability twice.</p>
+
+  <h4>Evaluator</h4>
+  <p>GPT-5.6 Sol, at high reasoning effort, judges every submission and produces one review each. The evaluator bases its scores on repository diffs, executed code, schema validation, and cited file evidence. It diffs the full seed-to-submission delta, enumerates every route against the OpenAPI document, and executes each submission's actual code, using in-process request handlers for backends and DOM and localStorage harnesses for frontends. Where applicable it sweeps all 203 operations, validates responses against their schemas, and probes malformed input, authorization boundaries, lifecycle cascades, and reload persistence. The evaluation sandbox denies socket binding and browser startup, so the judge exercises servers through their real handlers in process and withholds pixel-level claims rather than assuming them. Every score cites file and line evidence.</p>
+
+  <h4>Cost</h4>
+  <p>Evaluation is a separate spend from implementation. Judging all ten submissions with Sol 5.6 at high reasoning effort cost $26.89 in 1:29:17 of evaluator time, averaging $2.69 per review, against $157.47 of implementation spend.</p>
+  <table>
+    <thead>
+      <tr><th>Benchmarked model</th><th class="num">FE review cost</th><th class="num">FE review time</th><th class="num">BE review cost</th><th class="num">BE review time</th><th class="num">Combined</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Fable 5</td><td class="num">$3.01</td><td class="num">8:26</td><td class="num">$2.16</td><td class="num">8:08</td><td class="num">$5.17 · 16:33</td></tr>
+      <tr><td>Sonnet 5</td><td class="num">$3.58</td><td class="num">11:17</td><td class="num">$2.45</td><td class="num">8:05</td><td class="num">$6.03 · 19:22</td></tr>
+      <tr><td>Grok 4.5</td><td class="num">$2.85</td><td class="num">8:15</td><td class="num">$3.23</td><td class="num">12:31</td><td class="num">$6.08 · 20:46</td></tr>
+      <tr><td>GPT-5.6 Sol</td><td class="num">$3.41</td><td class="num">9:15</td><td class="num">$1.37</td><td class="num">8:32</td><td class="num">$4.77 · 17:47</td></tr>
+      <tr><td>GPT-5.5</td><td class="num">$2.36</td><td class="num">6:56</td><td class="num">$2.48</td><td class="num">7:53</td><td class="num">$4.84 · 14:49</td></tr>
+      <tr><td>All</td><td class="num">$15.20</td><td class="num">44:09</td><td class="num">$11.69</td><td class="num">45:08</td><td class="num">$26.89 · 1:29:17</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Bias</h4>
+  <p>The exploratory baseline records one attempt per model, so sampling variance can materially affect close scores, costs, and completion times. Testing one well-known application may reward prior familiarity with Basecamp, while the prescribed Recording model and single-file constraint favor specification adherence, long-context synthesis, and monolithic implementation over repository-scale engineering. Harness-specific tools and stopping behavior also contribute to each result. Evaluation-adjacent terms such as “scope honesty” and “stubbed vs working” may cue rewarded behavior. Because the evaluator selects its own test strategy for each implementation, test coverage can vary across submissions, although the completed reviews show no evidence that this affected the rankings. Evaluator trials with Fable, Grok, and Sol produced the same rankings and directionally similar findings. Sol was selected for greater attention to detail and showed no self-preference when judging its own work, which ranked second on backend and fourth on frontend. Readers should treat small score differences as provisional, compare FE and BE separately, and interpret quality, cost, and time as outcomes for these exact model-harness configurations and inputs.</p>
+
+  <h4>Code</h4>
+  <p>The complete benchmark is open source at <a class="repo-chip" href="https://github.com/0xSMW/basecamp-bench"><svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>0xSMW/basecamp-bench</a> under Apache-2.0.</p>
+  <pre class="repo-map">basecamp_bench/   runner, adapters, aggregation, reporting
+benchmarks/       prompts, rubrics, versioned contracts
+Repo/             seed pack agents receive
+baseline/         verified runs behind this report</pre>
+  <p><code>basecamp-bench run</code> executes a fresh comparison against any configured harness, <code>report</code> regenerates the self-contained HTML report from any set of run directories, and <code>reevaluate</code> re-judges immutable submissions under current contracts. The runner takes the median evaluator score per dimension, computes the weighted overall, and rejects unknown dimensions, out-of-range scores, hash mismatches, and any evidence mutation. It currently supports the Codex, Claude Code, Grok, Pi, and Google Antigravity harnesses, and adding a model to an existing harness is configuration only. Submit a verified run for a new harness or model and a future revision of this report will include it.</p>
+</section>
+
+<div class="foot">
+  <a href="https://smw.ai/blog/basecamp-bench">smw.ai</a> · <a href="https://github.com/0xSMW/basecamp-bench">basecamp-bench run of July 11, 2026</a>
+</div>
+
+</div>
+
+<script>
+const MODELS = ["Fable 5", "Sonnet 5", "Grok 4.5", "GPT-5.6 Sol", "GPT-5.5"];
+const COLORS = ["#d97757", "#8a63d2", "#2f3640", "#10a37f", "#74c6ad"];
+
+const FE = { score: [7.578, 6.982, 6.384, 5.765, 5.670], cost: [32.40, 14.22, 3.95, 7.96, 4.73] };
+const BE = { score: [8.392, 7.243, 7.278, 7.310, 7.084], cost: [53.47, 22.01, 5.35, 7.17, 6.21] };
+
+
+
+function scoreBand(score) {
+  if (score >= 8) return ["score-strong", "Strong"];
+  if (score >= 7) return ["score-good", "Good"];
+  if (score >= 6) return ["score-mixed", "Mixed"];
+  if (score >= 5) return ["score-weak", "Weak"];
+  return ["score-poor", "Poor"];
+}
+
+function scoreBadge(text, metric = "") {
+  const [bandClass, label] = scoreBand(Number(text));
+  const scoreText = metric ? `${metric} ${text}` : text;
+  const badge = document.createElement("span");
+  badge.className = `score-badge ${bandClass}`;
+  badge.textContent = scoreText;
+  badge.title = `${label}: ${scoreText} out of 10`;
+  badge.setAttribute("aria-label", `${scoreText} out of 10, ${label}`);
+  return badge;
+}
+
+function colorDimensionScores(element) {
+  if (element.dataset.scores) {
+    const label = element.textContent.trim();
+    const fragment = document.createDocumentFragment();
+    fragment.append(label);
+    element.dataset.scores.split("|").forEach((entry) => {
+      const separator = entry.lastIndexOf(":");
+      const metric = entry.slice(0, separator);
+      const score = entry.slice(separator + 1);
+      fragment.append(" ", scoreBadge(score, metric));
+    });
+    if (element.dataset.scoreNote) {
+      const note = document.createElement("span");
+      note.className = "score-note";
+      note.textContent = element.dataset.scoreNote;
+      fragment.append(note);
+    }
+    element.replaceChildren(fragment);
+    return;
+  }
+
+  const text = element.textContent;
+  const scores = text.match(/\d+\.\d+/g);
+  if (!scores) return;
+
+  const label = text
+    .replace(/\s*\(\s*\d+\.\d+(?:\s*\/\s*\d+\.\d+)*\s*\)\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const fragment = document.createDocumentFragment();
+  fragment.append(label, " ");
+  scores.forEach((score, index) => {
+    if (index > 0) fragment.append(" / ");
+    fragment.append(scoreBadge(score));
+  });
+  element.replaceChildren(fragment);
+}
+
+document.querySelectorAll(".model li > b").forEach(colorDimensionScores);
+
+Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+Chart.defaults.font.size = 12;
+Chart.defaults.color = "#6b6b6b";
+
+// ---- Scatter: quality vs cost ----
+new Chart(document.getElementById("scatter"), {
+  type: "scatter",
+  data: {
+    datasets: MODELS.map((m, i) => ({
+      label: m,
+      data: [
+        { x: FE.cost[i], y: FE.score[i], track: "FE" },
+        { x: BE.cost[i], y: BE.score[i], track: "BE" }
+      ],
+      backgroundColor: COLORS[i],
+      pointStyle: ["circle", "triangle"],
+      pointRadius: 8,
+      pointHoverRadius: 10
+    }))
+  },
+  options: {
+    maintainAspectRatio: false,
+    scales: {
+      x: { title: { display: true, text: "Cost (USD)" }, grid: { color: "#eeeae4" }, min: 0, max: 58 },
+      y: { title: { display: true, text: "Weighted score (0–10)" }, grid: { color: "#eeeae4" }, min: 5, max: 9 }
+    },
+    plugins: {
+      legend: { position: "bottom", labels: { usePointStyle: false, boxWidth: 14 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.dataset.label} ${ctx.raw.track}: ${ctx.raw.y} at $${ctx.raw.x.toFixed(2)}`
+        }
+      }
+    }
+  }
+});
+
+
+// ---- FE vs BE gap ----
+new Chart(document.getElementById("gap"), {
+  type: "bar",
+  data: {
+    labels: MODELS,
+    datasets: [
+      { label: "Frontend", data: FE.score, backgroundColor: COLORS.map(c => c + "99"), borderColor: COLORS, borderWidth: 1.5, borderRadius: 3 },
+      { label: "Backend", data: BE.score, backgroundColor: COLORS, borderRadius: 3 }
+    ]
+  },
+  options: {
+    maintainAspectRatio: false,
+    scales: {
+      y: { min: 0, max: 10, grid: { color: "#eeeae4" }, title: { display: true, text: "Weighted score" } },
+      x: { grid: { display: false } }
+    },
+    plugins: {
+      legend: { position: "bottom", labels: { boxWidth: 14 } },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}` } }
+    }
+  }
+});
+
+// ---- Dimension profiles (dimensions sorted by field average, desc) ----
+const FE_PROFILE_DIMS = ["Product model", "Surface coverage", "Visual craft", "Reference fidelity", "Architecture", "Functional depth", "Reliability", "Responsive", "Interaction", "State & persistence", "Accessibility"];
+const FE_PROFILE = [
+  [9.2, 9.0, 8.1, 8.0, 7.5, 8.1, 6.2, 6.5, 7.2, 6.8, 5.0],  // Fable
+  [8.8, 8.2, 7.5, 7.8, 6.5, 7.1, 6.5, 5.9, 6.0, 5.8, 5.2],  // Sonnet
+  [8.0, 7.5, 7.2, 7.0, 5.5, 6.5, 6.0, 4.0, 6.1, 6.0, 4.8],  // Grok
+  [6.5, 7.0, 7.0, 6.5, 5.0, 4.0, 5.0, 6.5, 5.0, 4.5, 6.0],  // Sol
+  [8.0, 7.5, 7.5, 6.5, 5.5, 3.5, 5.0, 5.5, 4.0, 4.5, 4.0]   // GPT-5.5
+];
+const BE_PROFILE_DIMS = ["Surface coverage", "Seed fidelity", "Architecture & modeling", "Operability", "Behavioral depth", "Code quality", "HTTP/schema fidelity", "Validation & hardening", "Scope honesty"];
+const BE_PROFILE = [
+  [10.0, 8.8, 8.4, 7.4, 8.6, 7.9, 8.2, 7.3, 7.9],  // Fable
+  [10.0, 7.5, 8.0, 7.5, 7.5, 6.5, 6.8, 4.5, 5.0],  // Sonnet
+  [9.7, 9.0, 7.5, 6.5, 7.5, 6.5, 7.0, 5.0, 4.5],   // Grok
+  [10.0, 8.0, 7.0, 8.5, 6.0, 7.0, 6.0, 6.5, 8.0],  // Sol
+  [10.0, 7.0, 7.2, 7.3, 7.3, 6.5, 5.3, 7.0, 4.5]   // GPT-5.5
+];
+function profileChart(id, dims, rows) {
+new Chart(document.getElementById(id), {
+  type: "line",
+  data: {
+    labels: dims,
+    datasets: MODELS.map((m, i) => ({
+      label: m,
+      data: rows[i],
+      borderColor: COLORS[i],
+      backgroundColor: COLORS[i],
+      pointBackgroundColor: COLORS[i],
+      pointBorderColor: COLORS[i],
+      borderDash: [3, 4],
+      borderWidth: 1.5,
+      pointRadius: 4.5,
+      pointHoverRadius: 6,
+      fill: false,
+      tension: 0
+    }))
+  },
+  options: {
+    maintainAspectRatio: false,
+    scales: {
+      y: { min: 3, max: 10, grid: { color: "#eeeae4" }, title: { display: true, text: "Judge score (axis starts at 3)" } },
+      x: { grid: { display: false }, ticks: { maxRotation: 40, minRotation: 40 } }
+    },
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: {
+          boxWidth: 14,
+          // strip the dataset's dashed stroke from legend boxes (it renders as squiggly edges)
+          generateLabels: c => Chart.defaults.plugins.legend.labels.generateLabels(c).map(l => Object.assign(l, { lineWidth: 0, lineDash: [] }))
+        },
+        onHover: (e, item, legend) => {
+          legend.chart.data.datasets.forEach((ds, i) => {
+            const on = i === item.datasetIndex;
+            ds.borderColor = COLORS[i] + (on ? "" : "1F");
+            ds.pointBackgroundColor = COLORS[i] + (on ? "" : "1F");
+            ds.pointBorderColor = COLORS[i] + (on ? "" : "1F");
+          });
+          legend.chart.update();
+        },
+        onLeave: (e, item, legend) => {
+          legend.chart.data.datasets.forEach((ds, i) => {
+            ds.borderColor = COLORS[i];
+            ds.pointBackgroundColor = COLORS[i];
+            ds.pointBorderColor = COLORS[i];
+          });
+          legend.chart.update();
+        }
+      },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}` } }
+    }
+  }
+});
+}
+profileChart("feProfile", FE_PROFILE_DIMS, FE_PROFILE);
+profileChart("beDims", BE_PROFILE_DIMS, BE_PROFILE);
+
+// ---- Sidebar nav: highlight the section currently in view ----
+const tocLinks = Array.from(document.querySelectorAll(".toc a"));
+const tocTargets = tocLinks.map(a => document.getElementById(a.hash.slice(1)));
+let tocTick = false;
+function tocUpdate() {
+  tocTick = false;
+  let active = 0;
+  tocTargets.forEach((el, i) => { if (el && el.getBoundingClientRect().top <= 130) active = i; });
+  tocLinks.forEach((a, i) => a.classList.toggle("active", i === active));
+}
+document.addEventListener("scroll", () => { if (!tocTick) { tocTick = true; requestAnimationFrame(tocUpdate); } }, { passive: true });
+tocUpdate();
+</script>
+</body>
+</html>
