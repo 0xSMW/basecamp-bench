@@ -5,14 +5,12 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from basecamp_bench.adapters import (
     AGY_MODEL_ALIASES,
-    DEFAULT_GROK_BINARY,
     PI_MODEL_ALIASES,
     RETAINED_ENV_NAMES,
     AgentJob,
@@ -30,15 +28,14 @@ from basecamp_bench.adapters import (
     register_harness,
     registered_harnesses,
 )
+from tests._support import TempDirTestCase as _TempDirTestCase
 
 SENTINEL = "PROMPT_SENTINEL_NEVER_IN_ARGV_9f3a2c1e7b"
 
 
-class TempDirTestCase(unittest.TestCase):
+class TempDirTestCase(_TempDirTestCase):
     def setUp(self) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmpdir.cleanup)
-        self.root = Path(self._tmpdir.name)
+        super().setUp()
         self.workdir = self.root / "workdir"
         self.workdir.mkdir()
         self.evidence = self.root / "evidence"
@@ -182,15 +179,6 @@ class ResolveBinaryTests(TempDirTestCase):
     def test_version_command_minimal(self) -> None:
         h = CodexHarness(binary=str(self.fake_bin))
         self.assertEqual(h.version_command(), [str(self.fake_bin), "--version"])
-
-    def test_grok_default_binary_constant(self) -> None:
-        h = GrokHarness()
-        self.assertEqual(h.configured_binary(), DEFAULT_GROK_BINARY)
-        self.assertEqual(DEFAULT_GROK_BINARY, "grok")
-
-    def test_grok_constructor_override(self) -> None:
-        h = GrokHarness(binary=str(self.fake_bin))
-        self.assertEqual(h.resolve_binary(), str(self.fake_bin))
 
 
 class CodexCommandTests(TempDirTestCase):

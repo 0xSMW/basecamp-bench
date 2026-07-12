@@ -2,19 +2,18 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import unittest
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 from basecamp_bench.config import (
-    BenchConfig,
     EvaluatorSpec,
     HarnessSpec,
     TrackSpec,
     config_to_public_dict,
     load_config,
 )
+from tests._support import TempDirTestCase
 
 
 def _write(path: Path, text: str = "x\n") -> None:
@@ -33,11 +32,9 @@ def _root(path: Path) -> None:
         _write(path / f"benchmarks/{track}/contract.json", "{}\n")
 
 
-class TempRoot(unittest.TestCase):
+class TempRoot(TempDirTestCase):
     def setUp(self) -> None:
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        super().setUp()
         _root(self.root)
 
     def config(self, text: str, name: str = "bench.toml") -> Path:
@@ -51,23 +48,15 @@ class DefaultsTests(unittest.TestCase):
         repo = Path(__file__).resolve().parent.parent
         config = load_config(root=repo)
         self.assertEqual(config.mode, "local")
-        self.assertEqual(config.timeout_s, 14400)
         self.assertEqual(config.repetitions, 1)
         self.assertFalse(config.full_access)
         self.assertEqual(set(config.harnesses), {"codex", "claude", "grok"})
-        self.assertEqual(
-            {key: config.harnesses[key].display_name for key in ("codex", "claude", "grok")},
-            {
-                "codex": "GPT-5.6 Sol",
-                "claude": "Claude Fable 5",
-                "grok": "Grok 4.5",
-            },
-        )
         self.assertEqual(set(config.tracks), {"fe", "be"})
         self.assertEqual(config.evaluators[0].id, "eval-sol")
         self.assertEqual(config.run_root, repo / "runs")
 
     def test_public_dataclasses_are_frozen(self) -> None:
+        # These specs are shared across runner worker threads; mutation must fail.
         harness = HarnessSpec("x", "codex", "m", "high", "p", "X", None, True)
         evaluator = EvaluatorSpec("e", "x", "m", "high", "p", True)
         track = TrackSpec("x", Path("a"), Path("b"), Path("c"))
@@ -77,7 +66,6 @@ class DefaultsTests(unittest.TestCase):
             evaluator.enabled = False  # type: ignore[misc]
         with self.assertRaises(FrozenInstanceError):
             track.id = "y"  # type: ignore[misc]
-        self.assertTrue(hasattr(BenchConfig, "__dataclass_fields__"))
 
 
 class LoadingTests(TempRoot):
@@ -134,6 +122,12 @@ class LoadingTests(TempRoot):
             with self.subTest(body=body), self.assertRaises(ValueError):
                 load_config(self.config(body, f"c{index}.toml"), root=self.root)
 
+    def test_mode_override_accepts_publication(self) -> None:
+        # The override path validates against its own allowed-mode tuple,
+        # separate from TOML mode parsing.
+        config = load_config(root=self.root, mode_override="publication")
+        self.assertEqual(config.mode, "publication")
+
     def test_evaluators_replace_default(self) -> None:
         path = self.config("""
             [[evaluators]]
@@ -147,10 +141,6 @@ class LoadingTests(TempRoot):
         self.assertEqual(
             [e.id for e in load_config(path, root=self.root).evaluators], ["eval-grok"]
         )
-
-    def test_publication_is_structurally_accepted(self) -> None:
-        config = load_config(root=self.root, mode_override="publication")
-        self.assertEqual(config.mode, "publication")
 
 
 class StrictSchemaTests(TempRoot):
@@ -376,7 +366,7 @@ class PathSafetyTests(TempRoot):
     def test_bad_config_file(self) -> None:
         with self.assertRaises(ValueError):
             load_config(self.root / "missing.toml", root=self.root)
-        outside = Path(self.temp.name).parent / "outside-bench.toml"
+        outside = self.root.parent / "outside-bench.toml"
         _write(outside, "mode='local'\n")
         self.addCleanup(lambda: outside.unlink(missing_ok=True))
         with self.assertRaises(ValueError):

@@ -5,23 +5,16 @@ from __future__ import annotations
 import io
 import json
 import os
-import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 from basecamp_bench import cli
+from tests._support import TempDirTestCase as _TempDirTestCase
 
 
-class TempDirTestCase(unittest.TestCase):
-    def setUp(self) -> None:
-        self._temp = tempfile.TemporaryDirectory()
-        self.root = Path(self._temp.name)
-
-    def tearDown(self) -> None:
-        self._temp.cleanup()
-
+class TempDirTestCase(_TempDirTestCase):
     def invoke(self, *args: str) -> tuple[int, str, str]:
         stdout, stderr = io.StringIO(), io.StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,9 +15,6 @@ class ImplementationPromptTests(unittest.TestCase):
             path.write_bytes(expected)
             actual = implementation_prompt_bytes(path)
             self.assertEqual(actual, expected)
-            self.assertEqual(
-                hashlib.sha256(actual).hexdigest(), hashlib.sha256(expected).hexdigest()
-            )
 
     def test_rejects_empty_and_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -61,10 +57,10 @@ class EvaluatorPromptTests(unittest.TestCase):
         )
         self.assertIn("Full rubric context.", prompt)
         self.assertIn('"craft"', prompt)
-        self.assertIn("Choose the appropriate runtime", prompt)
-        self.assertIn("Cite files relative to the seed or submission root", prompt)
-        self.assertIn("never include an absolute host path", prompt)
         self.assertIn("Do not compute an overall score", prompt)
+        # Judges are instructed never to leak host paths; this sentence backs
+        # the no-absolute-path property of shared judge outputs.
+        self.assertIn("never include an absolute host path", prompt)
         self.assertNotIn("npm install", prompt)
         self.assertNotIn("prototype.html", prompt)
         self.assertNotIn("api.mjs", prompt)

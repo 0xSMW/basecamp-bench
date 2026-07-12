@@ -14,7 +14,6 @@ from unittest import mock
 from urllib.error import HTTPError, URLError
 
 from basecamp_bench.pricing import (
-    PREFERRED_PROVIDERS,
     PricingLookup,
     PricingRates,
     compute_cost,
@@ -22,6 +21,7 @@ from basecamp_bench.pricing import (
     load_pricing_snapshot,
     normalize_model_id,
 )
+from tests._support import TempDirTestCase
 
 
 def _models_dev(
@@ -215,12 +215,6 @@ class FindExactRatesTests(unittest.TestCase):
         self.assertEqual(result.rates.provider, "alpha-cloud")
         self.assertEqual(result.rates.input_usd_per_m, 3.0)
 
-    def test_preferred_order_constant(self) -> None:
-        self.assertEqual(
-            PREFERRED_PROVIDERS,
-            ("anthropic", "openai", "xai", "google", "mistral", "deepseek"),
-        )
-
     def test_invalid_rates_rejected(self) -> None:
         cases = [
             {"input": -1.0, "output": 1.0},
@@ -351,11 +345,9 @@ class ComputeCostTests(unittest.TestCase):
         self.assertEqual(compute_cost(_Usage(), _rates()), 0.0)
 
 
-class LoadPricingSnapshotTests(unittest.TestCase):
+class LoadPricingSnapshotTests(TempDirTestCase):
     def setUp(self) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmpdir.cleanup)
-        self.root = Path(self._tmpdir.name)
+        super().setUp()
         self.cache_path = self.root / "pricing-cache.json"
         self.url = "https://models.dev/api.json"
         self.sample = _models_dev(

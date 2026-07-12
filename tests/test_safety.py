@@ -24,30 +24,8 @@ from basecamp_bench.safety import (
     validate_identifier,
     verify_tree_manifest,
 )
-
-
-def _can_symlink() -> bool:
-    tmp = tempfile.mkdtemp()
-    try:
-        target = Path(tmp) / "t"
-        target.write_text("x", encoding="utf-8")
-        link = Path(tmp) / "l"
-        try:
-            link.symlink_to(target)
-            return True
-        except (OSError, NotImplementedError):
-            return False
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
-
-
-class TempDirTestCase(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self.root = Path(self._tmpdir.name)
-
-    def tearDown(self) -> None:
-        self._tmpdir.cleanup()
+from tests._support import TempDirTestCase
+from tests._support import can_symlink as _can_symlink
 
 
 class ValidateIdentifierTests(TempDirTestCase):

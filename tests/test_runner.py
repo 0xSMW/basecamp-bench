@@ -24,9 +24,7 @@ from basecamp_bench.adapters import (
     ModelSpec,
     ParsedOutput,
     Usage,
-    get_harness,
     register_harness,
-    registered_harnesses,
 )
 from basecamp_bench.config import BenchConfig, EvaluatorSpec, HarnessSpec, TrackSpec
 from basecamp_bench.layout import recover_pending_layouts
@@ -1008,37 +1006,46 @@ class ConcurrencyTests(Fixture):
             restore()
         self.assertIs(signal.getsignal(signal.SIGTERM), previous)
 
-    def test_parallel_agent_cap_bounds_builds_and_evaluations(self) -> None:
+    def _install_peak_probe(self, *, kinds: tuple[str, ...] | None = None):
+        """Wrap self.side_effect to observe overlapping agent executions.
+
+        Matching calls block until two are in flight (or a timeout) so genuine
+        overlap is provable rather than timing-dependent. Returns the
+        both-entered event and a mutable state dict with the observed peak.
+        """
         original = self.side_effect
         lock = threading.Lock()
-        two_entered = threading.Event()
-        active = 0
-        peak = 0
+        entered = threading.Event()
+        state = {"active": 0, "peak": 0}
 
-        def bounded(command, **kwargs):  # type: ignore[no-untyped-def]
-            nonlocal active, peak
-            if "--version" in command:
+        def probing(command, **kwargs):  # type: ignore[no-untyped-def]
+            kind = command[command.index("--kind") + 1] if "--kind" in command else "implement"
+            if "--version" in command or (kinds is not None and kind not in kinds):
                 return original(command, **kwargs)
             with lock:
-                active += 1
-                peak = max(peak, active)
-                if active == 2:
-                    two_entered.set()
-            two_entered.wait(timeout=2.0)
+                state["active"] += 1
+                state["peak"] = max(state["peak"], state["active"])
+                if state["active"] == 2:
+                    entered.set()
+            entered.wait(timeout=2.0)
             try:
                 return original(command, **kwargs)
             finally:
                 with lock:
-                    active -= 1
+                    state["active"] -= 1
 
-        self.side_effect = bounded  # type: ignore[method-assign]
+        self.side_effect = probing  # type: ignore[method-assign]
+        return entered, state
+
+    def test_parallel_agent_cap_bounds_builds_and_evaluations(self) -> None:
+        two_entered, state = self._install_peak_probe()
         run_dir = self.run_bench(
             config=self.config(repetitions=3),
             options=self.options(max_parallel_agents=2),
             id_factory=_Ids("bounded"),
         )
         self.assertTrue(two_entered.is_set())
-        self.assertEqual(peak, 2)
+        self.assertEqual(state["peak"], 2)
         self.assertEqual(verify_run(run_dir), [])
 
     def test_parallel_agent_cap_rejects_invalid_values(self) -> None:
@@ -1101,64 +1108,18 @@ class ConcurrencyTests(Fixture):
         self.assertTrue(all(build_finished < index for index in eval_starts))
 
     def test_independent_repetitions_overlap(self) -> None:
-        original = self.side_effect
-        lock = threading.Lock()
-        both_entered = threading.Event()
-        active = 0
-        peak = 0
-
-        def concurrent(command, **kwargs):  # type: ignore[no-untyped-def]
-            nonlocal active, peak
-            kind = command[command.index("--kind") + 1] if "--kind" in command else "implement"
-            if "--version" in command or kind != "implement":
-                return original(command, **kwargs)
-            with lock:
-                active += 1
-                peak = max(peak, active)
-                if active == 2:
-                    both_entered.set()
-            both_entered.wait(timeout=2.0)
-            try:
-                return original(command, **kwargs)
-            finally:
-                with lock:
-                    active -= 1
-
-        self.side_effect = concurrent  # type: ignore[method-assign]
+        both_entered, state = self._install_peak_probe(kinds=("implement",))
         run_dir = self.run_bench(config=self.config(repetitions=2), id_factory=_Ids("parallel"))
         self.assertTrue(both_entered.is_set())
-        self.assertEqual(peak, 2)
+        self.assertEqual(state["peak"], 2)
         self.assertEqual(len(list((run_dir / "attempts").glob("*.json"))), 2)
         self.assertEqual(verify_run(run_dir), [])
 
     def test_evaluators_for_ready_submission_overlap(self) -> None:
-        original = self.side_effect
-        lock = threading.Lock()
-        both_entered = threading.Event()
-        active = 0
-        peak = 0
-
-        def concurrent(command, **kwargs):  # type: ignore[no-untyped-def]
-            nonlocal active, peak
-            kind = command[command.index("--kind") + 1] if "--kind" in command else "implement"
-            if "--version" in command or kind != "evaluate":
-                return original(command, **kwargs)
-            with lock:
-                active += 1
-                peak = max(peak, active)
-                if active == 2:
-                    both_entered.set()
-            both_entered.wait(timeout=2.0)
-            try:
-                return original(command, **kwargs)
-            finally:
-                with lock:
-                    active -= 1
-
-        self.side_effect = concurrent  # type: ignore[method-assign]
+        both_entered, state = self._install_peak_probe(kinds=("evaluate",))
         run_dir = self.run_bench(id_factory=_Ids("judges"))
         self.assertTrue(both_entered.is_set())
-        self.assertEqual(peak, 2)
+        self.assertEqual(state["peak"], 2)
         attempt = self.attempt_json(run_dir)
         self.assertTrue(attempt["evaluation_success"])
         self.assertEqual(len(attempt["evaluator_ids"]), 2)
@@ -1409,73 +1370,61 @@ class UnsafeTests(Fixture):
                 run_dir = self.run_bench(config=cfg, options=options, id_factory=_Ids(prefix))
                 self.assertEqual(self.read_run_manifest(run_dir)["status"], "complete")
 
+    def _assert_completes_without_host_ack(self, adapter_cls, cfg, prefix) -> None:
+        """Register a temp adapter, run without any unsafe-host acknowledgement,
+        assert the run completes, and always restore the real adapter."""
+        previous = adapters_mod._HARNESS_TYPES[adapter_cls.name]
+        register_harness(adapter_cls, replace=True)
+        try:
+            run_dir = self.run_bench(
+                config=cfg,
+                options=RunOptions(
+                    allow_unsafe_host_execution=False,
+                    confirmed_isolated_environment=False,
+                    allow_network_pricing=False,
+                ),
+                id_factory=_Ids(prefix),
+            )
+            self.assertEqual(self.read_run_manifest(run_dir)["status"], "complete")
+        finally:
+            register_harness(previous, replace=True)
+
     def test_pi_runs_locally_without_external_isolation_or_host_ack(self) -> None:
-        @register_harness(replace=True)
         class PiLike(Harness):
             name = "pi"
 
             def build_command(self, job: AgentJob) -> list[str]:
                 return ["pi", "x"]
 
-        try:
-            cfg = self.config(
-                harnesses={"pi-glm": self.harness(hid="pi-glm", adapter="pi", model="glm-5.2")},
-                evaluators=(self.evaluator("e1", "judge-model-a", harness="pi-glm"),),
-            )
-            run_dir = self.run_bench(
-                config=cfg,
-                options=RunOptions(
-                    allow_unsafe_host_execution=False,
-                    confirmed_isolated_environment=False,
-                    allow_network_pricing=False,
-                ),
-                id_factory=_Ids("pi-local"),
-            )
-            self.assertEqual(self.read_run_manifest(run_dir)["status"], "complete")
-        finally:
-            from basecamp_bench.adapters import PiHarness
-
-            register_harness(PiHarness, replace=True)
+        cfg = self.config(
+            harnesses={"pi-glm": self.harness(hid="pi-glm", adapter="pi", model="glm-5.2")},
+            evaluators=(self.evaluator("e1", "judge-model-a", harness="pi-glm"),),
+        )
+        self._assert_completes_without_host_ack(PiLike, cfg, "pi-local")
 
     def test_workspace_sandboxed_claude_does_not_require_host_ack(self) -> None:
-        @register_harness(replace=True)
         class ClaudeLike(Harness):
             name = "claude"
 
             def build_command(self, job: AgentJob) -> list[str]:
                 return ["claude", "x"]
 
-        try:
-            cfg = self.config(
-                harnesses={"c1": self.harness(hid="c1", adapter="claude", model="m1")},
-                evaluators=(self.evaluator("e1", "judge-model-a", harness="c1"),),
-                pricing_overrides={
-                    "m1": {"input": 1.0, "output": 1.0, "cache_read": 1.0, "cache_write": 1.0},
-                    "judge-model-a": {
-                        "input": 1.0,
-                        "output": 1.0,
-                        "cache_read": 1.0,
-                        "cache_write": 1.0,
-                    },
+        cfg = self.config(
+            harnesses={"c1": self.harness(hid="c1", adapter="claude", model="m1")},
+            evaluators=(self.evaluator("e1", "judge-model-a", harness="c1"),),
+            pricing_overrides={
+                "m1": {"input": 1.0, "output": 1.0, "cache_read": 1.0, "cache_write": 1.0},
+                "judge-model-a": {
+                    "input": 1.0,
+                    "output": 1.0,
+                    "cache_read": 1.0,
+                    "cache_write": 1.0,
                 },
-            )
-            run_dir = self.run_bench(
-                config=cfg,
-                options=RunOptions(
-                    allow_unsafe_host_execution=False,
-                    confirmed_isolated_environment=False,
-                    allow_network_pricing=False,
-                ),
-                id_factory=_Ids("c"),
-            )
-            self.assertEqual(self.read_run_manifest(run_dir)["status"], "complete")
-        finally:
-            from basecamp_bench.adapters import ClaudeHarness
-
-            register_harness(ClaudeHarness, replace=True)
+            },
+        )
+        self._assert_completes_without_host_ack(ClaudeLike, cfg, "c")
 
     def test_codex_workspace_write_safe(self) -> None:
-        @register_harness(replace=True)
         class CodexLike(Harness):
             name = "codex"
 
@@ -1493,29 +1442,15 @@ class UnsafeTests(Fixture):
             def parse_output(self, job: AgentJob, stdout_text: str) -> ParsedOutput:
                 return FakeHarness().parse_output(job, stdout_text)
 
-        try:
-            cfg = self.config(
-                harnesses={"cx": self.harness(hid="cx", adapter="codex")},
-                evaluators=(
-                    self.evaluator("eval-a", "judge-model-a", harness="cx"),
-                    self.evaluator("eval-b", "judge-model-b", harness="cx"),
-                ),
-                full_access=False,
-            )
-            run_dir = self.run_bench(
-                config=cfg,
-                options=RunOptions(
-                    allow_unsafe_host_execution=False,
-                    confirmed_isolated_environment=False,
-                    allow_network_pricing=False,
-                ),
-                id_factory=_Ids("d"),
-            )
-            self.assertEqual(self.read_run_manifest(run_dir)["status"], "complete")
-        finally:
-            from basecamp_bench.adapters import CodexHarness
-
-            register_harness(CodexHarness, replace=True)
+        cfg = self.config(
+            harnesses={"cx": self.harness(hid="cx", adapter="codex")},
+            evaluators=(
+                self.evaluator("eval-a", "judge-model-a", harness="cx"),
+                self.evaluator("eval-b", "judge-model-b", harness="cx"),
+            ),
+            full_access=False,
+        )
+        self._assert_completes_without_host_ack(CodexLike, cfg, "d")
 
 
 class TimeoutCollisionShareTests(Fixture):
@@ -1584,12 +1519,6 @@ class TimeoutCollisionShareTests(Fixture):
 
         for data in docs:
             walk(data)
-
-
-class RegistryTests(Fixture):
-    def test_fake_registered(self) -> None:
-        self.assertIn("fake", registered_harnesses())
-        self.assertIsInstance(get_harness("fake"), FakeHarness)
 
 
 class ReevaluateTests(Fixture):

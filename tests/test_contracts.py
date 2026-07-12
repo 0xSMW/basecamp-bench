@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import tempfile
 import unittest
 from copy import deepcopy
 from dataclasses import replace
@@ -24,6 +23,7 @@ from basecamp_bench.contracts import (
     validate_contract_data,
     validate_judge_result,
 )
+from tests._support import TempDirTestCase
 
 
 def _anchors() -> dict[str, str]:
@@ -106,35 +106,6 @@ def _judge_result(
         "dimensions": dimensions,
         "summary": summary,
     }
-
-
-def _is_target_shape_contract(raw: dict) -> bool:
-    """True when a checked-in contract already matches the simplified shape."""
-    if not isinstance(raw, dict):
-        return False
-    if "scenarios" in raw:
-        return False
-    expected_root = {
-        "schema_version",
-        "contract_version",
-        "track",
-        "description",
-        "dimensions",
-        "overall_policy",
-    }
-    if set(raw.keys()) != expected_root:
-        return False
-    dimensions = raw.get("dimensions")
-    if not isinstance(dimensions, list) or not dimensions:
-        return False
-    for dim in dimensions:
-        if not isinstance(dim, dict):
-            return False
-        if "owner" in dim:
-            return False
-        if set(dim.keys()) != {"id", "label", "weight", "anchors"}:
-            return False
-    return True
 
 
 class ContractValidationTests(unittest.TestCase):
@@ -275,12 +246,7 @@ class ContractValidationTests(unittest.TestCase):
         self.assertIsInstance(validate_contract_data([]), list)
 
 
-class LoadAndHashTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmpdir.cleanup)
-        self.root = Path(self._tmpdir.name)
-
+class LoadAndHashTests(TempDirTestCase):
     def test_load_contract_and_nested_immutability(self) -> None:
         path = _write_contract(self.root, _valid_contract_dict())
         contract = load_contract(path)
@@ -323,29 +289,23 @@ class LoadAndHashTests(unittest.TestCase):
         self.assertEqual(contract_sha256(path), expected)
         self.assertEqual(contract_sha256(path), expected.lower())
 
-    def test_checked_in_contracts_load_if_migrated(self) -> None:
-        """Load each checked-in track contract on the target simplified shape."""
+    def test_checked_in_contracts_load(self) -> None:
+        """Every checked-in track contract must load through the validator."""
         repo_root = Path(__file__).resolve().parents[1]
-        expected_counts = {"fe": 11, "be": 9}
-        for track, dim_count in expected_counts.items():
-            path = repo_root / "benchmarks" / track / "contract.json"
-            if not path.is_file():
-                continue
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            if not _is_target_shape_contract(raw):
-                continue
-            contract = load_contract(path)
-            self.assertEqual(contract.track, track)
-            self.assertEqual(len(contract.dimensions), dim_count)
-            self.assertAlmostEqual(sum(d.weight for d in contract.dimensions), 1.0)
-            self.assertTrue(all(not hasattr(d, "owner") for d in contract.dimensions))
+        for track in ("fe", "be"):
+            with self.subTest(track=track):
+                path = repo_root / "benchmarks" / track / "contract.json"
+                self.assertTrue(path.is_file(), f"missing checked-in contract: {path}")
+                contract = load_contract(path)
+                self.assertEqual(contract.track, track)
+                self.assertGreater(len(contract.dimensions), 0)
+                self.assertAlmostEqual(sum(d.weight for d in contract.dimensions), 1.0)
 
 
-class JudgeResultValidationTests(unittest.TestCase):
+class JudgeResultValidationTests(TempDirTestCase):
     def setUp(self) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmpdir.cleanup)
-        path = _write_contract(Path(self._tmpdir.name), _valid_contract_dict())
+        super().setUp()
+        path = _write_contract(self.root, _valid_contract_dict())
         self.contract = load_contract(path)
         self.hash = contract_sha256(path)
         self.base_scores = {"craft": 8.0, "depth": 7.0}
@@ -479,15 +439,14 @@ class JudgeResultValidationTests(unittest.TestCase):
         self.assertIsInstance(self._validate([]), list)
 
 
-class ScoringAndAggregationTests(unittest.TestCase):
+class ScoringAndAggregationTests(TempDirTestCase):
     def setUp(self) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmpdir.cleanup)
-        path = _write_contract(Path(self._tmpdir.name), _valid_contract_dict())
+        super().setUp()
+        path = _write_contract(self.root, _valid_contract_dict())
         self.contract = load_contract(path)
         self.hash = contract_sha256(path)
         path_one = _write_contract(
-            Path(self._tmpdir.name),
+            self.root,
             _valid_contract_dict(one_dimension=True),
             name="one_dim.json",
         )

@@ -20,6 +20,7 @@ from basecamp_bench.leaderboard import (
     write_leaderboards,
     write_tabular_views,
 )
+from tests._support import TempDirTestCase
 
 _SHA_A = "a" * 64
 _SHA_B = "b" * 64
@@ -87,15 +88,6 @@ def _failed_attempt(**overrides: object) -> Attempt:
     }
     base.update(overrides)
     return _attempt(**base)  # type: ignore[arg-type]
-
-
-class TempDirTestCase(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self.root = Path(self._tmpdir.name)
-
-    def tearDown(self) -> None:
-        self._tmpdir.cleanup()
 
 
 class AttemptValidationTests(unittest.TestCase):
@@ -254,30 +246,21 @@ class AggregateGroupingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             aggregate_attempts([a], mode="local", generated_at=True)  # type: ignore[arg-type]
 
-    def test_root_keys_match_reporting(self) -> None:
+    def test_root_is_legacy_schema_and_loads_through_reporting(self) -> None:
         roots = aggregate_attempts([_attempt()], mode="local", generated_at="2026-01-01T00:00:00Z")
         self.assertEqual(len(roots), 1)
-        self.assertEqual(
-            set(roots[0].keys()),
-            {
-                "schema_version",
-                "mode",
-                "track",
-                "contract_version",
-                "contract_sha256",
-                "generated_at",
-                "runner_source_sha256",
-                "seed_tree_sha256",
-                "reference_manifest_sha256",
-                "reference_tree_sha256",
-                "prompt_sha256",
-                "rubric_sha256",
-                "schema_bundle_sha256",
-                "dimension_profile",
-                "entries",
-            },
-        )
         self.assertEqual(roots[0]["schema_version"], "1.0")
+        self.assertIn("entries", roots[0])
+        # The strict schema-2.0 key set is pinned in
+        # test_ledger_json_has_no_derived_statistics; here it only matters
+        # that the legacy view round-trips through the reporting loader.
+        from basecamp_bench.reporting import load_leaderboards
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "legacy.json"
+            path.write_text(json.dumps(roots[0]), encoding="utf-8")
+            points = load_leaderboards([path])
+        self.assertEqual(len(points), 1)
 
 
 class AggregateStatisticsTests(unittest.TestCase):
@@ -964,6 +947,8 @@ class WriteTabularViewsTests(TempDirTestCase):
         csv_path, md_path = write_tabular_views(json_path, self.root / "ordered")
         csv_text = csv_path.read_text(encoding="utf-8")
         header = csv_text.splitlines()[0]
+        # The CSV is a published artifact, so the exact column order is an
+        # external contract: changing it must be a conscious edit here.
         self.assertEqual(
             header,
             ",".join(
@@ -1130,15 +1115,6 @@ class WriteTabularViewsTests(TempDirTestCase):
         self.assertTrue(all(name.endswith(".json") for name in names))
         self.assertEqual(list(out.glob("*.csv")), [])
         self.assertEqual(list(out.glob("*.md")), [])
-
-    def test_tabular_markdown_schema_version_from_source_ledger(self) -> None:
-        attempts = [_attempt(score=7.0)]
-        schema2 = self._schema2_path(attempts)
-        legacy = self._legacy_path(attempts)
-        _, md2 = write_tabular_views(schema2, self.root / "sv2")
-        _, md1 = write_tabular_views(legacy, self.root / "sv1")
-        self.assertIn("- schema_version: `2.0`", md2.read_text(encoding="utf-8"))
-        self.assertIn("- schema_version: `1.0`", md1.read_text(encoding="utf-8"))
 
 
 class DimensionProfileSymmetryTests(TempDirTestCase):

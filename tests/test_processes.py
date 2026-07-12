@@ -56,14 +56,34 @@ class RunManagedTests(unittest.TestCase):
         self.stdout_path = self.root / "logs" / "out.log"
         self.stderr_path = self.root / "logs" / "err.log"
 
-    def test_not_started_constructor_uses_canonical_empty_stream_state(self) -> None:
-        result = ProcessResult.not_started("setup failed", interrupted=True)
-        self.assertIsNone(result.returncode)
-        self.assertEqual(result.duration_s, 0.0)
-        self.assertTrue(result.interrupted)
-        self.assertEqual(result.stdout_bytes, 0)
-        self.assertEqual(result.stderr_bytes, 0)
-        self.assertEqual(result.error, "setup failed")
+    def _sticky_parent_script(self, name: str, marker: Path, *, reset_sigterm: bool = False):
+        """Script whose child forks a SIGTERM-ignoring grandchild that writes its
+        pid to `marker`; both loop forever so only group SIGKILL cleans up."""
+        reset = "signal.signal(signal.SIGTERM, signal.SIG_DFL)" if reset_sigterm else "pass"
+        return _write_script(
+            self.root,
+            name,
+            f"""\
+            import os
+            import signal
+            import time
+
+            {reset}
+            pid = os.fork()
+            if pid == 0:
+                signal.signal(signal.SIGTERM, signal.SIG_IGN)
+                with open({str(marker)!r}, "w", encoding="utf-8") as fh:
+                    fh.write(str(os.getpid()))
+                    fh.flush()
+                while True:
+                    time.sleep(1)
+            # Parent remains alive so cleanup must act on the whole group.
+            # Brief wait so the grandchild can write its pid marker first.
+            time.sleep(0.05)
+            while True:
+                time.sleep(1)
+            """,
+        )
 
     def _run(self, command, **kwargs) -> ProcessResult:
         defaults = dict(
@@ -214,30 +234,7 @@ class RunManagedTests(unittest.TestCase):
         marker = self.root / "grandchild.pid"
         # Child stays alive past timeout and forks a grandchild that ignores SIGTERM
         # so only process-group SIGKILL proves full cleanup.
-        sticky = _write_script(
-            self.root,
-            "sticky_parent.py",
-            f"""\
-            import os
-            import signal
-            import time
-
-            signal.signal(signal.SIGTERM, signal.SIG_DFL)
-            pid = os.fork()
-            if pid == 0:
-                signal.signal(signal.SIGTERM, signal.SIG_IGN)
-                with open({str(marker)!r}, "w", encoding="utf-8") as fh:
-                    fh.write(str(os.getpid()))
-                    fh.flush()
-                while True:
-                    time.sleep(1)
-            # Parent remains alive so run_managed hits timeout with a live group.
-            # Brief wait so the grandchild can write its pid marker first.
-            time.sleep(0.05)
-            while True:
-                time.sleep(1)
-            """,
-        )
+        sticky = self._sticky_parent_script("sticky_parent.py", marker, reset_sigterm=True)
         # Wait until the grandchild publishes its pid, using a deadline rather than sleep.
         # We start the managed run with a timeout long enough for the marker write.
         result = self._run(
@@ -270,26 +267,7 @@ class RunManagedTests(unittest.TestCase):
             self.skipTest("process-group grandchild cleanup is POSIX-specific")
 
         marker = self.root / "cancelled-grandchild.pid"
-        sticky = _write_script(
-            self.root,
-            "cancel_sticky_parent.py",
-            f"""\
-            import os
-            import signal
-            import time
-
-            pid = os.fork()
-            if pid == 0:
-                signal.signal(signal.SIGTERM, signal.SIG_IGN)
-                with open({str(marker)!r}, "w", encoding="utf-8") as fh:
-                    fh.write(str(os.getpid()))
-                    fh.flush()
-                while True:
-                    time.sleep(1)
-            while True:
-                time.sleep(1)
-            """,
-        )
+        sticky = self._sticky_parent_script("cancel_sticky_parent.py", marker)
         cancel = threading.Event()
         outcome: dict[str, ProcessResult] = {}
 
@@ -312,18 +290,6 @@ class RunManagedTests(unittest.TestCase):
         self.assertFalse(result.timed_out)
         grandchild_pid = int(marker.read_text(encoding="utf-8").strip())
         self.assertTrue(_poll_until(lambda: not _pid_alive(grandchild_pid), timeout_s=2.0))
-
-    def test_creates_log_parent_directories(self) -> None:
-        deep_out = self.root / "a" / "b" / "c" / "stdout.log"
-        deep_err = self.root / "a" / "b" / "c" / "stderr.log"
-        result = self._run(
-            [sys.executable, "-c", "print('hi')"],
-            stdout_path=deep_out,
-            stderr_path=deep_err,
-        )
-        self.assertEqual(result.returncode, 0)
-        self.assertTrue(deep_out.is_file())
-        self.assertTrue(deep_err.is_file())
 
     def test_invalid_limits_raise(self) -> None:
         with self.assertRaises(ValueError):

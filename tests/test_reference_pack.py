@@ -15,6 +15,7 @@ from basecamp_bench.reference_pack import (
     ReferencePack,
     load_reference_pack,
 )
+from tests._support import can_symlink as _can_symlink
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CHECKED_IN_MANIFEST = REPO_ROOT / "benchmarks" / "reference-pack.json"
@@ -22,21 +23,6 @@ CHECKED_IN_ROOT = REPO_ROOT / "Repo" / "reference"
 
 # Unique marker used only to assert it never appears in error messages.
 _SECRET_MARKER = "SECRET_CONTENT_DO_NOT_LEAK_9f3a2c1b7e"
-
-
-def _can_symlink() -> bool:
-    tmp = tempfile.mkdtemp()
-    try:
-        target = Path(tmp) / "t"
-        target.write_text("x", encoding="utf-8")
-        link = Path(tmp) / "l"
-        try:
-            link.symlink_to(target)
-            return True
-        except (OSError, NotImplementedError):
-            return False
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _sha256_bytes(data: bytes) -> str:

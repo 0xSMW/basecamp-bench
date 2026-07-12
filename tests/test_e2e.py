@@ -7,7 +7,6 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 import time
 import unittest
 from datetime import UTC, datetime
@@ -25,6 +24,7 @@ from basecamp_bench.config import BenchConfig, EvaluatorSpec, HarnessSpec, Track
 from basecamp_bench.manifest import export_run, verify_run
 from basecamp_bench.runner import RunOptions, reevaluate_run, run_benchmark
 from basecamp_bench.safety import tree_manifest
+from tests._support import TempDirTestCase
 
 _PROMPT = b"Build the strongest complete implementation from the supplied materials.\n"
 _RUBRIC = "# Evaluation\n\nScore craft from directly observed behavior.\n"
@@ -115,14 +115,12 @@ class Ids:
         return f"{self.prefix}-{self.index:03d}"
 
 
-class E2EFixture(unittest.TestCase):
+class E2EFixture(TempDirTestCase):
     def setUp(self) -> None:
+        super().setUp()
         previous = adapters_module._HARNESS_TYPES.get(FakeSubprocessHarness.name)
         register_harness(FakeSubprocessHarness, replace=True)
         self.addCleanup(self._restore_adapter, previous)
-        self._temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(self._temporary.cleanup)
-        self.root = Path(self._temporary.name)
         self.run_root = self.root / "runs"
         self.run_root.mkdir()
         self.seed = self.root / "Repo"

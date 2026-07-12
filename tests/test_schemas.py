@@ -14,7 +14,7 @@ except ImportError:  # Runtime remains standard-library only.
 
 from basecamp_bench.leaderboard import Attempt, build_attempt_ledgers
 from basecamp_bench.manifest import build_manifest
-from tests.test_manifest import _minimal_manifest_kwargs
+from tests._support import minimal_manifest_kwargs as _minimal_manifest_kwargs
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -37,7 +37,18 @@ class PublishedSchemaTests(unittest.TestCase):
 
     def test_all_schemas_are_valid_draft_2020_12(self) -> None:
         paths = sorted((ROOT / "schemas").glob("*.json"))
-        self.assertEqual(len(paths), 5)
+        # The published schema bundle is a contract: adding or removing a
+        # schema must be a conscious change here.
+        self.assertEqual(
+            [path.name for path in paths],
+            [
+                "evaluation-contract.schema.json",
+                "judge-result.schema.json",
+                "leaderboard.schema.json",
+                "reference-pack.schema.json",
+                "run-manifest.schema.json",
+            ],
+        )
         for path in paths:
             with self.subTest(path=path.name):
                 jsonschema.Draft202012Validator.check_schema(
