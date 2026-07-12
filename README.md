@@ -272,10 +272,11 @@ routes it to OpenRouter's `z-ai/glm-5.2`; set `OPENROUTER_API_KEY` and use the
 commented example in `bench.example.toml`. Pi relies on the per-job workspace
 boundary in local mode; the optional container recipe adds OS isolation.
 
-The optional `agy` adapter supports `gemini-3.5-flash` at `low`, `medium`, or
-`high` effort. It enables Antigravity's terminal sandbox and stages evaluator
-evidence as disposable workspace copies, preserving the immutable originals.
-See the commented `bench.example.toml` entry for setup.
+The optional `agy` adapter supports `gemini-3.1-pro` at `low` or `high` effort
+and `gemini-3.5-flash` at `low`, `medium`, or `high` effort. It enables
+Antigravity's terminal sandbox and stages evaluator evidence as disposable
+workspace copies, preserving the immutable originals. See the commented
+`bench.example.toml` entry for setup.
 
 Contract or evaluator-directive changes require a new contract version and
 changelog entry. Published contract versions are immutable.

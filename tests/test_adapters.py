@@ -520,6 +520,18 @@ class PiCommandTests(TempDirTestCase):
 
 
 class AgyCommandTests(TempDirTestCase):
+    def test_gemini_31_pro_model_aliases(self) -> None:
+        h = AgyHarness(binary=str(self.fake_bin))
+        for effort in ("low", "high"):
+            with self.subTest(effort=effort):
+                job = self._job(harness="agy", model="gemini-3.1-pro", effort=effort)
+                with h.execution_context(job):
+                    cmd = h.build_command(job)
+                self.assertEqual(
+                    cmd[cmd.index("--model") + 1],
+                    AGY_MODEL_ALIASES["gemini-3.1-pro"][effort],
+                )
+
     def test_sandboxed_argv_and_disposable_evidence(self) -> None:
         (self.evidence / "app.py").write_text("print('evidence')\n", encoding="utf-8")
         self.prompt_path.write_text(

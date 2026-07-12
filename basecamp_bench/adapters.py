@@ -1266,6 +1266,10 @@ class PiHarness(Harness):
 
 
 AGY_MODEL_ALIASES: Mapping[str, Mapping[str, str]] = {
+    "gemini-3.1-pro": {
+        "low": "Gemini 3.1 Pro (Low)",
+        "high": "Gemini 3.1 Pro (High)",
+    },
     "gemini-3.5-flash": {
         "low": "Gemini 3.5 Flash (Low)",
         "medium": "Gemini 3.5 Flash (Medium)",
