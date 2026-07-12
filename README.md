@@ -10,18 +10,28 @@ The runner preserves raw attempts, computes scores and eligibility itself, and
 generates a self-contained HTML quality-versus-cost report. FE and BE results
 remain separate.
 
-## Baseline results — July 11, 2026
+## Baseline results: July 11, 2026
 
-Basecamp Bench asks each agent to build a Basecamp 5 clone from a fixed spec —
-a single-file frontend SPA and a production-shaped backend API — then scores
-every submission across weighted quality dimensions with an independent
-evaluator. In the July 11 baseline, Fable 5 leads both tracks (8.39 backend,
-7.58 frontend) at the highest cost, $85.87 across both builds. Grok 4.5
-delivers the best value at $9.30 total with a competitive 7.28 backend, while
-Sonnet 5 ($36.23) and GPT-5.6 Sol ($15.13) land between them with strong
-backends and weaker frontends. Every frontier model scored higher on the
-backend than the frontend — release-ready UI remains the harder problem. Full
-evidence and the combined report live in [baseline/](baseline/).
+Basecamp Bench asks each agent to build two parts of a Basecamp 5 clone from a
+fixed specification: a single-file frontend SPA and a production-shaped backend
+API. An independent evaluator scores every submission across weighted quality
+dimensions. In the July 11 baseline, Fable 5 leads both tracks with scores of
+8.39 for the backend and 7.58 for the frontend. It also has the highest total
+cost at $85.87. Grok 4.5 delivers the best value at $9.30 total, with a
+competitive backend score of 7.28. Sonnet 5 costs $36.23, and GPT-5.6 Sol costs
+$15.13. Both produce strong backends and weaker frontends. Every frontier model
+scores higher on the backend than the frontend. Release-ready UI remains the
+harder problem.
+
+| Model | Frontend | Backend | Total time | Total cost |
+| --- | ---: | ---: | ---: | ---: |
+| Fable 5 | 7.578 | 8.392 | 2:06:40 | $85.87 |
+| Sonnet 5 | 6.982 | 7.243 | 1:27:09 | $36.23 |
+| Grok 4.5 | 6.384 | 7.278 | 36:48 | $9.30 |
+| GPT-5.6 Sol | 5.765 | 7.310 | 59:48 | $15.13 |
+| GPT-5.5 | 5.670 | 7.084 | 44:14 | $10.94 |
+
+Full evidence and the combined report are available in [baseline/](baseline/).
 
 ## Getting Started
 
