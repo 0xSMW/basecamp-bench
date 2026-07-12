@@ -5,7 +5,7 @@ TMP_PLAN.md
 
 # Python bytecode
 __pycache__/
-*.pyc
+*.py[cod]
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
@@ -14,6 +14,8 @@ htmlcov/
 /build/
 /dist/
 /*.egg-info/
+.venv/
+venv/
 
 # Cached models.dev pricing table (refetched automatically)
 .pricing-cache.json
@@ -23,6 +25,17 @@ htmlcov/
 
 # Local bench config (commit bench.example.toml instead)
 bench.toml
+.env
+.env.*
+!.env.example
 
 # Agent-local settings
 .claude/settings.local.json
+
+# Editor settings
+.idea/
+.vscode/
+*.swp
+
+# Early version
+/bench_early_version/
