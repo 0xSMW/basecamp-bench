@@ -188,7 +188,7 @@ below are verbatim from production.
 | Token | Light | Dark |
 |---|---|---|
 | `--color-body` | `var(--color-page-tint)` | `hsl(202.5, 42.1%, 7.5%)` |
-| `--color-canvas` | `hsl(var(--hsl-white))` | `var(--color-canvas-light)` |
+| `--color-canvas` | `hsl(var(--hsl-white))` | `hsl(200, 28%, 14.7%)` |
 | `--color-canvas-light` | `var(--color-canvas)` | `var(--color-slate-10)` |
 | `--color-inverted` | `white` | `hsl(199.1, 44%, 9.8%)` |
 | `--color-page-tint` | `var(--color-page-tint-1)` | `var(--color-body)` |
@@ -201,6 +201,15 @@ below are verbatim from production.
 
 Page tints are the six faint background washes B5 rotates per screen in light
 mode; dark mode collapses them all to the single body color.
+
+**Surface hierarchy (dark).** Verified against the live app's computed values
+(2026-07-12): `--color-canvas` is a **distinct, darker** surface
+(`hsl(200, 28%, 14.7%)` = `rgb(27,41,48)`), not an alias of `--color-canvas-light`
+(`--color-slate-10` = `rgb(35,54,63)`). `--color-canvas` is the workhorse raised
+surface — the content sheet, dock/project cards, buttons — sitting one subtle
+step above the near-black body (`rgb(11,21,27)`). `--color-canvas-light` is the
+lighter accent used more sparingly. (An earlier revision of this table aliased
+dark `--color-canvas` to `--color-canvas-light`; corrected here.)
 
 ## 4. Semantic color aliases
 
