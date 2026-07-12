@@ -998,6 +998,18 @@ class ParseOutputTests(TempDirTestCase):
         self.assertEqual(parsed.session_id, "pi-session")
         self.assertIsNone(parsed.reported_cost_usd)
 
+    def test_agy_error_status_fails_closed(self) -> None:
+        h = AgyHarness(binary=str(self.fake_bin))
+        job = self._job(harness="agy", model="gemini-3.5-flash")
+        payload = {
+            "conversation_id": "agy-session",
+            "status": "ERROR",
+            "response": "partial response",
+            "error": "Agent execution terminated due to error.",
+        }
+        with self.assertRaisesRegex(ValueError, "AGY execution failed"):
+            h.parse_output(job, json.dumps(payload))
+
     def test_pi_session_capture_fails_closed(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
         job = self._job(harness="pi", model="glm-5.2")

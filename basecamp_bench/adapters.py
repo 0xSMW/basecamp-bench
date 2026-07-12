@@ -1362,6 +1362,11 @@ class AgyHarness(Harness):
 
     def parse_output(self, job: AgentJob, stdout_text: str) -> ParsedOutput:
         for obj in _iter_json_objects(stdout_text):
+            status = obj.get("status")
+            if isinstance(status, str) and status != "SUCCESS":
+                error = obj.get("error")
+                detail = error if isinstance(error, str) and error else status
+                raise ValueError(f"AGY execution failed: {detail}")
             native_usage = obj.get("usage")
             usage = None
             if isinstance(native_usage, dict):
