@@ -558,7 +558,8 @@ class AgyCommandTests(TempDirTestCase):
             self.assertEqual(cmd[cmd.index("--output-format") + 1], "json")
             self.assertIn("--sandbox", cmd)
             self.assertIn("--dangerously-skip-permissions", cmd)
-            self.assertNotIn("--add-dir", cmd)
+            self.assertIn("--new-project", cmd)
+            self.assertEqual(cmd[cmd.index("--add-dir") + 1], str(self.workdir))
             self.assertNotIn("-p", cmd)
 
             staged_root = self.workdir / ".basecamp-bench-agy"

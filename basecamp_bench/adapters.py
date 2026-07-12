@@ -1352,6 +1352,9 @@ class AgyHarness(Harness):
             "--log-file",
             f"{self._STATE_DIR}/agy.log",
             "--dangerously-skip-permissions",
+            "--new-project",
+            "--add-dir",
+            str(job.workdir),
         ]
         if job.sandbox_mode != "danger-full-access":
             cmd.append("--sandbox")
