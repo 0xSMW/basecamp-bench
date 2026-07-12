@@ -1011,6 +1011,62 @@ class ExportRunTests(TempDirTestCase):
             self.assertNotIn("logs/agent.log", archive.namelist())
 
 
+class PublicationBoundaryArchitectureTests(unittest.TestCase):
+    """Prove local core imports stay free of ZIP/export/shareability code."""
+
+    def test_runner_and_reporting_do_not_load_publication_implementation(self) -> None:
+        import subprocess
+        import sys
+
+        for module in ("basecamp_bench.runner", "basecamp_bench.reporting"):
+            with self.subTest(module=module):
+                script = (
+                    "import sys\n"
+                    f"import {module}\n"
+                    "blocked = [\n"
+                    '    name for name in ("basecamp_bench.manifest_export", "zipfile")\n'
+                    "    if name in sys.modules\n"
+                    "]\n"
+                    "raise SystemExit(0 if not blocked else f'loaded: {blocked}')\n"
+                )
+                result = subprocess.run(
+                    [sys.executable, "-c", script],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_manifest_import_does_not_load_export_module(self) -> None:
+        import subprocess
+        import sys
+
+        script = (
+            "import sys\n"
+            "import basecamp_bench.manifest\n"
+            "assert 'basecamp_bench.manifest_export' not in sys.modules\n"
+            "assert 'zipfile' not in sys.modules\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_public_facades_delegate_to_publication_module(self) -> None:
+        import basecamp_bench.manifest as provenance
+        import basecamp_bench.manifest_export as publication
+
+        self.assertEqual(provenance.verify_run.__module__, "basecamp_bench.manifest")
+        self.assertEqual(publication.verify_run.__module__, "basecamp_bench.manifest_export")
+        self.assertEqual(provenance.export_run.__module__, "basecamp_bench.manifest")
+        self.assertEqual(publication.export_run.__module__, "basecamp_bench.manifest_export")
+        self.assertEqual(provenance.scan_secrets.__module__, "basecamp_bench.manifest")
+        self.assertEqual(publication.scan_secrets.__module__, "basecamp_bench.manifest_export")
+
+
 class BuildManifestGitIntegrationTests(TempDirTestCase):
     def test_repo_none_leaves_null_git_fields(self) -> None:
         m = build_manifest(**_minimal_manifest_kwargs(repo=None))
