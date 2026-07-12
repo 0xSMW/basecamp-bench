@@ -10,6 +10,19 @@ The runner preserves raw attempts, computes scores and eligibility itself, and
 generates a self-contained HTML quality-versus-cost report. FE and BE results
 remain separate.
 
+## How it was built
+
+Basecamp Bench was developed through three successive model-driven passes:
+
+1. **Grok 4.5** built the initial working prototype.
+2. **Claude Fable 5** cleaned up the implementation and improved its structure.
+3. **GPT-5.6 Sol** professionalized the project, hardening the architecture,
+   tests, documentation, safety controls, and release workflow.
+
+Building the project consumed **1.8 billion tokens** and **$2,867.52 in model
+usage**. This development cost is separate from the benchmark-run costs
+reported below.
+
 ## Frontier, July 11, 2026
 
 <img width="1326" height="994" alt="Fable's BC5 app shell" src="https://github.com/user-attachments/assets/90e68cf7-538c-42d5-b7bd-b31ec2163504" />
