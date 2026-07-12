@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
 __all__ = ["RAW_ATTEMPT_KEY_ORDER", "raw_attempt_sort_key"]
 
@@ -33,22 +33,10 @@ RAW_ATTEMPT_KEY_ORDER: tuple[str, ...] = (
 
 def raw_attempt_sort_key(raw: Mapping[str, object]) -> tuple[str, str, int, str]:
     """Return the canonical identity and serialization ordering for an attempt."""
-    portable: dict[str, object] = {}
-    for key in RAW_ATTEMPT_KEY_ORDER:
-        value = raw[key]
-        if key == "dimensions":
-            assert isinstance(value, Mapping)
-            portable[key] = dict(value)
-        elif key in ("evaluator_ids", "ineligible_reasons"):
-            assert isinstance(value, Sequence) and not isinstance(value, (str, bytes))
-            portable[key] = list(value)
-        else:
-            portable[key] = value
+    portable = dict(raw)
     dimensions = portable["dimensions"]
-    if isinstance(dimensions, dict):
-        portable["dimensions"] = {
-            key: dimensions[key] for key in sorted(dimensions.keys(), key=str)
-        }
+    assert isinstance(dimensions, Mapping)
+    portable["dimensions"] = dict(dimensions)
     serialized = json.dumps(portable, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     repetition = raw["repetition"]
     assert isinstance(repetition, int) and not isinstance(repetition, bool)

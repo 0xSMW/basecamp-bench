@@ -12,7 +12,7 @@ try:
 except ImportError:  # Runtime remains standard-library only.
     jsonschema = None
 
-from basecamp_bench.leaderboard import Attempt, aggregate_attempts
+from basecamp_bench.leaderboard import Attempt, build_attempt_ledgers
 from basecamp_bench.manifest import build_manifest
 from tests.test_manifest import _minimal_manifest_kwargs
 
@@ -101,16 +101,20 @@ class PublishedSchemaTests(unittest.TestCase):
             evaluator_ids=("eval-sol",),
             ineligible_reasons=(),
         )
-        board = aggregate_attempts([attempt], mode="local", generated_at="2026-07-11T12:00:00Z")[0]
-        self.validate("leaderboard.schema.json", board)
-        bad = copy.deepcopy(board)
-        bad["entries"][0]["raw_attempts"][0]["tokens"] = -1
+        ledger = build_attempt_ledgers(
+            [attempt], mode="local", generated_at="2026-07-11T12:00:00Z"
+        )[0].to_raw()
+        self.validate("leaderboard.schema.json", ledger)
+        self.assertNotIn("entries", ledger)
+        self.assertIn("attempts", ledger)
+        bad = copy.deepcopy(ledger)
+        bad["attempts"][0]["tokens"] = -1
         self.rejected("leaderboard.schema.json", bad)
-        bad = copy.deepcopy(board)
-        del bad["entries"][0]["score_mean"]
+        bad = copy.deepcopy(ledger)
+        bad["score_mean"] = 1.0
         self.rejected("leaderboard.schema.json", bad)
-        bad = copy.deepcopy(board)
-        bad["entries"][0]["duration_range_s"] = -1
+        bad = copy.deepcopy(ledger)
+        del bad["attempts"]
         self.rejected("leaderboard.schema.json", bad)
 
     def test_current_manifest_producer_shape(self) -> None:

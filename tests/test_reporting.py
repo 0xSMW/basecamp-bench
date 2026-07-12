@@ -608,44 +608,55 @@ class LoadLeaderboardsTests(TempDirTestCase):
             load_leaderboards([path2])
         self.assertIn("missing", str(ctx2.exception).lower())
 
-    def test_rejects_unknown_and_missing_entry_keys(self) -> None:
+    def test_rejects_missing_raw_attempts_on_legacy_entry(self) -> None:
         entry = _entry("m1")
-        entry["bonus"] = 1
-        path = self.write_json("bad-entry.json", _leaderboard([entry]))
+        del entry["raw_attempts"]
+        path = self.write_json("missing-raw.json", _leaderboard([entry]))
         with self.assertRaises(ValueError) as ctx:
             load_leaderboards([path])
-        self.assertIn("unknown", str(ctx.exception).lower())
+        self.assertIn("raw_attempts", str(ctx.exception).lower())
 
-        entry2 = _entry("m1")
-        del entry2["tokens"]
-        path2 = self.write_json("missing-entry.json", _leaderboard([entry2]))
-        with self.assertRaises(ValueError) as ctx2:
-            load_leaderboards([path2])
-        self.assertIn("missing", str(ctx2.exception).lower())
+    def test_ignores_stale_aggregate_fields_on_legacy_entries(self) -> None:
+        """Persisted aggregate fields are never authoritative after load."""
+        entry = _entry("m1", score=6.0, cost_per_attempt=2.0)
+        entry["score"] = 0.0
+        entry["score_mean"] = True
+        entry["success_rate"] = 0.0
+        entry["eligible"] = True
+        entry["cost_per_attempt"] = -1.0
+        entry["tokens"] = -1
+        path = self.write_json("stale-agg.json", _leaderboard([entry]))
+        points = load_leaderboards([path])
+        self.assertEqual(len(points), 1)
+        # Recomputed from the raw attempt (score 6.0), not the stale summary.
+        self.assertEqual(points[0].score, 6.0)
+        self.assertEqual(points[0].success_rate, 1.0)
+        self.assertEqual(points[0].implementation_cost_per_attempt, 2.0)
 
-    def test_rejects_bad_types_bool_as_number_and_nan(self) -> None:
+    def test_rejects_bad_raw_types_bool_as_number_and_nan(self) -> None:
         cases = [
             ("score", True),
             ("score", float("nan")),
             ("score", float("inf")),
-            ("repetitions", 1.5),
-            ("repetitions", True),
             ("tokens", -1),
-            ("success_rate", 1.5),
-            ("success_rate", True),
-            ("eligible", 1),
-            ("cost_per_attempt", -0.1),
-            ("dimensions", {"a": True}),
+            ("tokens", True),
+            ("duration_s", float("nan")),
+            ("implementation_cost_usd", -0.1),
+            ("dimensions", {"quality": True}),
             ("ineligible_reasons", "nope"),
-            ("run_ids", [1]),
             ("model_id", ""),
             ("display_name", ""),
+            ("repetition", True),
+            ("repetition", 0),
         ]
         for field, value in cases:
             with self.subTest(field=field, value=value):
-                entry = _entry("m1")
-                entry[field] = value
-                path = self.write_json(f"bad-{field}.json", _leaderboard([entry]))
+                raw = _raw_attempt(model_id="m1")
+                raw[field] = value
+                entry = _entry("m1", raw_attempts=[raw])
+                path = self.write_json(
+                    f"bad-raw-{field}.json", _leaderboard([entry], sync_identity=False)
+                )
                 with self.assertRaises(ValueError):
                     load_leaderboards([path])
 
@@ -885,56 +896,111 @@ class RenderReportHtmlTests(unittest.TestCase):
         html_out = render_report_html(build_report_payload(points))
         self.assertIn("Free</span> delivers 75% of the quality at 0% of the cost", html_out)
 
-    def test_chart_accessibility_error_bars_frontier_cheaper_right(self) -> None:
+    def test_chart_accessibility_frontier_cheaper_right(self) -> None:
         html_out = render_report_html(self._sample_payload())
         self.assertIn('role="img"', html_out)
         self.assertIn("aria-label=", html_out)
         self.assertIn("<title>", html_out)
         self.assertIn("<desc>", html_out)
-        self.assertIn("error-bar", html_out)
+        # Uncertainty is numeric in the comparison table; chart error bars
+        # are intentionally omitted from the decision surface.
+        self.assertNotIn("error-bar", html_out)
         self.assertIn("frontier-line", html_out)
         self.assertIn("point-label", html_out)
         self.assertIn("cheaper to the right", html_out.lower())
         self.assertIn("Expected implementation cost (cheaper to the right)", html_out)
 
-    def test_tables_methodology_and_sections(self) -> None:
+    def test_tables_decision_surface_and_sections(self) -> None:
         html_out = render_report_html(self._sample_payload())
+        # Required decision surface: verdict lines, results pivot, charts,
+        # model cards, methodology.
+        self.assertIn('class="verdict"', html_out)
+        self.assertIn("results-table", html_out)
         self.assertIn("dim-table", html_out)
-        self.assertIn("raw-table", html_out)
-        self.assertIn("attempts-table", html_out)
-        self.assertIn("Methodology and provenance", html_out)
-        self.assertIn("implementation_cost_per_attempt / success_rate", html_out)
-        self.assertIn("Track fe", html_out)
-        self.assertIn("Track be", html_out)
-        self.assertIn("contract 9.9", html_out)
-        self.assertIn("Score", html_out)
-        self.assertIn("Expected implementation cost per valid result", html_out)
-        self.assertIn("Implementation cost per attempt", html_out)
-        self.assertIn("Evaluation overhead per attempt", html_out)
-        self.assertIn("Total cost per attempt", html_out)
-        self.assertIn("Duration", html_out)
-        self.assertIn("critical-path evaluator process time", html_out)
-        self.assertIn("Judge spread", html_out)
-        self.assertIn("report-payload", html_out)
+        self.assertIn('class="toc"', html_out)
+        self.assertIn("Quality versus cost", html_out)
+        self.assertIn("Model deep dives", html_out)
+        # The pivot joins tracks: FE columns precede BE columns.
+        self.assertIn("FE score", html_out)
+        self.assertIn("BE score", html_out)
+        self.assertIn("Total cost", html_out)
+        self.assertLess(html_out.index("FE score"), html_out.index("BE score"))
+        # Track shapes on the combined scatter.
+        self.assertIn("circle = FE", html_out)
+        self.assertIn("triangle = BE", html_out)
+        self.assertIn("<polygon", html_out)
+        # Tabular fallback for the chart and accessible captions.
+        self.assertIn("tabular fallback", html_out.lower())
         self.assertIn("<caption>", html_out)
-        # This fixture has repetitions=3, so spread columns are shown.
-        self.assertIn("Score stdev", html_out)
-        self.assertIn("Score min–max", html_out)
-        # Provenance is present but collapsed.
-        self.assertIn("<details", html_out)
-        self.assertIn("Provenance and hashes", html_out)
+        self.assertIn("report-payload", html_out)
+        # This fixture has repetitions=3 with nonzero stdev: score shows ±.
+        self.assertIn("±", html_out)
+        # Score bands legend and dimension tiles with rubric tooltips.
+        self.assertIn("score-legend", html_out)
+        self.assertIn('class="tile score-', html_out)
+        self.assertIn("data-tip=", html_out)
+        # Provenance and methodology prose live in docs / embedded JSON.
+        self.assertNotIn("Provenance and hashes", html_out)
+        self.assertIn("embedded JSON payload", html_out)
         # Tables scroll inside their own container, never the page.
         self.assertIn("table-scroll", html_out)
+        # Classification is payload-only; ineligibility renders as a footnote.
+        self.assertNotIn("Classification", html_out)
+        self.assertIn("Not frontier-eligible", html_out)
+        # No KPI cards, decorative badges, or external assets.
+        self.assertNotIn("kpi-row", html_out)
+        self.assertNotIn('class="badge', html_out)
+        self.assertNotIn("<script src=", html_out.lower())
+        self.assertNotIn('rel="stylesheet"', html_out.lower())
 
-    def test_spread_columns_hidden_for_single_repetition(self) -> None:
+    def test_spread_marker_hidden_for_single_repetition(self) -> None:
         points = [
-            _point(model_id="solo", score=7.0, cost_per_attempt=2.0, repetitions=1),
+            _point(
+                model_id="solo",
+                score=7.0,
+                cost_per_attempt=2.0,
+                repetitions=1,
+                score_stdev=0.0,
+            ),
         ]
         html_out = render_report_html(build_report_payload(points))
-        self.assertNotIn("Score stdev", html_out)
-        self.assertNotIn("Score min–max", html_out)
-        self.assertNotIn("Impl cost stdev", html_out)
-        self.assertIn("Implementation cost per attempt", html_out)
+        self.assertNotIn("±", html_out)
+        self.assertIn("results-table", html_out)
+
+    def test_commentary_renders_and_validates(self) -> None:
+        commentary = {
+            "briefing": ["What this benchmark measures."],
+            "commentary": ["Closing thoughts prose."],
+            "captions": {"Quality versus cost": "Hand-written caption."},
+            "colors": {"alpha": "#123456"},
+            "models": {
+                "alpha": {
+                    "headline": "custom headline",
+                    "shines": [{"title": "Speed", "body": "Very fast."}],
+                    "failure_modes": "Falls over on <edge> cases.",
+                }
+            },
+            "methodology": [{"title": "Prompts", "paragraphs": ["One prompt per track."]}],
+        }
+        html_out = render_report_html(self._sample_payload(), commentary=commentary)
+        self.assertIn("What this benchmark measures.", html_out)
+        self.assertIn("Closing thoughts prose.", html_out)
+        self.assertIn("Hand-written caption.", html_out)
+        self.assertIn("custom headline", html_out)
+        self.assertIn("Where it shines", html_out)
+        self.assertIn("Very fast.", html_out)
+        self.assertIn("Falls over on &lt;edge&gt; cases.", html_out)
+        self.assertIn("One prompt per track.", html_out)
+        self.assertIn("color: #123456", html_out)
+        self.assertIn('href="#briefing"', html_out)
+        self.assertIn('href="#commentary"', html_out)
+
+    def test_commentary_unknown_model_fails(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unknown model ids"):
+            render_report_html(
+                self._sample_payload(),
+                commentary={"models": {"nope": {"headline": "x"}}},
+            )
 
     def test_no_filesystem_paths_rendered(self) -> None:
         points = [
@@ -974,6 +1040,65 @@ class WriteReportTests(TempDirTestCase):
         # No leftover temps
         leftovers = list(out.parent.glob(".report.html.*.tmp"))
         self.assertEqual(leftovers, [])
+
+    def test_display_name_renames_apply_everywhere(self) -> None:
+        lb = self.write_json(
+            "lb.json",
+            _leaderboard(
+                [
+                    _entry("claude-fable-5", display_name="Claude", score=8.0),
+                    _entry("gpt-5.6-sol", display_name="Codex", score=7.0),
+                ]
+            ),
+        )
+        out = self.root / "renamed.html"
+        write_report(
+            [lb],
+            out,
+            display_names={"claude-fable-5": "Fable 5", "gpt-5.6-sol": "GPT-5.6 Sol"},
+        )
+        text = out.read_text(encoding="utf-8")
+        self.assertIn("Fable 5", text)
+        self.assertIn("GPT-5.6 Sol", text)
+        # The stale names must be gone from rendered HTML and the JSON payload.
+        self.assertNotIn(">Claude<", text)
+        self.assertNotIn(">Codex<", text)
+        self.assertNotIn('"display_name":"Claude"', text)
+        self.assertNotIn('"display_name":"Codex"', text)
+
+    def test_display_name_rename_unknown_model_fails(self) -> None:
+        lb = self.write_json("lb.json", _leaderboard([_entry("m1")]))
+        out = self.root / "r.html"
+        with self.assertRaisesRegex(ValueError, "not present"):
+            write_report([lb], out, display_names={"nope": "Nope"})
+        self.assertFalse(out.exists())
+
+    def test_display_name_rename_validates_before_mutation(self) -> None:
+        from basecamp_bench.reporting import rename_display_names
+
+        lb = self.write_json("lb.json", _leaderboard([_entry("m1", display_name="Original")]))
+        points = load_leaderboards([lb])
+        original = points[0].display_name
+        overlong = "x" * 257
+        cases = [
+            ("", "nonempty"),
+            ("   ", "nonempty"),
+            ("name\x00null", "control"),
+            ("/Users/secret/path", "path"),
+            ("C:\\Windows\\system32", "path"),
+            ("file:///etc/passwd", "path"),
+            ("python -m evil --flag", "path"),
+            (overlong, "exceeds"),
+        ]
+        for name, needle in cases:
+            with self.subTest(name=name[:40], needle=needle):
+                with self.assertRaises(ValueError) as ctx:
+                    rename_display_names(points, {"m1": name})
+                self.assertRegex(str(ctx.exception).lower(), needle)
+                self.assertEqual(points[0].display_name, original)
+        renamed = rename_display_names(points, {"m1": "Café Model ✨"})
+        self.assertEqual(renamed[0].display_name, "Café Model ✨")
+        self.assertEqual(renamed[0].raw_attempts[0]["display_name"], "Café Model ✨")
 
     def test_write_report_deterministic_bytes(self) -> None:
         lb = self.write_json(
@@ -1050,82 +1175,158 @@ class MathEdgeTests(unittest.TestCase):
         self.assertEqual(expected_cost(p), 4.0)
 
 
-class EnrichedEntryValidationTests(TempDirTestCase):
-    def test_rejects_missing_and_extra_enriched_fields(self) -> None:
-        for field in (
-            "implementation_cost_per_attempt",
-            "evaluation_cost_per_attempt",
-            "raw_attempts",
-        ):
-            with self.subTest(missing=field):
-                entry = _entry("m1")
-                del entry[field]
-                path = self.write_json(f"miss-{field}.json", _leaderboard([entry]))
-                with self.assertRaises(ValueError) as ctx:
-                    load_leaderboards([path])
-                self.assertIn("missing", str(ctx.exception).lower())
-
-            with self.subTest(extra=field):
-                entry = _entry("m1")
-                entry["unexpected_enriched"] = 1
-                path = self.write_json("extra.json", _leaderboard([entry]))
-                with self.assertRaises(ValueError) as ctx:
-                    load_leaderboards([path])
-                self.assertIn("unknown", str(ctx.exception).lower())
-
-    def test_rejects_cost_equality_mismatch(self) -> None:
-        entry = _entry("m1", cost_per_attempt=1.0)
-        entry["implementation_cost_per_attempt"] = 2.0
-        path = self.write_json("mismatch.json", _leaderboard([entry]))
+class LedgerShapeValidationTests(TempDirTestCase):
+    def test_rejects_missing_raw_attempts(self) -> None:
+        entry = _entry("m1")
+        del entry["raw_attempts"]
+        path = self.write_json("miss-raw.json", _leaderboard([entry]))
         with self.assertRaises(ValueError) as ctx:
             load_leaderboards([path])
-        self.assertIn("cost_per_attempt", str(ctx.exception))
+        self.assertIn("raw_attempts", str(ctx.exception).lower())
 
-    def test_rejects_nonfinite_and_invalid_enriched_costs(self) -> None:
-        cases = [
-            ("implementation_cost_per_attempt", float("nan")),
-            ("implementation_cost_per_attempt", float("inf")),
-            ("implementation_cost_per_attempt", -0.1),
-            ("implementation_cost_per_attempt", True),
-            ("evaluation_cost_per_attempt", float("nan")),
-            ("evaluation_cost_per_attempt", -1.0),
-            ("evaluation_cost_per_attempt", True),
-        ]
-        for field, value in cases:
-            with self.subTest(field=field, value=value):
-                entry = _entry("m1", cost_per_attempt=1.0)
-                entry[field] = value
-                if field == "implementation_cost_per_attempt" and not (
-                    isinstance(value, bool) or not isinstance(value, (int, float))
-                ):
-                    # Keep cost_per_attempt equal only when value is a valid
-                    # finite nonnegative candidate; otherwise leave mismatch
-                    # aside and test type/range rejection.
-                    if (
-                        isinstance(value, (int, float))
-                        and math.isfinite(float(value))
-                        and float(value) >= 0
-                    ):
-                        entry["cost_per_attempt"] = value
-                path = self.write_json(f"bad-{field}.json", _leaderboard([entry]))
-                with self.assertRaises(ValueError):
-                    load_leaderboards([path])
+    def test_new_ledger_shape_loads_and_matches_legacy_semantics(self) -> None:
+        from basecamp_bench.leaderboard import (
+            attempt_from_raw,
+            build_attempt_ledgers,
+            write_attempt_ledgers,
+        )
 
-    def test_rejects_incoherent_distribution_statistics(self) -> None:
-        cases = [
-            ("score_range", 99.0),
-            ("cost_mean", 99.0),
-            ("tokens_min", 101),
-            ("duration_range_s", 1.0),
-            ("score_mean", float("nan")),
-        ]
-        for field, value in cases:
-            with self.subTest(field=field, value=value):
-                entry = _entry("m1")
-                entry[field] = value
-                path = self.write_json(f"bad-distribution-{field}.json", _leaderboard([entry]))
-                with self.assertRaises(ValueError):
-                    load_leaderboards([path])
+        raw = _raw_attempt(model_id="m1", score=6.0, implementation_cost_usd=2.0)
+        attempt = attempt_from_raw(raw)
+        ledgers = build_attempt_ledgers(
+            [attempt],
+            mode="publication",
+            generated_at="2026-01-01T00:00:00Z",
+            comparison_provenance={
+                "runner_source_sha256": "1" * 64,
+                "seed_tree_sha256": "2" * 64,
+                "reference_manifest_sha256": "3" * 64,
+                "reference_tree_sha256": "4" * 64,
+                "prompt_sha256": "5" * 64,
+                "rubric_sha256": "6" * 64,
+                "schema_bundle_sha256": "7" * 64,
+            },
+            dimension_profiles={
+                "fe": [
+                    {"id": "quality", "label": "Quality", "weight": 0.5},
+                    {"id": "craft", "label": "Craft", "weight": 0.5},
+                ]
+            },
+        )
+        paths = write_attempt_ledgers(self.root / "new-ledgers", ledgers)
+        json_path = next(p for p in paths if p.suffix == ".json")
+        payload = json.loads(json_path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["schema_version"], "2.0")
+        self.assertIn("attempts", payload)
+        self.assertNotIn("entries", payload)
+        points = load_leaderboards([json_path])
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0].score, 6.0)
+        self.assertEqual(points[0].implementation_cost_per_attempt, 2.0)
+
+    def test_legacy_and_new_ledgers_combine_when_compatible(self) -> None:
+        from basecamp_bench.leaderboard import (
+            attempt_from_raw,
+            build_attempt_ledgers,
+            write_attempt_ledgers,
+        )
+
+        first_raw = _raw_attempt(
+            run_id="run-one",
+            submission_id="sub-one",
+            model_id="m1",
+            score=4.0,
+            dimensions={"quality": 4.0},
+            implementation_cost_usd=1.0,
+        )
+        second_raw = _raw_attempt(
+            run_id="run-two",
+            submission_id="sub-two",
+            model_id="m1",
+            score=8.0,
+            dimensions={"quality": 8.0},
+            implementation_cost_usd=3.0,
+        )
+        legacy = self.write_json(
+            "legacy.json",
+            _leaderboard(
+                [_entry("m1", score=4.0, cost_per_attempt=1.0, raw_attempts=[first_raw])],
+                generated_at="2026-01-01T00:00:00Z",
+            ),
+        )
+        ledgers = build_attempt_ledgers(
+            [attempt_from_raw(second_raw)],
+            mode="publication",
+            generated_at="2026-02-01T00:00:00Z",
+            comparison_provenance={
+                "runner_source_sha256": "1" * 64,
+                "seed_tree_sha256": "2" * 64,
+                "reference_manifest_sha256": "3" * 64,
+                "reference_tree_sha256": "4" * 64,
+                "prompt_sha256": "5" * 64,
+                "rubric_sha256": "6" * 64,
+                "schema_bundle_sha256": "7" * 64,
+            },
+            dimension_profiles={"fe": [{"id": "quality", "label": "Quality", "weight": 1.0}]},
+        )
+        new_paths = write_attempt_ledgers(self.root / "mixed", ledgers)
+        new_json = next(p for p in new_paths if p.suffix == ".json")
+        points = load_leaderboards([legacy, new_json])
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0].repetitions, 2)
+        self.assertEqual(points[0].score, 6.0)
+
+    def test_mixed_schema_metadata_is_input_order_independent(self) -> None:
+        from basecamp_bench.leaderboard import (
+            attempt_from_raw,
+            build_attempt_ledgers,
+            write_attempt_ledgers,
+        )
+
+        legacy_raw = _raw_attempt(
+            run_id="legacy-run",
+            submission_id="legacy-sub",
+            model_id="m1",
+            score=4.0,
+            dimensions={"quality": 4.0},
+        )
+        canonical_raw = _raw_attempt(
+            run_id="canonical-run",
+            submission_id="canonical-sub",
+            model_id="m1",
+            score=8.0,
+            dimensions={"quality": 8.0},
+        )
+        legacy = self.write_json(
+            "legacy-order.json",
+            _leaderboard(
+                [_entry("m1", score=4.0, raw_attempts=[legacy_raw])],
+                generated_at="2026-01-01T00:00:00Z",
+            ),
+        )
+        canonical = write_attempt_ledgers(
+            self.root / "canonical-order",
+            build_attempt_ledgers(
+                [attempt_from_raw(canonical_raw)],
+                mode="publication",
+                generated_at="2026-02-01T00:00:00Z",
+                comparison_provenance={
+                    "runner_source_sha256": "1" * 64,
+                    "seed_tree_sha256": "2" * 64,
+                    "reference_manifest_sha256": "3" * 64,
+                    "reference_tree_sha256": "4" * 64,
+                    "prompt_sha256": "5" * 64,
+                    "rubric_sha256": "6" * 64,
+                    "schema_bundle_sha256": "7" * 64,
+                },
+                dimension_profiles={"fe": [{"id": "quality", "label": "Quality", "weight": 1.0}]},
+            ),
+        )[0]
+
+        forward = build_report_payload(load_leaderboards([legacy, canonical]))
+        reverse = build_report_payload(load_leaderboards([canonical, legacy]))
+        self.assertEqual(forward, reverse)
+        self.assertIsNone(forward["sections"][0]["schema_version"])
 
     def test_deep_immutability_of_loaded_raw_attempts(self) -> None:
         entry = _entry(

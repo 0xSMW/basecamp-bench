@@ -1,29 +1,36 @@
-"""Deterministic HTML benchmark report generation (stdlib only).
+"""Deterministic HTML report generation from attempt ledgers (stdlib only).
 
-Loads version-scoped leaderboard JSON, classifies Pareto frontiers, and
-renders a self-contained offline HTML report. FE and BE tracks and distinct
-contract revisions are never mixed.
+Loads canonical or legacy leaderboard JSON, derives aggregates once via
+:func:`aggregate_attempts`, classifies Pareto frontiers, and renders offline HTML.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import math
 import os
-import re
-import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Literal, cast
 
-from basecamp_bench.leaderboard import aggregate_attempts, attempt_from_raw
-from basecamp_bench.report_rendering import render_report_html
-from basecamp_bench.reporting_model import (
-    RAW_ATTEMPT_KEY_ORDER as _RAW_ATTEMPT_KEY_ORDER,
+from basecamp_bench.leaderboard import (
+    Attempt,
+    AttemptLedger,
+    aggregate_attempts,
+    atomic_write_text,
+    attempt_canonical_json,
+    attempt_from_raw,
+    attempt_to_raw,
+    freeze_raw_attempt,
+    load_attempt_ledger,
+    profile_to_raw,
+    require_display_name,
 )
+from basecamp_bench.report_rendering import render_report_html
 from basecamp_bench.reporting_model import raw_attempt_sort_key as _raw_attempt_sort_key
 from basecamp_bench.validation import is_finite_number
 
@@ -34,83 +41,24 @@ __all__ = [
     "load_leaderboards",
     "build_report_payload",
     "render_report_html",
+    "rename_display_names",
     "write_report",
 ]
 
-_ROOT_KEYS = frozenset(
-    {
-        "schema_version",
-        "mode",
-        "track",
-        "contract_version",
-        "contract_sha256",
-        "generated_at",
-        "runner_source_sha256",
-        "seed_tree_sha256",
-        "reference_manifest_sha256",
-        "reference_tree_sha256",
-        "prompt_sha256",
-        "rubric_sha256",
-        "schema_bundle_sha256",
-        "dimension_profile",
-        "entries",
-    }
+_PROVENANCE_HASH_KEYS = (
+    "runner_source_sha256",
+    "seed_tree_sha256",
+    "reference_manifest_sha256",
+    "reference_tree_sha256",
+    "prompt_sha256",
+    "rubric_sha256",
+    "schema_bundle_sha256",
 )
-_ENTRY_KEYS = frozenset(
-    {
-        "model_id",
-        "display_name",
-        "harness",
-        "score",
-        "score_mean",
-        "score_stdev",
-        "score_min",
-        "score_max",
-        "score_range",
-        "judge_spread",
-        "cost_per_attempt",
-        "cost_mean",
-        "cost_stdev",
-        "cost_min",
-        "cost_max",
-        "cost_range",
-        "success_rate",
-        "repetitions",
-        "dimensions",
-        "tokens",
-        "tokens_mean",
-        "tokens_min",
-        "tokens_max",
-        "tokens_range",
-        "duration_s",
-        "duration_mean_s",
-        "duration_min_s",
-        "duration_max_s",
-        "duration_range_s",
-        "eligible",
-        "ineligible_reasons",
-        "run_ids",
-        "implementation_cost_per_attempt",
-        "evaluation_cost_per_attempt",
-        "raw_attempts",
-    }
-)
-
-_RAW_ATTEMPT_KEYS = frozenset(_RAW_ATTEMPT_KEY_ORDER)
-
-# Portable identifier: ASCII alnum first, then alnum / . / _ / - (max 64).
-_IDENTIFIER_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
-_MAX_IDENTIFIER_LEN = 64
-_MAX_DISPLAY_NAME_LEN = 256
-_MAX_REASON_LEN = 256
-_MAX_SAFE_STRING_LEN = 256
-
-_ZERO_SUCCESS_REASON = "success_rate is zero"
 
 
 @dataclass(frozen=True, slots=True)
 class ReportPoint:
-    """One model entry on a version-scoped leaderboard."""
+    """One model entry on a version-scoped leaderboard (derived aggregates)."""
 
     track: str
     contract_version: str
@@ -167,74 +115,48 @@ class ReportPoint:
     def __post_init__(self) -> None:
         if self.mode not in {"local", "publication"}:
             raise ValueError("mode must be 'local' or 'publication'")
-        dims = self.dimensions
-        if not isinstance(dims, MappingProxyType):
+        if not isinstance(self.dimensions, MappingProxyType):
             object.__setattr__(
                 self,
                 "dimensions",
-                MappingProxyType({str(k): float(v) for k, v in dict(dims).items()}),
+                MappingProxyType({str(k): float(v) for k, v in dict(self.dimensions).items()}),
             )
-        reasons = self.ineligible_reasons
-        if not isinstance(reasons, tuple):
-            object.__setattr__(self, "ineligible_reasons", tuple(reasons))
-        run_ids = self.run_ids
-        if not isinstance(run_ids, tuple):
-            object.__setattr__(self, "run_ids", tuple(run_ids))
-        raw = self.raw_attempts
-        if not isinstance(raw, tuple) or any(
-            not isinstance(item, MappingProxyType) for item in raw
+        for name in ("ineligible_reasons", "run_ids", "generated_at_values", "source_run_ids"):
+            object.__setattr__(self, name, tuple(getattr(self, name)))
+        if not isinstance(self.raw_attempts, tuple) or any(
+            not isinstance(item, MappingProxyType) for item in self.raw_attempts
         ):
             object.__setattr__(
-                self,
-                "raw_attempts",
-                tuple(_freeze_raw_attempt(item) for item in raw),
+                self, "raw_attempts", tuple(freeze_raw_attempt(item) for item in self.raw_attempts)
             )
-        object.__setattr__(self, "generated_at_values", tuple(self.generated_at_values))
         object.__setattr__(
-            self,
-            "runner_source_sha256_values",
-            tuple(self.runner_source_sha256_values),
+            self, "runner_source_sha256_values", tuple(self.runner_source_sha256_values)
         )
-        object.__setattr__(self, "source_run_ids", tuple(self.source_run_ids))
 
 
 def expected_cost(point: ReportPoint) -> float | None:
-    """Return expected implementation cost: implementation_cost_per_attempt / success_rate.
-
-    Returns None when success_rate is zero or inputs are non-finite, negative,
-    or otherwise invalid for normalization. Evaluation overhead is never used.
-    """
+    """Return implementation_cost_per_attempt / success_rate (never evaluation cost)."""
     if any(
         reason in {"implementation_cost_unknown", "implementation_cost_incomplete"}
         for reason in point.ineligible_reasons
     ):
         return None
-    cost = point.implementation_cost_per_attempt
-    rate = point.success_rate
+    cost, rate = point.implementation_cost_per_attempt, point.success_rate
     if isinstance(cost, bool) or isinstance(rate, bool):
         return None
     if not isinstance(cost, (int, float)) or not isinstance(rate, (int, float)):
         return None
-    cost_f = float(cost)
-    rate_f = float(rate)
+    cost_f, rate_f = float(cost), float(rate)
     if not math.isfinite(cost_f) or not math.isfinite(rate_f):
         return None
-    if cost_f < 0.0 or rate_f < 0.0 or rate_f > 1.0:
-        return None
-    if rate_f == 0.0:
+    if cost_f < 0.0 or rate_f <= 0.0 or rate_f > 1.0:
         return None
     result = cost_f / rate_f
-    if not math.isfinite(result):
-        return None
-    return result
+    return result if math.isfinite(result) else None
 
 
 def _is_nonneg_finite(value: Any) -> bool:
     return is_finite_number(value) and float(value) >= 0.0
-
-
-def _is_nonempty_string(value: Any) -> bool:
-    return isinstance(value, str) and value != ""
 
 
 def _section_key(point: ReportPoint) -> tuple[str, ...]:
@@ -243,13 +165,7 @@ def _section_key(point: ReportPoint) -> tuple[str, ...]:
         point.contract_version,
         point.contract_sha256,
         point.mode,
-        point.runner_source_sha256,
-        point.seed_tree_sha256,
-        point.reference_manifest_sha256,
-        point.reference_tree_sha256,
-        point.prompt_sha256,
-        point.rubric_sha256,
-        point.schema_bundle_sha256,
+        *(getattr(point, key) for key in _PROVENANCE_HASH_KEYS),
         point.dimension_profile_json,
     )
 
@@ -284,7 +200,6 @@ def _point_id(point: ReportPoint) -> str:
 
 
 def _dominator_sort_key(point: ReportPoint, cost: float) -> tuple[float, float, str, str]:
-    # Lowest expected cost, then highest score, then lexicographically smallest id.
     return (cost, -float(point.score), point.harness, point.model_id)
 
 
@@ -331,755 +246,100 @@ def pareto_frontier(
     return frontier, dominator
 
 
-def _exact_keys(obj: Mapping[str, Any], expected: frozenset[str], path: str) -> None:
-    actual = frozenset(obj.keys())
-    missing = sorted(expected - actual)
-    extra = sorted(actual - expected)
-    parts: list[str] = []
-    if missing:
-        parts.append(f"missing keys {missing}")
-    if extra:
-        parts.append(f"unknown keys {extra}")
-    if parts:
-        raise ValueError(f"{path}: " + "; ".join(parts))
+def _profile_json(profile: Sequence[Mapping[str, object]]) -> str:
+    portable = profile_to_raw(profile)
+    portable.sort(key=lambda row: str(row["id"]))
+    return json.dumps(portable, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
 
-def _require_nonempty_string(value: Any, path: str) -> str:
-    if not _is_nonempty_string(value):
-        raise ValueError(f"{path}: expected nonempty string")
-    return value
+def _compatibility_section(ledger: AttemptLedger) -> tuple[str, ...]:
+    # Local reports may combine runner revisions; publication keeps runner hash.
+    runner_compatibility = ledger.runner_source_sha256 if ledger.mode == "publication" else "local"
+    return (
+        ledger.track,
+        ledger.contract_version,
+        ledger.contract_sha256,
+        ledger.mode,
+        runner_compatibility,
+        *(getattr(ledger, key) for key in _PROVENANCE_HASH_KEYS[1:]),
+        _profile_json(ledger.dimension_profile),
+    )
 
 
-def _require_finite_number(value: Any, path: str) -> float:
-    if not is_finite_number(value):
-        raise ValueError(f"{path}: expected finite number (bool excluded)")
-    return float(value)
-
-
-def _require_nonneg_finite(value: Any, path: str) -> float:
-    if not _is_nonneg_finite(value):
-        raise ValueError(f"{path}: expected finite nonnegative number (bool excluded)")
-    return float(value)
-
-
-def _require_nonneg_int(value: Any, path: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(f"{path}: expected nonnegative integer (bool excluded)")
-    if value < 0:
-        raise ValueError(f"{path}: expected nonnegative integer")
-    return value
-
-
-def _require_success_rate(value: Any, path: str) -> float:
-    rate = _require_finite_number(value, path)
-    if rate < 0.0 or rate > 1.0:
-        raise ValueError(f"{path}: expected number in [0, 1], got {rate!r}")
-    return rate
-
-
-def _validate_distribution(
-    *,
-    median: float,
-    mean: float,
-    stdev: float | None,
-    minimum: float,
-    maximum: float,
-    value_range: float,
-    path: str,
-) -> None:
-    def close(left: float, right: float) -> bool:
-        return math.isclose(left, right, rel_tol=1e-12, abs_tol=1e-12)
-
-    if minimum > maximum and not close(minimum, maximum):
-        raise ValueError(f"{path}: minimum exceeds maximum")
-    if (median < minimum and not close(median, minimum)) or (
-        median > maximum and not close(median, maximum)
-    ):
-        raise ValueError(f"{path}: median is outside min/max")
-    if (mean < minimum and not close(mean, minimum)) or (
-        mean > maximum and not close(mean, maximum)
-    ):
-        raise ValueError(f"{path}: mean is outside min/max")
-    if not close(value_range, maximum - minimum):
-        raise ValueError(f"{path}: range must equal max - min")
-    if close(minimum, maximum) and stdev is not None and not close(stdev, 0.0):
-        raise ValueError(f"{path}: stdev must be zero for a constant distribution")
-
-
-def _require_bool(value: Any, path: str) -> bool:
-    if not isinstance(value, bool):
-        raise ValueError(f"{path}: expected bool")
-    return value
-
-
-def _require_string_list(value: Any, path: str) -> tuple[str, ...]:
-    if not isinstance(value, list):
-        raise ValueError(f"{path}: expected list of strings")
-    out: list[str] = []
-    for index, item in enumerate(value):
-        if not isinstance(item, str):
-            raise ValueError(f"{path}[{index}]: expected string")
-        out.append(item)
-    return tuple(out)
-
-
-def _require_dimensions(value: Any, path: str) -> Mapping[str, float]:
-    if not isinstance(value, dict):
-        raise ValueError(f"{path}: expected object mapping strings to finite numbers")
-    result: dict[str, float] = {}
-    for key in sorted(value.keys(), key=lambda k: (str(type(k)), str(k))):
-        if not isinstance(key, str):
-            raise ValueError(f"{path}: dimension keys must be strings")
-        raw = value[key]
-        if not is_finite_number(raw):
-            raise ValueError(f"{path}[{key!r}]: expected finite number (bool excluded)")
-        result[key] = float(raw)
-    return MappingProxyType(result)
-
-
-def _has_control_chars(value: str) -> bool:
-    return any(ord(c) < 32 or ord(c) == 127 for c in value)
-
-
-def _looks_like_absolute_path(value: str) -> bool:
-    if value.startswith("/") or value.startswith("\\"):
-        return True
-    if len(value) >= 2 and value[0].isalpha() and value[1] == ":":
-        if len(value) == 2 or value[2] in "/\\":
-            return True
-    return False
-
-
-def _looks_like_path_or_command(value: str) -> bool:
-    """Reject absolute paths, file URLs, traversal, and command/argv/prompt shapes."""
-    lower = value.lower().strip()
-    if lower.startswith("file:"):
-        return True
-    if _looks_like_absolute_path(value):
-        return True
-    if "/../" in value or "\\..\\" in value or value in (".", ".."):
-        return True
-    if value.startswith("../") or value.startswith("..\\"):
-        return True
-    # Command-line / argv / prompt provenance (targeted; allows normal labels).
-    if re.search(r"(^|[\s;|&])(?:argv|prompt)\s*[=:]", lower):
-        return True
-    if re.match(
-        r"^(?:python|python3|bash|sh|zsh|cmd|powershell|node|ruby|perl)\s+",
-        lower,
-    ):
-        return True
-    if re.search(r"\s--?[a-z0-9][\w-]*\b", lower) and ("/" in value or "\\" in value):
-        return True
-    return False
-
-
-def _require_safe_identifier(value: Any, path: str) -> str:
-    if isinstance(value, bool) or not isinstance(value, str):
-        raise ValueError(f"{path}: expected nonempty safe string")
-    if not value:
-        raise ValueError(f"{path}: expected nonempty safe string")
-    if len(value) > _MAX_IDENTIFIER_LEN:
-        raise ValueError(f"{path}: identifier exceeds {_MAX_IDENTIFIER_LEN} characters")
-    if _has_control_chars(value):
-        raise ValueError(f"{path}: contains control characters")
-    if "/" in value or "\\" in value or ".." in value:
-        raise ValueError(f"{path}: path-shaped identifier rejected")
-    if _looks_like_absolute_path(value) or _looks_like_path_or_command(value):
-        raise ValueError(f"{path}: path or command-shaped value rejected")
-    if _IDENTIFIER_RE.fullmatch(value) is None:
-        raise ValueError(f"{path}: not a portable identifier")
-    return value
-
-
-def _require_display_name(value: Any, path: str) -> str:
-    if isinstance(value, bool) or not isinstance(value, str):
-        raise ValueError(f"{path}: expected nonempty string")
-    if not value:
-        raise ValueError(f"{path}: expected nonempty string")
-    if len(value) > _MAX_DISPLAY_NAME_LEN:
-        raise ValueError(f"{path}: display name exceeds {_MAX_DISPLAY_NAME_LEN} characters")
-    if _has_control_chars(value):
-        raise ValueError(f"{path}: contains control characters")
-    if _looks_like_path_or_command(value):
-        raise ValueError(f"{path}: path or command-shaped value rejected")
-    return value
-
-
-def _require_safe_label(value: Any, path: str) -> str:
-    if isinstance(value, bool) or not isinstance(value, str):
-        raise ValueError(f"{path}: expected string")
-    if len(value) > _MAX_REASON_LEN:
-        raise ValueError(f"{path}: exceeds {_MAX_REASON_LEN} characters")
-    if _has_control_chars(value):
-        raise ValueError(f"{path}: contains control characters")
-    if _looks_like_path_or_command(value):
-        raise ValueError(f"{path}: path or command-shaped value rejected")
-    return value
-
-
-def _require_optional_nonneg_finite(value: Any, path: str) -> float | None:
-    if value is None:
-        return None
-    return _require_nonneg_finite(value, path)
-
-
-def _require_score_0_10(value: Any, path: str) -> float:
-    number = _require_finite_number(value, path)
-    if number < 0.0 or number > 10.0:
-        raise ValueError(f"{path}: expected number in 0..10, got {number!r}")
-    return number
-
-
-def _require_positive_int(value: Any, path: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(f"{path}: expected positive integer (bool excluded)")
-    if value < 1:
-        raise ValueError(f"{path}: expected positive integer")
-    return value
-
-
-def _require_raw_dimensions_success(value: Any, path: str) -> dict[str, float]:
-    if not isinstance(value, dict):
-        raise ValueError(f"{path}: expected object mapping strings to finite numbers")
-    if not value:
-        raise ValueError(f"{path}: successful evaluation requires nonempty dimensions")
-    result: dict[str, float] = {}
-    for key in sorted(value.keys(), key=lambda k: (str(type(k)), str(k))):
-        if not isinstance(key, str) or not key:
-            raise ValueError(f"{path}: dimension keys must be nonempty strings")
-        if _has_control_chars(key) or _looks_like_path_or_command(key):
-            raise ValueError(f"{path}: unsafe dimension key {key!r}")
-        result[key] = _require_score_0_10(value[key], f"{path}[{key!r}]")
-    return result
-
-
-def _freeze_raw_attempt(raw: Mapping[str, Any] | Mapping[str, object]) -> Mapping[str, object]:
-    """Deeply freeze one raw attempt into a MappingProxyType tree."""
-    data = dict(raw)
-    dims_src = data.get("dimensions", {})
-    if isinstance(dims_src, Mapping):
-        dims = MappingProxyType(
-            {str(k): float(dims_src[k]) for k in sorted(dims_src.keys(), key=str)}
-        )
-    else:
-        dims = MappingProxyType({})
-    evals = data.get("evaluator_ids", ())
-    reasons = data.get("ineligible_reasons", ())
-    frozen: dict[str, object] = {}
-    for key in _RAW_ATTEMPT_KEY_ORDER:
-        if key == "dimensions":
-            frozen[key] = dims
-        elif key == "evaluator_ids":
-            frozen[key] = tuple(evals)
-        elif key == "ineligible_reasons":
-            frozen[key] = tuple(reasons)
-        else:
-            frozen[key] = data[key]
-    return MappingProxyType(frozen)
-
-
-def _parse_raw_attempt(
-    raw: Any,
+def _report_point_from_entry(
+    entry: Mapping[str, object],
     *,
     track: str,
     contract_version: str,
     contract_sha256: str,
-    model_id: str,
-    harness: str,
-    path: str,
-) -> Mapping[str, object]:
-    """Validate and freeze one raw attempt within its leaderboard identity.
-
-    Track, contract, harness, and model fields must match the enclosing entry.
-    Success flags also determine whether score, dimensions, and judge spread
-    must be populated or absent. The returned mapping is deeply immutable so
-    later report construction cannot mutate validated source evidence.
-    """
-
-    if not isinstance(raw, dict):
-        raise ValueError(f"{path}: expected object")
-    _exact_keys(raw, _RAW_ATTEMPT_KEYS, path)
-
-    run_id = _require_safe_identifier(raw["run_id"], f"{path}.run_id")
-    submission_id = _require_safe_identifier(raw["submission_id"], f"{path}.submission_id")
-    repetition = _require_positive_int(raw["repetition"], f"{path}.repetition")
-
-    raw_track = _require_nonempty_string(raw["track"], f"{path}.track")
-    if raw_track != track:
-        raise ValueError(f"{path}.track: must match root track {track!r}, got {raw_track!r}")
-    raw_cv = _require_safe_identifier(raw["contract_version"], f"{path}.contract_version")
-    if raw_cv != contract_version:
-        raise ValueError(
-            f"{path}.contract_version: must match root identity "
-            f"{contract_version!r}, got {raw_cv!r}"
-        )
-    raw_sha = _require_nonempty_string(raw["contract_sha256"], f"{path}.contract_sha256")
-    if _has_control_chars(raw_sha) or _looks_like_path_or_command(raw_sha):
-        raise ValueError(f"{path}.contract_sha256: path or command-shaped value rejected")
-    if len(raw_sha) > _MAX_SAFE_STRING_LEN:
-        raise ValueError(f"{path}.contract_sha256: exceeds bound")
-    if raw_sha != contract_sha256:
-        raise ValueError(f"{path}.contract_sha256: must match root identity, got {raw_sha!r}")
-
-    raw_harness = _require_safe_identifier(raw["harness"], f"{path}.harness")
-    if raw_harness != harness:
-        raise ValueError(
-            f"{path}.harness: must match entry harness {harness!r}, got {raw_harness!r}"
-        )
-    raw_model = _require_safe_identifier(raw["model_id"], f"{path}.model_id")
-    if raw_model != model_id:
-        raise ValueError(
-            f"{path}.model_id: must match entry model_id {model_id!r}, got {raw_model!r}"
-        )
-    display_name = _require_display_name(raw["display_name"], f"{path}.display_name")
-
-    implementation_success = _require_bool(
-        raw["implementation_success"], f"{path}.implementation_success"
-    )
-    evaluation_success = _require_bool(raw["evaluation_success"], f"{path}.evaluation_success")
-    if evaluation_success and not implementation_success:
-        raise ValueError(f"{path}: evaluation_success requires implementation_success")
-
-    if evaluation_success:
-        score = _require_score_0_10(raw["score"], f"{path}.score")
-        dimensions = _require_raw_dimensions_success(raw["dimensions"], f"{path}.dimensions")
-        judge_spread = _require_nonneg_finite(raw["judge_spread"], f"{path}.judge_spread")
-    else:
-        if raw["score"] is not None:
-            raise ValueError(f"{path}.score: failed evaluation must have score None")
-        score = None
-        dims_raw = raw["dimensions"]
-        if not isinstance(dims_raw, dict) or dims_raw:
-            raise ValueError(f"{path}.dimensions: failed evaluation must have empty dimensions")
-        dimensions = {}
-        if raw["judge_spread"] is not None:
-            raise ValueError(f"{path}.judge_spread: failed evaluation must have judge_spread None")
-        judge_spread = None
-
-    implementation_cost_usd = _require_optional_nonneg_finite(
-        raw["implementation_cost_usd"], f"{path}.implementation_cost_usd"
-    )
-    evaluation_cost_usd = _require_optional_nonneg_finite(
-        raw["evaluation_cost_usd"], f"{path}.evaluation_cost_usd"
-    )
-    tokens = _require_nonneg_int(raw["tokens"], f"{path}.tokens")
-    duration_s = _require_nonneg_finite(raw["duration_s"], f"{path}.duration_s")
-
-    evals_raw = raw["evaluator_ids"]
-    if not isinstance(evals_raw, list):
-        raise ValueError(f"{path}.evaluator_ids: expected list of safe strings")
-    evaluator_ids: list[str] = []
-    for i, item in enumerate(evals_raw):
-        evaluator_ids.append(_require_safe_identifier(item, f"{path}.evaluator_ids[{i}]"))
-
-    reasons_raw = raw["ineligible_reasons"]
-    if not isinstance(reasons_raw, list):
-        raise ValueError(f"{path}.ineligible_reasons: expected list of safe strings")
-    ineligible_reasons: list[str] = []
-    for i, item in enumerate(reasons_raw):
-        ineligible_reasons.append(_require_safe_label(item, f"{path}.ineligible_reasons[{i}]"))
-
-    ordered: dict[str, object] = {
-        "run_id": run_id,
-        "submission_id": submission_id,
-        "repetition": repetition,
-        "track": raw_track,
-        "contract_version": raw_cv,
-        "contract_sha256": raw_sha,
-        "harness": raw_harness,
-        "model_id": raw_model,
-        "display_name": display_name,
-        "implementation_success": implementation_success,
-        "evaluation_success": evaluation_success,
-        "score": score,
-        "dimensions": dimensions,
-        "judge_spread": judge_spread,
-        "implementation_cost_usd": implementation_cost_usd,
-        "evaluation_cost_usd": evaluation_cost_usd,
-        "tokens": tokens,
-        "duration_s": duration_s,
-        "evaluator_ids": evaluator_ids,
-        "ineligible_reasons": ineligible_reasons,
-    }
-    return _freeze_raw_attempt(ordered)
-
-
-def _parse_raw_attempts(
-    value: Any,
-    *,
-    track: str,
-    contract_version: str,
-    contract_sha256: str,
-    model_id: str,
-    harness: str,
-    path: str,
-) -> tuple[Mapping[str, object], ...]:
-    if not isinstance(value, list):
-        raise ValueError(f"{path}: expected list of raw attempt objects")
-    parsed: list[Mapping[str, object]] = []
-    seen_ids: dict[tuple[str, str, int], str] = {}
-    for index, item in enumerate(value):
-        apath = f"{path}[{index}]"
-        raw = _parse_raw_attempt(
-            item,
-            track=track,
-            contract_version=contract_version,
-            contract_sha256=contract_sha256,
-            model_id=model_id,
-            harness=harness,
-            path=apath,
-        )
-        repetition = raw["repetition"]
-        assert isinstance(repetition, int) and not isinstance(repetition, bool)
-        identity = (
-            str(raw["run_id"]),
-            str(raw["submission_id"]),
-            repetition,
-        )
-        serialized = _raw_attempt_sort_key(raw)[3]
-        if identity in seen_ids and seen_ids[identity] != serialized:
-            raise ValueError(
-                f"{apath}: conflicting duplicate raw identity "
-                f"run_id={identity[0]!r} submission_id={identity[1]!r} "
-                f"repetition={identity[2]!r}"
-            )
-        if identity not in seen_ids:
-            seen_ids[identity] = serialized
-            parsed.append(raw)
-    parsed.sort(key=_raw_attempt_sort_key)
-    return tuple(parsed)
-
-
-def _parse_entry(
-    entry: Any,
-    *,
-    track: str,
-    contract_version: str,
-    contract_sha256: str,
-    path: str,
-    index: int,
     provenance: Mapping[str, str],
-    section_meta: Mapping[str, Any] | None = None,
+    section_meta: Mapping[str, Any],
 ) -> ReportPoint:
-    """Validate one leaderboard entry and convert it to a report point.
+    """Build a ReportPoint from trusted aggregate_attempts output."""
 
-    Distribution summaries and identity relationships are checked before raw
-    attempts are parsed. A zero-success entry is forced ineligible even when a
-    source artifact claims otherwise; subsequent loading recomputes comparable
-    aggregates from the validated raw attempts.
-    """
-
-    epath = f"{path}:entries[{index}]"
-    if not isinstance(entry, dict):
-        raise ValueError(f"{epath}: expected object")
-    _exact_keys(entry, _ENTRY_KEYS, epath)
-
-    model_id = _require_nonempty_string(entry["model_id"], f"{epath}.model_id")
-    display_name = _require_nonempty_string(entry["display_name"], f"{epath}.display_name")
-    harness = _require_nonempty_string(entry["harness"], f"{epath}.harness")
-    score = _require_finite_number(entry["score"], f"{epath}.score")
-    score_mean = _require_nonneg_finite(entry["score_mean"], f"{epath}.score_mean")
-    score_stdev = _require_nonneg_finite(entry["score_stdev"], f"{epath}.score_stdev")
-    score_min = _require_nonneg_finite(entry["score_min"], f"{epath}.score_min")
-    score_max = _require_nonneg_finite(entry["score_max"], f"{epath}.score_max")
-    score_range = _require_nonneg_finite(entry["score_range"], f"{epath}.score_range")
-    if max(score, score_mean, score_min, score_max) > 10.0:
-        raise ValueError(f"{epath}: score distribution values must be in 0..10")
-    _validate_distribution(
-        median=score,
-        mean=score_mean,
-        stdev=score_stdev,
-        minimum=score_min,
-        maximum=score_max,
-        value_range=score_range,
-        path=f"{epath}.score_distribution",
-    )
-    judge_spread = _require_nonneg_finite(entry["judge_spread"], f"{epath}.judge_spread")
-    cost_per_attempt = _require_nonneg_finite(
-        entry["cost_per_attempt"], f"{epath}.cost_per_attempt"
-    )
-    cost_mean = _require_nonneg_finite(entry["cost_mean"], f"{epath}.cost_mean")
-    cost_stdev = _require_nonneg_finite(entry["cost_stdev"], f"{epath}.cost_stdev")
-    cost_min = _require_nonneg_finite(entry["cost_min"], f"{epath}.cost_min")
-    cost_max = _require_nonneg_finite(entry["cost_max"], f"{epath}.cost_max")
-    cost_range = _require_nonneg_finite(entry["cost_range"], f"{epath}.cost_range")
-    _validate_distribution(
-        median=cost_per_attempt,
-        mean=cost_mean,
-        stdev=cost_stdev,
-        minimum=cost_min,
-        maximum=cost_max,
-        value_range=cost_range,
-        path=f"{epath}.implementation_cost_distribution",
-    )
-    success_rate = _require_success_rate(entry["success_rate"], f"{epath}.success_rate")
-    repetitions = _require_nonneg_int(entry["repetitions"], f"{epath}.repetitions")
-    dimensions = _require_dimensions(entry["dimensions"], f"{epath}.dimensions")
-    tokens = _require_nonneg_int(entry["tokens"], f"{epath}.tokens")
-    tokens_mean = _require_nonneg_finite(entry["tokens_mean"], f"{epath}.tokens_mean")
-    tokens_min = _require_nonneg_int(entry["tokens_min"], f"{epath}.tokens_min")
-    tokens_max = _require_nonneg_int(entry["tokens_max"], f"{epath}.tokens_max")
-    tokens_range = _require_nonneg_int(entry["tokens_range"], f"{epath}.tokens_range")
-    _validate_distribution(
-        median=float(tokens),
-        mean=tokens_mean,
-        stdev=None,
-        minimum=float(tokens_min),
-        maximum=float(tokens_max),
-        value_range=float(tokens_range),
-        path=f"{epath}.tokens_distribution",
-    )
-    duration_s = _require_nonneg_finite(entry["duration_s"], f"{epath}.duration_s")
-    duration_mean_s = _require_nonneg_finite(entry["duration_mean_s"], f"{epath}.duration_mean_s")
-    duration_min_s = _require_nonneg_finite(entry["duration_min_s"], f"{epath}.duration_min_s")
-    duration_max_s = _require_nonneg_finite(entry["duration_max_s"], f"{epath}.duration_max_s")
-    duration_range_s = _require_nonneg_finite(
-        entry["duration_range_s"], f"{epath}.duration_range_s"
-    )
-    _validate_distribution(
-        median=duration_s,
-        mean=duration_mean_s,
-        stdev=None,
-        minimum=duration_min_s,
-        maximum=duration_max_s,
-        value_range=duration_range_s,
-        path=f"{epath}.duration_distribution",
-    )
-    eligible = _require_bool(entry["eligible"], f"{epath}.eligible")
-    ineligible_reasons = _require_string_list(
-        entry["ineligible_reasons"], f"{epath}.ineligible_reasons"
-    )
-    run_ids = _require_string_list(entry["run_ids"], f"{epath}.run_ids")
-    implementation_cost_per_attempt = _require_nonneg_finite(
-        entry["implementation_cost_per_attempt"],
-        f"{epath}.implementation_cost_per_attempt",
-    )
-    evaluation_cost_per_attempt = _require_nonneg_finite(
-        entry["evaluation_cost_per_attempt"],
-        f"{epath}.evaluation_cost_per_attempt",
-    )
-    if float(cost_per_attempt) != float(implementation_cost_per_attempt):
-        raise ValueError(
-            f"{epath}: cost_per_attempt ({cost_per_attempt!r}) must equal "
-            f"implementation_cost_per_attempt "
-            f"({implementation_cost_per_attempt!r})"
-        )
-    raw_attempts = _parse_raw_attempts(
-        entry["raw_attempts"],
-        track=track,
-        contract_version=contract_version,
-        contract_sha256=contract_sha256,
-        model_id=model_id,
-        harness=harness,
-        path=f"{epath}.raw_attempts",
-    )
-
+    point_fields = {field.name for field in dataclasses.fields(ReportPoint)}
+    values: dict[str, Any] = {key: value for key, value in entry.items() if key in point_fields}
+    success_rate = float(cast(float, entry["success_rate"]))
+    eligible = bool(entry["eligible"])
+    reasons = list(cast(Sequence[str], entry["ineligible_reasons"]))
     if success_rate == 0.0:
         eligible = False
-        reasons = list(ineligible_reasons)
-        if _ZERO_SUCCESS_REASON not in reasons:
-            reasons.append(_ZERO_SUCCESS_REASON)
-        ineligible_reasons = tuple(reasons)
-
-    meta = section_meta or {}
-    return ReportPoint(
+        if "success_rate is zero" not in reasons:
+            reasons.append("success_rate is zero")
+    values.update(provenance)
+    values.update(section_meta)
+    values.update(
         track=track,
         contract_version=contract_version,
         contract_sha256=contract_sha256,
-        model_id=model_id,
-        display_name=display_name,
-        harness=harness,
-        score=score,
-        score_mean=score_mean,
-        score_stdev=score_stdev,
-        score_min=score_min,
-        score_max=score_max,
-        score_range=score_range,
-        judge_spread=judge_spread,
-        cost_per_attempt=cost_per_attempt,
-        cost_mean=cost_mean,
-        cost_stdev=cost_stdev,
-        cost_min=cost_min,
-        cost_max=cost_max,
-        cost_range=cost_range,
         success_rate=success_rate,
-        repetitions=repetitions,
-        dimensions=dimensions,
-        tokens=tokens,
-        tokens_mean=tokens_mean,
-        tokens_min=tokens_min,
-        tokens_max=tokens_max,
-        tokens_range=tokens_range,
-        duration_s=duration_s,
-        duration_mean_s=duration_mean_s,
-        duration_min_s=duration_min_s,
-        duration_max_s=duration_max_s,
-        duration_range_s=duration_range_s,
         eligible=eligible,
-        ineligible_reasons=ineligible_reasons,
-        run_ids=run_ids,
-        implementation_cost_per_attempt=implementation_cost_per_attempt,
-        evaluation_cost_per_attempt=evaluation_cost_per_attempt,
-        raw_attempts=raw_attempts,
-        mode=provenance["mode"],
-        runner_source_sha256=provenance["runner_source_sha256"],
-        seed_tree_sha256=provenance["seed_tree_sha256"],
-        reference_manifest_sha256=provenance["reference_manifest_sha256"],
-        reference_tree_sha256=provenance["reference_tree_sha256"],
-        prompt_sha256=provenance["prompt_sha256"],
-        rubric_sha256=provenance["rubric_sha256"],
-        schema_bundle_sha256=provenance["schema_bundle_sha256"],
-        dimension_profile_json=provenance["dimension_profile_json"],
-        schema_version=cast(str | None, meta.get("schema_version")),
-        generated_at_values=tuple(cast(Sequence[str], meta.get("generated_at_values", ()))),
-        source_run_ids=tuple(cast(Sequence[str], meta.get("source_run_ids", ()))),
-        runner_source_sha256_values=tuple(
-            cast(Sequence[str], meta.get("runner_source_sha256_values", ()))
-        ),
+        ineligible_reasons=reasons,
     )
+    return ReportPoint(**values)
 
 
 def load_leaderboards(paths: Sequence[Path]) -> list[ReportPoint]:
-    """Load, compatibility-section, deduplicate, and recompute leaderboard rows."""
+    """Load ledgers/legacy leaderboards, dedupe, and recompute model aggregates."""
     collected: dict[tuple[str, ...], dict[str, Any]] = {}
 
     for raw_path in paths:
         path = Path(raw_path)
         label = os.fspath(path)
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError as exc:
-            raise ValueError(f"{label}: cannot read leaderboard file: {exc}") from exc
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"{label}: invalid JSON: {exc}") from exc
-        if not isinstance(data, dict):
-            raise ValueError(f"{label}: root must be a JSON object")
-        _exact_keys(data, _ROOT_KEYS, label)
-
-        schema_version = _require_nonempty_string(data["schema_version"], f"{label}.schema_version")
-        if schema_version != "1.0":
-            raise ValueError(f"{label}.schema_version: unsupported version")
-        mode = _require_nonempty_string(data["mode"], f"{label}.mode")
-        if mode not in {"local", "publication"}:
-            raise ValueError(f"{label}.mode: expected local or publication")
-        track = _require_nonempty_string(data["track"], f"{label}.track")
-        if track not in {"fe", "be"}:
-            raise ValueError(f"{label}.track: expected fe or be")
-        contract_version = _require_nonempty_string(
-            data["contract_version"], f"{label}.contract_version"
-        )
-        contract_sha256 = _require_nonempty_string(
-            data["contract_sha256"], f"{label}.contract_sha256"
-        )
-        generated_at = _require_nonempty_string(data["generated_at"], f"{label}.generated_at")
-        provenance: dict[str, str] = {"mode": mode}
-        for key in (
-            "runner_source_sha256",
-            "seed_tree_sha256",
-            "reference_manifest_sha256",
-            "reference_tree_sha256",
-            "prompt_sha256",
-            "rubric_sha256",
-            "schema_bundle_sha256",
-        ):
-            value = _require_nonempty_string(data[key], f"{label}.{key}")
-            if re.fullmatch(r"[0-9a-f]{64}", value) is None:
-                raise ValueError(f"{label}.{key}: expected lowercase SHA-256")
-            provenance[key] = value
-        raw_profile = data["dimension_profile"]
-        if not isinstance(raw_profile, list) or not raw_profile:
-            raise ValueError(f"{label}.dimension_profile: expected nonempty array")
-        profile: list[dict[str, Any]] = []
-        profile_ids: set[str] = set()
-        for pindex, row in enumerate(raw_profile):
-            ppath = f"{label}.dimension_profile[{pindex}]"
-            if not isinstance(row, dict) or set(row) != {"id", "label", "weight"}:
-                raise ValueError(f"{ppath}: invalid dimension metadata")
-            dim_id = _require_safe_identifier(row["id"], f"{ppath}.id")
-            dim_label = _require_display_name(row["label"], f"{ppath}.label")
-            weight = _require_nonneg_finite(row["weight"], f"{ppath}.weight")
-            if weight <= 0 or dim_id in profile_ids:
-                raise ValueError(f"{ppath}: duplicate id or nonpositive weight")
-            profile_ids.add(dim_id)
-            profile.append({"id": dim_id, "label": dim_label, "weight": weight})
-        if abs(sum(float(row["weight"]) for row in profile) - 1.0) > 1e-9:
-            raise ValueError(f"{label}.dimension_profile: weights must sum to 1")
-        profile.sort(key=lambda row: str(row["id"]))
-        profile_json = json.dumps(
-            profile, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-        )
-        provenance["dimension_profile_json"] = profile_json
-        entries = data["entries"]
-        if not isinstance(entries, list):
-            raise ValueError(f"{label}.entries: expected list")
-
-        # Local reports are exploratory and may compare otherwise identical
-        # runs produced by different runner revisions. Publication reports keep
-        # runner source in the compatibility boundary so official comparisons
-        # cannot mix execution semantics.
-        runner_compatibility = (
-            provenance["runner_source_sha256"] if mode == "publication" else "local"
-        )
-        section = (
-            track,
-            contract_version,
-            contract_sha256,
-            mode,
-            runner_compatibility,
-            provenance["seed_tree_sha256"],
-            provenance["reference_manifest_sha256"],
-            provenance["reference_tree_sha256"],
-            provenance["prompt_sha256"],
-            provenance["rubric_sha256"],
-            provenance["schema_bundle_sha256"],
-            profile_json,
-        )
+        ledger = load_attempt_ledger(path)
+        profile_json = _profile_json(ledger.dimension_profile)
+        section = _compatibility_section(ledger)
         bucket = collected.setdefault(
             section,
             {
-                "schema_version": schema_version,
+                "schema_versions": set(),
                 "timestamps": set(),
                 "attempts": {},
                 "model_identity": {},
-                "provenance": provenance,
+                "provenance": {
+                    "mode": ledger.mode,
+                    **ledger.provenance,
+                    "dimension_profile_json": profile_json,
+                },
                 "runner_source_hashes": set(),
-                "profile": profile,
+                "profile": [dict(row) for row in ledger.dimension_profile],
             },
         )
-        bucket["timestamps"].add(generated_at)
-        bucket["runner_source_hashes"].add(provenance["runner_source_sha256"])
+        bucket["schema_versions"].add(ledger.schema_version)
+        bucket["timestamps"].add(ledger.generated_at)
+        bucket["runner_source_hashes"].add(ledger.runner_source_sha256)
 
-        for index, entry in enumerate(entries):
-            point = _parse_entry(
-                entry,
-                track=track,
-                contract_version=contract_version,
-                contract_sha256=contract_sha256,
-                path=label,
-                index=index,
-                provenance=provenance,
-            )
-            identity = (point.harness, point.model_id)
-            prior_name = bucket["model_identity"].setdefault(identity, point.display_name)
-            if prior_name != point.display_name:
+        for attempt in ledger.attempts:
+            identity = (attempt.harness, attempt.model_id)
+            prior_name = bucket["model_identity"].setdefault(identity, attempt.display_name)
+            if prior_name != attempt.display_name:
                 raise ValueError(f"{label}: inconsistent display identity for {identity!r}")
-            for frozen in point.raw_attempts:
-                raw = _raw_attempt_payload(frozen)
-                if set(raw["dimensions"]) != profile_ids and raw["evaluation_success"]:
-                    raise ValueError(
-                        f"{label}: raw attempt dimensions differ from dimension profile"
-                    )
-                canonical = json.dumps(
-                    raw, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-                )
-                logical = (raw["run_id"], raw["submission_id"], raw["repetition"])
-                existing = bucket["attempts"].get(logical)
-                if existing is not None and existing[0] != canonical:
-                    raise ValueError(f"{label}: conflicting non-identical duplicate raw attempt")
-                bucket["attempts"][logical] = (canonical, attempt_from_raw(raw))
+            canonical = attempt_canonical_json(attempt)
+            logical = (attempt.run_id, attempt.submission_id, attempt.repetition)
+            existing = bucket["attempts"].get(logical)
+            if existing is not None and existing[0] != canonical:
+                raise ValueError(f"{label}: conflicting non-identical duplicate raw attempt")
+            bucket["attempts"][logical] = (canonical, attempt)
 
     points: list[ReportPoint] = []
     for compat_key in sorted(collected):
@@ -1096,38 +356,30 @@ def load_leaderboards(paths: Sequence[Path]) -> list[ReportPoint]:
             ).encode("ascii")
             provenance["runner_source_sha256"] = hashlib.sha256(encoded_sources).hexdigest()
         roots = aggregate_attempts(
-            attempts,
+            cast(Sequence[Attempt], attempts),
             mode=mode,
             generated_at=max(bucket["timestamps"]),
-            comparison_provenance={
-                key: provenance[key]
-                for key in provenance
-                if key != "mode" and key != "dimension_profile_json"
-            },
+            comparison_provenance={key: provenance[key] for key in _PROVENANCE_HASH_KEYS},
             dimension_profiles={compat_key[0]: bucket["profile"]},
         )
-        if len(roots) != 1:
-            raise ValueError("compatible leaderboard inputs produced multiple sections")
         section_meta = {
-            "schema_version": bucket["schema_version"],
-            "generated_at": max(bucket["timestamps"]),
+            "schema_version": (
+                next(iter(bucket["schema_versions"]))
+                if len(bucket["schema_versions"]) == 1
+                else None
+            ),
             "generated_at_values": sorted(bucket["timestamps"]),
             "source_run_ids": sorted({attempt.run_id for attempt in attempts}),
             "runner_source_sha256_values": runner_source_values,
-            "mode": mode,
-            "dimension_profile": bucket["profile"],
-            **{k: provenance[k] for k in provenance if k not in {"mode", "dimension_profile_json"}},
         }
         combined_entries = cast(list[dict[str, Any]], roots[0]["entries"])
-        for index, entry in enumerate(combined_entries):
+        for entry in combined_entries:
             points.append(
-                _parse_entry(
+                _report_point_from_entry(
                     entry,
                     track=compat_key[0],
                     contract_version=compat_key[1],
                     contract_sha256=compat_key[2],
-                    path="combined leaderboards",
-                    index=index,
                     provenance=provenance,
                     section_meta=section_meta,
                 )
@@ -1138,19 +390,15 @@ def load_leaderboards(paths: Sequence[Path]) -> list[ReportPoint]:
 def _classification(
     point: ReportPoint,
     frontier: set[tuple[str, str]],
-    dominator: dict[tuple[str, str], tuple[str, str] | None],
 ) -> str:
     if not _frontier_eligible(point):
         return "ineligible"
-    if _point_identity(point) in frontier:
-        return "frontier"
-    return "dominated"
+    return "frontier" if _point_identity(point) in frontier else "dominated"
 
 
 def _frontier_sort_key(point: ReportPoint) -> tuple[float, float, str, str]:
     cost = expected_cost(point)
     assert cost is not None
-    # Increasing score; then lower cost; then lex model_id.
     return (float(point.score), cost, point.harness, point.model_id)
 
 
@@ -1174,40 +422,6 @@ def _marginals(
     return out
 
 
-def _raw_attempt_payload(raw: Mapping[str, object]) -> dict[str, Any]:
-    dims_src = raw.get("dimensions") or {}
-    if isinstance(dims_src, Mapping):
-        dims = {str(k): float(dims_src[k]) for k in sorted(dims_src.keys(), key=str)}
-    else:
-        dims = {}
-    evals = raw.get("evaluator_ids") or ()
-    reasons = raw.get("ineligible_reasons") or ()
-    assert isinstance(evals, Sequence) and not isinstance(evals, (str, bytes))
-    assert isinstance(reasons, Sequence) and not isinstance(reasons, (str, bytes))
-    return {
-        "run_id": raw["run_id"],
-        "submission_id": raw["submission_id"],
-        "repetition": raw["repetition"],
-        "track": raw["track"],
-        "contract_version": raw["contract_version"],
-        "contract_sha256": raw["contract_sha256"],
-        "harness": raw["harness"],
-        "model_id": raw["model_id"],
-        "display_name": raw["display_name"],
-        "implementation_success": raw["implementation_success"],
-        "evaluation_success": raw["evaluation_success"],
-        "score": raw["score"],
-        "dimensions": dims,
-        "judge_spread": raw["judge_spread"],
-        "implementation_cost_usd": raw["implementation_cost_usd"],
-        "evaluation_cost_usd": raw["evaluation_cost_usd"],
-        "tokens": raw["tokens"],
-        "duration_s": raw["duration_s"],
-        "evaluator_ids": list(evals),
-        "ineligible_reasons": list(reasons),
-    }
-
-
 def _point_payload(
     point: ReportPoint,
     *,
@@ -1215,9 +429,16 @@ def _point_payload(
     dominator: str | None,
     marginal: float | None,
 ) -> dict[str, Any]:
-    dims = {k: point.dimensions[k] for k in sorted(point.dimensions.keys())}
-    raw_attempts = [
-        _raw_attempt_payload(raw) for raw in sorted(point.raw_attempts, key=_raw_attempt_sort_key)
+    payload: dict[str, Any] = {}
+    for field in dataclasses.fields(point):
+        if field.name == "mode":
+            break
+        if field.name not in {"track", "contract_version", "contract_sha256"}:
+            payload[field.name] = getattr(point, field.name)
+    payload["dimensions"] = {k: point.dimensions[k] for k in sorted(point.dimensions)}
+    portable_raw = [
+        attempt_to_raw(attempt_from_raw(dict(raw)))
+        for raw in sorted(point.raw_attempts, key=_raw_attempt_sort_key)
     ]
     implementation_cost_complete = not any(
         reason in {"implementation_cost_unknown", "implementation_cost_incomplete"}
@@ -1234,57 +455,36 @@ def _point_payload(
         else implementation_per_attempt + point.evaluation_cost_per_attempt
     )
 
-    return {
-        "point_id": _point_id(point),
-        "model_id": point.model_id,
-        "display_name": point.display_name,
-        "harness": point.harness,
-        "score": point.score,
-        "score_mean": point.score_mean,
-        "score_stdev": point.score_stdev,
-        "score_min": point.score_min,
-        "score_max": point.score_max,
-        "score_range": point.score_range,
-        "judge_spread": point.judge_spread,
-        "cost_per_attempt": implementation_cost(point.cost_per_attempt),
-        "cost_mean": implementation_cost(point.cost_mean),
-        "implementation_cost_per_attempt": implementation_per_attempt,
-        "evaluation_cost_per_attempt": point.evaluation_cost_per_attempt,
-        "total_cost_per_attempt": total_cost_per_attempt,
-        "cost_stdev": implementation_cost(point.cost_stdev),
-        "cost_min": implementation_cost(point.cost_min),
-        "cost_max": implementation_cost(point.cost_max),
-        "cost_range": implementation_cost(point.cost_range),
-        "success_rate": point.success_rate,
-        "repetitions": point.repetitions,
-        "dimensions": dims,
-        "tokens": point.tokens,
-        "tokens_mean": point.tokens_mean,
-        "tokens_min": point.tokens_min,
-        "tokens_max": point.tokens_max,
-        "tokens_range": point.tokens_range,
-        "duration_s": point.duration_s,
-        "duration_mean_s": point.duration_mean_s,
-        "duration_min_s": point.duration_min_s,
-        "duration_max_s": point.duration_max_s,
-        "duration_range_s": point.duration_range_s,
-        "eligible": point.eligible,
-        "ineligible_reasons": list(point.ineligible_reasons),
-        "run_ids": list(point.run_ids),
-        "raw_attempts": raw_attempts,
-        "expected_cost": expected_cost(point),
-        "classification": classification,
-        "dominator": dominator,
-        "marginal_cost_per_quality": marginal,
-    }
+    payload.update(
+        {
+            "point_id": _point_id(point),
+            "cost_per_attempt": implementation_cost(point.cost_per_attempt),
+            "cost_mean": implementation_cost(point.cost_mean),
+            "implementation_cost_per_attempt": implementation_per_attempt,
+            "evaluation_cost_per_attempt": point.evaluation_cost_per_attempt,
+            "total_cost_per_attempt": total_cost_per_attempt,
+            "cost_stdev": implementation_cost(point.cost_stdev),
+            "cost_min": implementation_cost(point.cost_min),
+            "cost_max": implementation_cost(point.cost_max),
+            "cost_range": implementation_cost(point.cost_range),
+            "ineligible_reasons": list(point.ineligible_reasons),
+            "run_ids": list(point.run_ids),
+            "raw_attempts": portable_raw,
+            "expected_cost": expected_cost(point),
+            "classification": classification,
+            "dominator": dominator,
+            "marginal_cost_per_quality": marginal,
+        }
+    )
+    return payload
 
 
 def build_report_payload(points: Sequence[ReportPoint]) -> dict[str, Any]:
     """Build a JSON-serializable, deterministic report payload.
 
-    Groups points by (track, contract_version, contract_sha256). Every point
-    appears, including ineligible ones. Provenance comes only from loaded
-    leaderboard metadata (or null when absent).
+    Groups points by full comparison identity. Every point appears, including
+    ineligible ones. Provenance comes only from loaded ledger metadata (or null
+    when absent).
     """
     sections_map: dict[tuple[str, ...], list[ReportPoint]] = {}
     for point in points:
@@ -1294,7 +494,6 @@ def build_report_payload(points: Sequence[ReportPoint]) -> dict[str, Any]:
     for key in sorted(sections_map.keys()):
         track, contract_version, contract_sha256 = key[:3]
         group = list(sections_map[key])
-        # Deterministic model order within section.
         group.sort(key=lambda p: p.model_id)
 
         frontier_ids, dominator_map = pareto_frontier(group)
@@ -1314,7 +513,7 @@ def build_report_payload(points: Sequence[ReportPoint]) -> dict[str, Any]:
         source_run_ids = sorted({run_id for point in group for run_id in point.source_run_ids})
         models: list[dict[str, Any]] = []
         for point in group:
-            cls = _classification(point, frontier_ids, dominator_map)
+            cls = _classification(point, frontier_ids)
             dominator_identity = dominator_map.get(_point_identity(point))
             models.append(
                 _point_payload(
@@ -1339,12 +538,7 @@ def build_report_payload(points: Sequence[ReportPoint]) -> dict[str, Any]:
                 "runner_source_sha256_values": sorted(
                     {value for point in group for value in point.runner_source_sha256_values}
                 ),
-                "seed_tree_sha256": key[5],
-                "reference_manifest_sha256": key[6],
-                "reference_tree_sha256": key[7],
-                "prompt_sha256": key[8],
-                "rubric_sha256": key[9],
-                "schema_bundle_sha256": key[10],
+                **dict(zip(_PROVENANCE_HASH_KEYS[1:], key[5:11], strict=True)),
                 "dimension_profile": json.loads(key[11]),
                 "frontier": ordered_frontier_ids,
                 "models": models,
@@ -1354,34 +548,57 @@ def build_report_payload(points: Sequence[ReportPoint]) -> dict[str, Any]:
     return {"sections": sections}
 
 
-def write_report(paths: Sequence[Path], output: Path) -> Path:
+def rename_display_names(
+    points: Sequence[ReportPoint], display_names: Mapping[str, str]
+) -> list[ReportPoint]:
+    """Return *points* with display names overridden by ``model_id``.
+
+    Evidence bundles carry the display name that was configured when the run
+    executed; renaming at report time corrects presentation without touching
+    hash-pinned evidence. Every key must match at least one point so a typo
+    fails loudly instead of silently keeping the stale label.
+    """
+    # Validate every override against Attempt display-name constraints before mutation.
+    validated = {
+        model_id: require_display_name(name, f"display name for {model_id!r}")
+        for model_id, name in display_names.items()
+    }
+    unmatched = set(validated)
+    renamed: list[ReportPoint] = []
+    for point in points:
+        new_name = validated.get(point.model_id)
+        if new_name is None:
+            renamed.append(point)
+            continue
+        unmatched.discard(point.model_id)
+        raw_attempts = tuple(
+            MappingProxyType({**dict(raw), "display_name": new_name}) for raw in point.raw_attempts
+        )
+        renamed.append(dataclasses.replace(point, display_name=new_name, raw_attempts=raw_attempts))
+    if unmatched:
+        known = ", ".join(sorted({p.model_id for p in points}))
+        raise ValueError(
+            f"rename targets not present in any leaderboard: "
+            f"{', '.join(sorted(unmatched))} (known model ids: {known})"
+        )
+    return renamed
+
+
+def write_report(
+    paths: Sequence[Path],
+    output: Path,
+    *,
+    display_names: Mapping[str, str] | None = None,
+    commentary: Mapping[str, Any] | None = None,
+) -> Path:
     """Load leaderboards, build payload, render HTML, atomically write *output*."""
     output = Path(output)
     points = load_leaderboards(paths)
+    if display_names:
+        points = rename_display_names(points, display_names)
     payload = build_report_payload(points)
-    html_text = render_report_html(payload)
+    html_text = render_report_html(payload, commentary=commentary)
 
-    parent = output.parent
-    parent.mkdir(parents=True, exist_ok=True)
-
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{output.name}.",
-        suffix=".tmp",
-        dir=os.fspath(parent),
-    )
-    tmp_path = Path(tmp_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(html_text)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp_name, os.fspath(output))
-        tmp_path = Path()  # successfully replaced
-    except Exception:
-        if tmp_path != Path() and tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except OSError:
-                pass
-        raise
+    output.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_text(output, html_text)
     return output

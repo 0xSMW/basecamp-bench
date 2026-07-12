@@ -24,7 +24,7 @@ Local mode supports inexpensive iteration. Local entries always carry `local_mod
 - Exact or explicitly pinned pricing; fuzzy model-price matches are ineligible.
 - Safe execution settings and no evidence mutation or secret-scan finding.
 
-Leaderboards are scoped to one complete comparison identity. They expose every raw attempt, success rate, median, mean, population standard deviation, range, judge disagreement, duration, token usage, and cost. FE and BE are not combined. Reports may combine later compatible files: exact duplicate attempts are deduplicated, model aggregates are recomputed from the combined raw attempts, and every source timestamp and run ID remains visible. Aggregate fields in source files never override this recomputation. Frontier and dominator identity is the exact `(harness, model_id)` pair, so the same model run through different harnesses remains distinct.
+Attempt ledgers are the sole persisted evaluation record for a comparison identity: provenance hashes, the dimension profile, and every raw attempt. Median, mean, population standard deviation, range, success rate, expected cost, eligibility, and other model aggregates are always derived after load—never stored as authoritative fields. Normal runs write only the canonical schema 2.0 JSON ledger(s) plus `report.html`; they do not emit leaderboard CSV or Markdown. Optional CSV/Markdown views are explicit projections (`write_tabular_views` / `basecamp-bench export-tabular`) from a loaded ledger or legacy leaderboard JSON through the same aggregator—never a parallel validation or scoring authority. FE and BE are not combined. Reports may combine later compatible files (including committed legacy leaderboards that still nest aggregates under `entries`): exact duplicate attempts are deduplicated by `(run_id, submission_id, repetition)`, model aggregates are recomputed from the combined raw attempts, and every source timestamp and run ID remains visible. Frontier and dominator identity is the exact `(harness, model_id)` pair, so the same model run through different harnesses remains distinct.
 
 Run manifests also expose incurred implementation, evaluation, and combined known spend under `costs`. Failed or invalid evaluator calls remain included when their cost is known; `complete` and `unknown_job_count` make partial accounting explicit. Reevaluation excludes the reused implementation cost from newly incurred spend while preserving it on the attributed attempt.
 
@@ -38,9 +38,15 @@ Model APIs may not expose deterministic seeds, and vendor behavior can change be
 
 A result supports only the contract version and evidence it records. It does not establish general intelligence, production fitness of a generated application, or superiority outside these fixed tasks. Ineligible and failed attempts remain visible and are never silently removed from denominators.
 
+## HTML report presentation
+
+The offline HTML report is a decision surface, not a second methodology document. It shows a leader/value verdict, cost-versus-quality chart with tabular fallback, per-model metrics, dimension scores and weights, failures and mixed eligibility, and embeds the full report JSON (provenance, classifications, source IDs, raw attempts). Expanded hash dumps, decorative classification badges, and long methodology prose are omitted from the visible page; scoring rules and claim boundaries remain defined here.
+
 ## Portable exports
 
 An export contains only `run-manifest.json` and its declared, hash-verified artifacts. Before archive creation, the exporter scans the complete captured contents of every member for high-signal credentials and scans textual members for host-specific POSIX, Windows drive, and UNC paths. JSON string values receive the same checks after escape decoding, and malformed declared JSON fails closed. Configurable safety limits default to 256 MiB per artifact, 256 MiB across all captured members, and 10,000 members; exact-boundary archives remain valid and anything larger fails before payload retention. Textual formats fail closed when they are not valid UTF-8; binary submissions and screenshots are retained as bytes. Undeclared private logs and workspaces remain outside the archive and outside the export scan.
+
+Publication verification and portable export live in `basecamp_bench.manifest_export` and load only at `verify-run` / `export-run`, publication finalization, and reevaluation boundaries. Ordinary local runs build and checkpoint provenance through `basecamp_bench.manifest` without importing ZIP, export, or shareability scanners.
 
 ## Official repository baseline
 

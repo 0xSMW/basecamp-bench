@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/0xSMW/basecamp-bench/main/schemas/leaderboard.schema.json",
-  "title": "Basecamp Bench leaderboard 1.0",
+  "title": "Basecamp Bench attempt ledger 2.0",
+  "description": "Canonical comparison-scoped raw-attempt ledger. Derived model statistics are never persisted; they are recomputed after load. Legacy schema 1.0 leaderboards with nested entries remain readable by the loader but are not produced.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "mode", "track", "contract_version", "contract_sha256", "generated_at", "runner_source_sha256", "seed_tree_sha256", "reference_manifest_sha256", "reference_tree_sha256", "prompt_sha256", "rubric_sha256", "schema_bundle_sha256", "dimension_profile", "entries"],
+  "required": ["schema_version", "mode", "track", "contract_version", "contract_sha256", "generated_at", "runner_source_sha256", "seed_tree_sha256", "reference_manifest_sha256", "reference_tree_sha256", "prompt_sha256", "rubric_sha256", "schema_bundle_sha256", "dimension_profile", "attempts"],
   "properties": {
-    "schema_version": {"const": "1.0"},
+    "schema_version": {"const": "2.0"},
     "mode": {"enum": ["local", "publication"]},
     "track": {"enum": ["fe", "be"]},
     "contract_version": {"$ref": "#/$defs/id"},
@@ -20,7 +21,7 @@
     "rubric_sha256": {"$ref": "#/$defs/sha256"},
     "schema_bundle_sha256": {"$ref": "#/$defs/sha256"},
     "dimension_profile": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/dimensionMeta"}},
-    "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+    "attempts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/rawAttempt"}}
   },
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"},
@@ -48,21 +49,6 @@
         "tokens": {"type": "integer", "minimum": 0}, "duration_s": {"$ref": "#/$defs/nonnegative"},
         "evaluator_ids": {"type": "array", "items": {"$ref": "#/$defs/id"}},
         "ineligible_reasons": {"type": "array", "items": {"type": "string"}}
-      }
-    },
-    "entry": {
-      "type": "object", "additionalProperties": false,
-      "required": ["model_id", "display_name", "harness", "score", "score_mean", "score_stdev", "score_min", "score_max", "score_range", "judge_spread", "cost_per_attempt", "cost_mean", "cost_stdev", "cost_min", "cost_max", "cost_range", "success_rate", "repetitions", "dimensions", "tokens", "tokens_mean", "tokens_min", "tokens_max", "tokens_range", "duration_s", "duration_mean_s", "duration_min_s", "duration_max_s", "duration_range_s", "eligible", "ineligible_reasons", "run_ids", "implementation_cost_per_attempt", "evaluation_cost_per_attempt", "raw_attempts"],
-      "properties": {
-        "model_id": {"$ref": "#/$defs/id"}, "display_name": {"type": "string", "minLength": 1}, "harness": {"$ref": "#/$defs/id"},
-        "score": {"$ref": "#/$defs/score"}, "score_mean": {"$ref": "#/$defs/score"}, "score_stdev": {"$ref": "#/$defs/nonnegative"}, "score_min": {"$ref": "#/$defs/score"}, "score_max": {"$ref": "#/$defs/score"}, "score_range": {"$ref": "#/$defs/score"}, "judge_spread": {"$ref": "#/$defs/nonnegative"},
-        "cost_per_attempt": {"$ref": "#/$defs/nonnegative"}, "cost_mean": {"$ref": "#/$defs/nonnegative"}, "cost_stdev": {"$ref": "#/$defs/nonnegative"}, "cost_min": {"$ref": "#/$defs/nonnegative"}, "cost_max": {"$ref": "#/$defs/nonnegative"}, "cost_range": {"$ref": "#/$defs/nonnegative"},
-        "success_rate": {"type": "number", "minimum": 0, "maximum": 1}, "repetitions": {"type": "integer", "minimum": 1},
-        "dimensions": {"$ref": "#/$defs/dimensions"}, "tokens": {"type": "integer", "minimum": 0}, "tokens_mean": {"$ref": "#/$defs/nonnegative"}, "tokens_min": {"type": "integer", "minimum": 0}, "tokens_max": {"type": "integer", "minimum": 0}, "tokens_range": {"type": "integer", "minimum": 0}, "duration_s": {"$ref": "#/$defs/nonnegative"}, "duration_mean_s": {"$ref": "#/$defs/nonnegative"}, "duration_min_s": {"$ref": "#/$defs/nonnegative"}, "duration_max_s": {"$ref": "#/$defs/nonnegative"}, "duration_range_s": {"$ref": "#/$defs/nonnegative"},
-        "eligible": {"type": "boolean"}, "ineligible_reasons": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-        "run_ids": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/id"}, "uniqueItems": true},
-        "implementation_cost_per_attempt": {"$ref": "#/$defs/nonnegative"}, "evaluation_cost_per_attempt": {"$ref": "#/$defs/nonnegative"},
-        "raw_attempts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/rawAttempt"}}
       }
     }
   }

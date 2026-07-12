@@ -12,7 +12,13 @@ from types import MappingProxyType
 from basecamp_bench.leaderboard import (
     Attempt,
     aggregate_attempts,
+    attempt_from_raw,
+    attempt_to_raw,
+    build_attempt_ledgers,
+    load_attempt_ledger,
+    write_attempt_ledgers,
     write_leaderboards,
+    write_tabular_views,
 )
 
 _SHA_A = "a" * 64
@@ -368,7 +374,15 @@ class AggregateStatisticsTests(unittest.TestCase):
             _failed_attempt(run_id="r1", submission_id="s1", repetition=1),
             _failed_attempt(run_id="r2", submission_id="s2", repetition=2),
         ]
-        roots = aggregate_attempts(attempts, mode="local", generated_at="2026-01-01T00:00:00Z")
+        # All-failed attempts cannot infer a profile; supply one explicitly.
+        roots = aggregate_attempts(
+            attempts,
+            mode="local",
+            generated_at="2026-01-01T00:00:00Z",
+            dimension_profiles={
+                "fe": [{"id": "craft", "label": "Craft", "weight": 1.0}],
+            },
+        )
         entry = roots[0]["entries"][0]  # type: ignore[index]
         self.assertEqual(entry["score"], 0.0)
         self.assertEqual(entry["score_stdev"], 0.0)
@@ -667,9 +681,9 @@ class DeterminismAndRawTests(unittest.TestCase):
         json.dumps(raw)
 
 
-class WriteLeaderboardsTests(TempDirTestCase):
-    def _roots(self) -> list[dict[str, object]]:
-        return aggregate_attempts(
+class WriteAttemptLedgersTests(TempDirTestCase):
+    def _ledgers(self):
+        return build_attempt_ledgers(
             [
                 _attempt(run_id="r1", track="fe", contract_sha256=_SHA_A, score=5.0),
                 _attempt(
@@ -685,117 +699,567 @@ class WriteLeaderboardsTests(TempDirTestCase):
             generated_at="2026-01-01T00:00:00Z",
         )
 
-    def test_writes_json_csv_md_deterministically(self) -> None:
-        roots = self._roots()
+    def test_writes_json_deterministically(self) -> None:
+        ledgers = self._ledgers()
         out1 = self.root / "out1"
         out2 = self.root / "out2"
-        paths1 = write_leaderboards(out1, roots)
-        paths2 = write_leaderboards(out2, roots)
-        self.assertEqual(len(paths1), 6)  # 2 roots × 3 formats
+        paths1 = write_attempt_ledgers(out1, ledgers)
+        paths2 = write_attempt_ledgers(out2, ledgers)
+        self.assertEqual(len(paths1), 2)  # one JSON ledger per track/contract
         self.assertEqual([p.name for p in paths1], sorted(p.name for p in paths1))
         by_name1 = {p.name: p.read_bytes() for p in paths1}
         by_name2 = {p.name: p.read_bytes() for p in paths2}
         self.assertEqual(by_name1, by_name2)
         for p in paths1:
-            if p.suffix == ".json":
-                data = p.read_bytes()
-                self.assertTrue(data.endswith(b"\n"))
-                parsed = json.loads(data)
-                self.assertEqual(
-                    data,
-                    (json.dumps(parsed, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"),
-                )
-                self.assertIn("raw_attempts", parsed["entries"][0])
-                self.assertIn("entries", parsed)
+            data = p.read_bytes()
+            self.assertTrue(data.endswith(b"\n"))
+            parsed = json.loads(data)
+            self.assertEqual(
+                data,
+                (json.dumps(parsed, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"),
+            )
+            self.assertIn("attempts", parsed)
+            self.assertNotIn("entries", parsed)
+            self.assertEqual(parsed["schema_version"], "2.0")
+            for attempt in parsed["attempts"]:
+                self.assertNotIn("score_mean", attempt)
+                self.assertNotIn("eligible", attempt)
 
-    def test_csv_and_markdown_exclude_raw_and_escape(self) -> None:
+    def test_json_preserves_display_name_text(self) -> None:
         tricky = _attempt(
             display_name='Name, "quoted" pipe|slash\\end',
             model_id="model-x",
         )
-        roots = aggregate_attempts([tricky], mode="local", generated_at="2026-01-01T00:00:00Z")
-        paths = write_leaderboards(self.root / "esc", roots)
-        csv_path = next(p for p in paths if p.suffix == ".csv")
-        md_path = next(p for p in paths if p.suffix == ".md")
-        csv_text = csv_path.read_text(encoding="utf-8")
-        md_text = md_path.read_text(encoding="utf-8")
-        self.assertNotIn("raw_attempts", csv_text.splitlines()[0])
-        self.assertNotIn("raw_attempts", md_text)
-        expected_fields = [
-            "score",
-            "score_mean",
-            "score_stdev",
-            "score_min",
-            "score_max",
-            "score_range",
-            "cost_per_attempt",
-            "cost_mean",
-            "cost_stdev",
-            "cost_min",
-            "cost_max",
-            "cost_range",
-            "tokens",
-            "tokens_mean",
-            "tokens_min",
-            "tokens_max",
-            "tokens_range",
-            "duration_s",
-            "duration_mean_s",
-            "duration_min_s",
-            "duration_max_s",
-            "duration_range_s",
-        ]
-        csv_fields = csv_text.splitlines()[0].split(",")
-        md_header = next(line for line in md_text.splitlines() if line.startswith("| model_id |"))
-        md_fields = [field.strip() for field in md_header.strip("|").split("|")]
-        for fields in (csv_fields, md_fields):
-            positions = [fields.index(field) for field in expected_fields]
-            self.assertEqual(positions, sorted(positions))
-        self.assertIn("model-x", csv_text)
-        self.assertIn('"Name, ""quoted"" pipe|slash\\end"', csv_text)
-        table_rows = [ln for ln in md_text.splitlines() if ln.startswith("| model-x |")]
-        self.assertEqual(len(table_rows), 1)
-        self.assertIn("\\|", table_rows[0])
-        self.assertIn("\\\\", table_rows[0])
+        paths = write_attempt_ledgers(
+            self.root / "esc",
+            build_attempt_ledgers([tricky], mode="local", generated_at="2026-01-01T00:00:00Z"),
+        )
+        payload = json.loads(paths[0].read_text(encoding="utf-8"))
+        self.assertEqual(payload["attempts"][0]["display_name"], 'Name, "quoted" pipe|slash\\end')
+        self.assertEqual(payload["attempts"][0]["model_id"], "model-x")
 
     def test_collision_detected_before_any_write(self) -> None:
-        roots = self._roots()
+        ledgers = self._ledgers()
         out = self.root / "col"
-        write_leaderboards(out, roots)
-        existing = list(out.glob("*.json"))[0]
-        for p in out.iterdir():
-            if p != existing:
-                p.unlink()
+        first = write_attempt_ledgers(out, ledgers)
+        before_names = {p.name for p in out.iterdir()}
+        self.assertEqual({p.name for p in first}, before_names)
         with self.assertRaises(ValueError) as ctx:
-            write_leaderboards(out, roots)
+            write_attempt_ledgers(out, ledgers)
         self.assertIn("overwrite", str(ctx.exception).lower())
-        self.assertEqual(set(out.iterdir()), {existing})
+        self.assertEqual({p.name for p in out.iterdir()}, before_names)
 
     def test_output_dir_invalid_and_create(self) -> None:
         file_path = self.root / "not-a-dir"
         file_path.write_text("x", encoding="utf-8")
         with self.assertRaises(ValueError):
-            write_leaderboards(file_path, self._roots())
+            write_attempt_ledgers(file_path, self._ledgers())
         new_dir = self.root / "nested" / "out"
-        paths = write_leaderboards(new_dir, self._roots())
+        paths = write_attempt_ledgers(new_dir, self._ledgers())
         self.assertTrue(new_dir.is_dir())
         self.assertTrue(all(p.is_file() for p in paths))
         self.assertTrue(all(str(p).startswith(str(new_dir.resolve())) for p in paths))
 
     def test_paths_contained_and_stable_names(self) -> None:
-        roots = aggregate_attempts(
+        ledgers = build_attempt_ledgers(
             [_attempt(track="fe", contract_version="1.0", contract_sha256=_SHA_A)],
             mode="local",
             generated_at="t",
         )
         out = self.root / "stable"
-        paths = write_leaderboards(out, roots)
+        paths = write_attempt_ledgers(out, ledgers)
         names = sorted(p.name for p in paths)
         base = f"leaderboard_fe_1.0_{_SHA_A}"
-        self.assertEqual(
-            names,
-            [f"{base}.csv", f"{base}.json", f"{base}.md"],
+        self.assertEqual(names, [f"{base}.json"])
+
+
+class LegacyWriteLeaderboardsFacadeTests(TempDirTestCase):
+    def test_writes_all_legacy_views_deterministically_and_refuses_collisions(self) -> None:
+        roots = aggregate_attempts(
+            [_attempt(score=7.0)],
+            mode="local",
+            generated_at="2026-01-01T00:00:00Z",
         )
+        first = write_leaderboards(self.root / "first", roots)
+        second = write_leaderboards(self.root / "second", roots)
+        self.assertEqual([path.name for path in first], sorted(path.name for path in first))
+        self.assertEqual({path.suffix for path in first}, {".json", ".csv", ".md"})
+        self.assertEqual(
+            {path.name: path.read_bytes() for path in first},
+            {path.name: path.read_bytes() for path in second},
+        )
+        json_path = next(path for path in first if path.suffix == ".json")
+        self.assertEqual(json.loads(json_path.read_text(encoding="utf-8")), roots[0])
+
+        before = {path.name: path.read_bytes() for path in first}
+        with self.assertRaisesRegex(ValueError, "overwrite"):
+            write_leaderboards(self.root / "first", roots)
+        self.assertEqual(
+            {path.name: path.read_bytes() for path in (self.root / "first").iterdir()},
+            before,
+        )
+
+    def test_rejects_duplicate_export_basenames_before_writing(self) -> None:
+        root = aggregate_attempts([_attempt()], mode="local", generated_at="2026-01-01T00:00:00Z")[
+            0
+        ]
+        output = self.root / "duplicate"
+        with self.assertRaisesRegex(ValueError, "duplicate export basename"):
+            write_leaderboards(output, [root, root])
+        self.assertEqual(list(output.iterdir()), [])
+
+
+class AttemptCodecAndLedgerTests(TempDirTestCase):
+    def test_attempt_round_trip_codec(self) -> None:
+        original = _attempt(dimensions={"depth": 3.0, "craft": 4.0})
+        raw = attempt_to_raw(original)
+        rebuilt = attempt_from_raw(raw)
+        self.assertEqual(attempt_to_raw(rebuilt), raw)
+        self.assertEqual(dict(rebuilt.dimensions), {"craft": 4.0, "depth": 3.0})
+
+    def test_ledger_json_has_no_derived_statistics(self) -> None:
+        ledgers = build_attempt_ledgers(
+            [
+                _attempt(score=7.0),
+                _attempt(run_id="r2", submission_id="s2", repetition=2, score=5.0),
+            ],
+            mode="local",
+            generated_at="2026-01-01T00:00:00Z",
+        )
+        paths = write_attempt_ledgers(self.root / "ledgers", ledgers)
+        json_path = next(p for p in paths if p.suffix == ".json")
+        payload = json.loads(json_path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["schema_version"], "2.0")
+        self.assertEqual(
+            set(payload.keys()),
+            {
+                "schema_version",
+                "mode",
+                "track",
+                "contract_version",
+                "contract_sha256",
+                "generated_at",
+                "runner_source_sha256",
+                "seed_tree_sha256",
+                "reference_manifest_sha256",
+                "reference_tree_sha256",
+                "prompt_sha256",
+                "rubric_sha256",
+                "schema_bundle_sha256",
+                "dimension_profile",
+                "attempts",
+            },
+        )
+        for field in (
+            "score",
+            "score_mean",
+            "success_rate",
+            "eligible",
+            "cost_per_attempt",
+            "entries",
+        ):
+            self.assertNotIn(field, payload)
+        loaded = load_attempt_ledger(json_path)
+        self.assertEqual(len(loaded.attempts), 2)
+        self.assertEqual(loaded.attempts[0].score, 5.0)
+
+    def test_legacy_leaderboard_loads_through_decoder(self) -> None:
+        roots = aggregate_attempts(
+            [_attempt(score=6.5)],
+            mode="local",
+            generated_at="2026-01-01T00:00:00Z",
+        )
+        # Manually write legacy shape (entries + aggregates) as committed baselines do.
+        legacy_path = self.root / "legacy.json"
+        legacy_path.write_text(
+            json.dumps(roots[0], sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        ledger = load_attempt_ledger(legacy_path)
+        self.assertEqual(ledger.schema_version, "1.0")
+        self.assertEqual(len(ledger.attempts), 1)
+        self.assertEqual(ledger.attempts[0].score, 6.5)
+
+
+class WriteTabularViewsTests(TempDirTestCase):
+    def _schema2_path(
+        self, attempts: list[Attempt], *, generated_at: str = "2026-01-01T00:00:00Z"
+    ) -> Path:
+        ledgers = build_attempt_ledgers(attempts, mode="local", generated_at=generated_at)
+        paths = write_attempt_ledgers(self.root / "ledgers", ledgers)
+        self.assertEqual(len(paths), 1)
+        return paths[0]
+
+    def _legacy_path(
+        self, attempts: list[Attempt], *, generated_at: str = "2026-01-01T00:00:00Z"
+    ) -> Path:
+        roots = aggregate_attempts(attempts, mode="local", generated_at=generated_at)
+        path = self.root / "legacy.json"
+        path.write_text(
+            json.dumps(roots[0], sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        return path
+
+    def test_schema2_and_legacy_produce_identical_tabular_bytes(self) -> None:
+        """Immutable CSV identity across schema 2.0 and legacy 1.0 inputs.
+
+        Aggregation rows are schema-invariant; Markdown advertises the source
+        ledger schema_version (2.0 vs 1.0) while remaining otherwise identical.
+        """
+        attempts = [
+            _attempt(
+                harness="h-b",
+                model_id="model-b",
+                display_name="B",
+                score=8.0,
+                submission_id="sub-b",
+            ),
+            _attempt(
+                harness="h-a",
+                model_id="model-a",
+                display_name="A",
+                score=6.0,
+                submission_id="sub-a",
+            ),
+        ]
+        schema2 = self._schema2_path(attempts)
+        legacy = self._legacy_path(attempts)
+        out_a = self.root / "tab-a"
+        out_b = self.root / "tab-b"
+        csv_a, md_a = write_tabular_views(schema2, out_a)
+        csv_b, md_b = write_tabular_views(legacy, out_b)
+        self.assertEqual(csv_a.name, csv_b.name)
+        self.assertEqual(md_a.name, md_b.name)
+        self.assertTrue(csv_a.name.startswith("leaderboard_fe_1.0_"))
+        self.assertTrue(csv_a.name.endswith(".csv"))
+        self.assertTrue(md_a.name.endswith(".md"))
+        self.assertEqual(csv_a.read_bytes(), csv_b.read_bytes())
+        md_a_text = md_a.read_text(encoding="utf-8")
+        md_b_text = md_b.read_text(encoding="utf-8")
+        self.assertIn("- schema_version: `2.0`", md_a_text)
+        self.assertIn("- schema_version: `1.0`", md_b_text)
+        self.assertEqual(
+            md_a_text.replace("- schema_version: `2.0`", "- schema_version: `1.0`"),
+            md_b_text,
+        )
+        # Second export of the same input is byte-identical.
+        out_c = self.root / "tab-c"
+        csv_c, md_c = write_tabular_views(schema2, out_c)
+        self.assertEqual(csv_a.read_bytes(), csv_c.read_bytes())
+        self.assertEqual(md_a.read_bytes(), md_c.read_bytes())
+
+    def test_stable_columns_ordering_and_aggregate_row_order(self) -> None:
+        attempts = [
+            _attempt(harness="z-harness", model_id="z-model", display_name="Z", score=9.0),
+            _attempt(
+                harness="a-harness",
+                model_id="a-model",
+                display_name="A",
+                score=4.0,
+                submission_id="sub-2",
+            ),
+        ]
+        json_path = self._schema2_path(attempts)
+        csv_path, md_path = write_tabular_views(json_path, self.root / "ordered")
+        csv_text = csv_path.read_text(encoding="utf-8")
+        header = csv_text.splitlines()[0]
+        self.assertEqual(
+            header,
+            ",".join(
+                [
+                    "model_id",
+                    "display_name",
+                    "harness",
+                    "score",
+                    "score_mean",
+                    "score_stdev",
+                    "score_min",
+                    "score_max",
+                    "score_range",
+                    "judge_spread",
+                    "cost_per_attempt",
+                    "cost_mean",
+                    "cost_stdev",
+                    "cost_min",
+                    "cost_max",
+                    "cost_range",
+                    "success_rate",
+                    "repetitions",
+                    "dimensions",
+                    "tokens",
+                    "tokens_mean",
+                    "tokens_min",
+                    "tokens_max",
+                    "tokens_range",
+                    "duration_s",
+                    "duration_mean_s",
+                    "duration_min_s",
+                    "duration_max_s",
+                    "duration_range_s",
+                    "eligible",
+                    "ineligible_reasons",
+                    "run_ids",
+                    "implementation_cost_per_attempt",
+                    "evaluation_cost_per_attempt",
+                ]
+            ),
+        )
+        self.assertNotIn("raw_attempts", header)
+        rows = csv_text.splitlines()[1:]
+        self.assertEqual(len(rows), 2)
+        # aggregate_attempts groups by sorted (harness, model_id)
+        self.assertTrue(rows[0].startswith("a-model,"))
+        self.assertTrue(rows[1].startswith("z-model,"))
+        self.assertIn("false", rows[0])  # local_mode -> ineligible
+        self.assertIn('"[""local_mode""]"', rows[0])  # JSON list + CSV quote doubling
+        md = md_path.read_text(encoding="utf-8")
+        self.assertIn("| a-model |", md)
+        self.assertLess(md.index("| a-model |"), md.index("| z-model |"))
+        self.assertTrue(csv_text.endswith("\n"))
+        self.assertTrue(md.endswith("\n"))
+        self.assertNotIn("\r", csv_text)
+
+    def test_csv_and_markdown_escaping(self) -> None:
+        from basecamp_bench.leaderboard import _md_escape_cell, _render_csv, _render_markdown
+
+        tricky = _attempt(
+            display_name='Name, "quoted" pipe|slash\\end',
+            model_id="model-x",
+        )
+        json_path = self._schema2_path([tricky])
+        csv_path, md_path = write_tabular_views(json_path, self.root / "esc")
+        csv_text = csv_path.read_text(encoding="utf-8")
+        # stdlib csv escaping: quotes doubled, field quoted when needed
+        self.assertIn('"Name, ""quoted"" pipe|slash\\end"', csv_text)
+        md = md_path.read_text(encoding="utf-8")
+        self.assertIn("pipe\\|slash\\\\end", md)
+        data_lines = [line for line in md.splitlines() if line.startswith("| model-x")]
+        self.assertEqual(len(data_lines), 1)
+        self.assertNotIn("\r", md)
+        # CR/LF inside cells collapse for Markdown (unit-level: display_name forbids controls)
+        self.assertEqual(_md_escape_cell("a\\b|c\r\nd\ne\rf"), "a\\\\b\\|c d e f")
+        sample_entries: list[dict[str, object]] = [
+            {
+                "model_id": "m",
+                "display_name": 'x, "y"',
+                "harness": "h",
+                "score": 1.0,
+                "score_mean": 1.0,
+                "score_stdev": 0.0,
+                "score_min": 1.0,
+                "score_max": 1.0,
+                "score_range": 0.0,
+                "judge_spread": 0.0,
+                "cost_per_attempt": 0.0,
+                "cost_mean": 0.0,
+                "cost_stdev": 0.0,
+                "cost_min": 0.0,
+                "cost_max": 0.0,
+                "cost_range": 0.0,
+                "success_rate": 1.0,
+                "repetitions": 1,
+                "dimensions": {"z": 1.0, "a": 2.0},
+                "tokens": 1,
+                "tokens_mean": 1.0,
+                "tokens_min": 1,
+                "tokens_max": 1,
+                "tokens_range": 0,
+                "duration_s": 1.0,
+                "duration_mean_s": 1.0,
+                "duration_min_s": 1.0,
+                "duration_max_s": 1.0,
+                "duration_range_s": 0.0,
+                "eligible": False,
+                "ineligible_reasons": ["local_mode"],
+                "run_ids": ["run-1"],
+                "implementation_cost_per_attempt": 0.0,
+                "evaluation_cost_per_attempt": 0.0,
+            }
+        ]
+        rendered_csv = _render_csv(sample_entries)
+        self.assertIn('"{""a"": 2.0, ""z"": 1.0}"', rendered_csv)
+        self.assertIn('"x, ""y"""', rendered_csv)
+        root = {
+            "track": "fe",
+            "contract_version": "1.0",
+            "contract_sha256": _SHA_A,
+            "generated_at": "t",
+            "schema_version": "1.0",
+        }
+        rendered_md = _render_markdown(root, sample_entries)
+        self.assertIn('{"a": 2.0, "z": 1.0}', rendered_md)
+        self.assertTrue(rendered_csv.endswith("\n"))
+        self.assertNotIn("\r", rendered_csv)
+
+    def test_collision_refuses_before_any_write(self) -> None:
+        json_path = self._schema2_path([_attempt()])
+        out = self.root / "col"
+        csv_path, md_path = write_tabular_views(json_path, out)
+        before = {p.name: p.read_bytes() for p in out.iterdir()}
+        # Collision on CSV alone must not rewrite MD either.
+        csv_path.write_bytes(b"stale")
+        md_before = md_path.read_bytes()
+        with self.assertRaises(ValueError) as ctx:
+            write_tabular_views(json_path, out)
+        self.assertIn("overwrite", str(ctx.exception).lower())
+        self.assertEqual(csv_path.read_bytes(), b"stale")
+        self.assertEqual(md_path.read_bytes(), md_before)
+        # Pre-existing MD alone also refuses without creating a partial new CSV
+        # in a clean dir that only has md.
+        out2 = self.root / "col2"
+        out2.mkdir()
+        base = csv_path.name[: -len(".csv")]
+        (out2 / f"{base}.md").write_text("keep\n", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            write_tabular_views(json_path, out2)
+        self.assertEqual(sorted(p.name for p in out2.iterdir()), [f"{base}.md"])
+        self.assertEqual((out2 / f"{base}.md").read_text(encoding="utf-8"), "keep\n")
+        # Original successful pair still present and unchanged under out
+        self.assertEqual(before[md_path.name], md_before)
+
+    def test_normal_ledger_write_does_not_emit_tabular(self) -> None:
+        ledgers = build_attempt_ledgers(
+            [_attempt()],
+            mode="local",
+            generated_at="2026-01-01T00:00:00Z",
+        )
+        out = self.root / "json-only"
+        paths = write_attempt_ledgers(out, ledgers)
+        names = sorted(p.name for p in paths)
+        self.assertTrue(all(name.endswith(".json") for name in names))
+        self.assertEqual(list(out.glob("*.csv")), [])
+        self.assertEqual(list(out.glob("*.md")), [])
+
+    def test_tabular_markdown_schema_version_from_source_ledger(self) -> None:
+        attempts = [_attempt(score=7.0)]
+        schema2 = self._schema2_path(attempts)
+        legacy = self._legacy_path(attempts)
+        _, md2 = write_tabular_views(schema2, self.root / "sv2")
+        _, md1 = write_tabular_views(legacy, self.root / "sv1")
+        self.assertIn("- schema_version: `2.0`", md2.read_text(encoding="utf-8"))
+        self.assertIn("- schema_version: `1.0`", md1.read_text(encoding="utf-8"))
+
+
+class DimensionProfileSymmetryTests(TempDirTestCase):
+    def test_built_canonical_ledger_round_trips_through_loader(self) -> None:
+        profile = [
+            {"id": "craft", "label": "Craft", "weight": 0.6},
+            {"id": "depth", "label": "Depth", "weight": 0.4},
+        ]
+        ledgers = build_attempt_ledgers(
+            [_attempt(dimensions={"craft": 7.0, "depth": 6.0})],
+            mode="local",
+            generated_at="2026-01-01T00:00:00Z",
+            dimension_profiles={"fe": profile},
+        )
+        paths = write_attempt_ledgers(self.root / "rt", ledgers)
+        loaded = load_attempt_ledger(paths[0])
+        self.assertEqual(loaded.schema_version, "2.0")
+        self.assertEqual(
+            [dict(row) for row in loaded.dimension_profile],
+            sorted(profile, key=lambda row: row["id"]),
+        )
+        self.assertEqual(len(loaded.attempts), 1)
+
+    def test_inferred_profile_round_trip_when_dimensions_present(self) -> None:
+        ledgers = build_attempt_ledgers(
+            [_attempt(dimensions={"depth": 5.0, "craft": 8.0})],
+            mode="local",
+            generated_at="2026-01-01T00:00:00Z",
+        )
+        paths = write_attempt_ledgers(self.root / "inferred-rt", ledgers)
+        loaded = load_attempt_ledger(paths[0])
+        ids = [str(row["id"]) for row in loaded.dimension_profile]
+        self.assertEqual(ids, ["craft", "depth"])
+        weights = [float(row["weight"]) for row in loaded.dimension_profile]  # type: ignore[arg-type]
+        self.assertAlmostEqual(sum(weights), 1.0)
+
+    def test_inferred_empty_dimensions_fails(self) -> None:
+        with self.assertRaisesRegex(ValueError, "cannot infer dimension profile"):
+            build_attempt_ledgers(
+                [_failed_attempt()],
+                mode="local",
+                generated_at="2026-01-01T00:00:00Z",
+            )
+
+    def test_empty_explicit_profile_fails(self) -> None:
+        with self.assertRaisesRegex(ValueError, "expected nonempty array"):
+            build_attempt_ledgers(
+                [_attempt()],
+                mode="local",
+                generated_at="2026-01-01T00:00:00Z",
+                dimension_profiles={"fe": []},
+            )
+
+    def test_duplicate_and_unsafe_ids_fail(self) -> None:
+        with self.assertRaisesRegex(ValueError, "duplicate dimension id"):
+            build_attempt_ledgers(
+                [_attempt()],
+                mode="local",
+                generated_at="2026-01-01T00:00:00Z",
+                dimension_profiles={
+                    "fe": [
+                        {"id": "craft", "label": "A", "weight": 0.5},
+                        {"id": "craft", "label": "B", "weight": 0.5},
+                    ]
+                },
+            )
+        with self.assertRaises(ValueError):
+            build_attempt_ledgers(
+                [_attempt()],
+                mode="local",
+                generated_at="2026-01-01T00:00:00Z",
+                dimension_profiles={
+                    "fe": [{"id": "Bad ID", "label": "A", "weight": 1.0}],
+                },
+            )
+
+    def test_bad_labels_and_weights_fail(self) -> None:
+        cases = [
+            [{"id": "craft", "label": "   ", "weight": 1.0}],
+            [{"id": "craft", "label": "ok", "weight": 0.0}],
+            [{"id": "craft", "label": "ok", "weight": -0.5}],
+            [{"id": "craft", "label": "ok", "weight": float("nan")}],
+            [{"id": "craft", "label": "ok", "weight": float("inf")}],
+            [{"id": "craft", "label": "ok", "weight": True}],
+            [
+                {"id": "craft", "label": "A", "weight": 0.3},
+                {"id": "depth", "label": "B", "weight": 0.3},
+            ],
+        ]
+        for profile in cases:
+            with self.subTest(profile=profile):
+                with self.assertRaises(ValueError):
+                    build_attempt_ledgers(
+                        [_attempt()],
+                        mode="local",
+                        generated_at="2026-01-01T00:00:00Z",
+                        dimension_profiles={"fe": profile},
+                    )
+
+
+class CanonicalLedgerNanFailClosedTests(TempDirTestCase):
+    def test_write_attempt_ledgers_rejects_nan_without_completed_output(self) -> None:
+        from unittest import mock
+
+        from basecamp_bench.leaderboard import AttemptLedger
+
+        ledgers = build_attempt_ledgers(
+            [_attempt()],
+            mode="local",
+            generated_at="2026-01-01T00:00:00Z",
+        )
+        out = self.root / "nan-out"
+        out.mkdir()
+        poisoned = dict(ledgers[0].to_raw())
+        poisoned["attempts"][0]["score"] = float("nan")  # type: ignore[index]
+
+        with mock.patch.object(AttemptLedger, "to_raw", return_value=poisoned):
+            with self.assertRaises(ValueError) as ctx:
+                write_attempt_ledgers(out, ledgers)
+        self.assertIn("not JSON compliant", str(ctx.exception))
+        self.assertEqual(list(out.iterdir()), [])
 
 
 if __name__ == "__main__":
