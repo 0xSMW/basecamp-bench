@@ -32,11 +32,7 @@ def build_evaluator_prompt(
     report_path: Path,
     result_path: Path,
 ) -> str:
-    """Build the evaluator directive.
-
-    It defines the evidence boundary and parsed output, while leaving runtime,
-    architecture, test strategy, and inspection method to the evaluator.
-    """
+    """Build the evaluator directive (evidence boundary + exact result contract)."""
     dimensions = contract.get("dimensions")
     if not isinstance(dimensions, list) or not dimensions:
         raise ValueError("contract.dimensions must be a nonempty list")
@@ -46,20 +42,18 @@ def build_evaluator_prompt(
             raise ValueError(f"contract.dimensions[{index}].id must be a string")
         dimension_ids.append(dimension["id"])
 
+    dim_placeholder = {
+        "score": "number from 0 through 10",
+        "notes": "concise evidence-backed assessment",
+        "evidence": ["specific observed evidence"],
+    }
     result_shape = {
         "schema_version": "1.0",
         "track": track,
         "submission_id": submission_id,
         "contract_sha256": contract_sha256,
         "judge_id": evaluator_id,
-        "dimensions": {
-            dimension_id: {
-                "score": "number from 0 through 10",
-                "notes": "concise evidence-backed assessment",
-                "evidence": ["specific observed evidence"],
-            }
-            for dimension_id in dimension_ids
-        },
+        "dimensions": {dim_id: dict(dim_placeholder) for dim_id in dimension_ids},
         "summary": "concise overall assessment",
     }
 

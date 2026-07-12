@@ -1,9 +1,4 @@
-"""Small, reusable validation predicates shared by file-format boundaries.
-
-These helpers deliberately answer only structural questions. Callers retain
-ownership of field-specific error messages and any domain constraints layered
-on top of the primitive checks.
-"""
+"""Reusable validation predicates for file-format boundaries."""
 
 from __future__ import annotations
 
@@ -17,11 +12,7 @@ _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def is_finite_number(value: object) -> TypeGuard[int | float]:
-    """Return whether *value* is a finite real ``int`` or ``float``.
-
-    Booleans are excluded even though ``bool`` subclasses ``int``. Extremely
-    large integers that cannot be represented as floats are rejected cleanly.
-    """
+    """Return whether *value* is a finite real ``int`` or ``float`` (bool excluded)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return False
     try:

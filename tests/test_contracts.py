@@ -8,17 +8,19 @@ import math
 import tempfile
 import unittest
 from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
 
 from basecamp_bench.contracts import (
     Dimension,
     EvaluationContract,
+    ValidatedJudgeScores,
     aggregate_judges,
-    aggregate_repetitions,
     compute_weighted_score,
     contract_sha256,
     load_contract,
+    normalize_validated_judge_result,
     validate_contract_data,
     validate_judge_result,
 )
@@ -483,12 +485,41 @@ class ScoringAndAggregationTests(unittest.TestCase):
         self.addCleanup(self._tmpdir.cleanup)
         path = _write_contract(Path(self._tmpdir.name), _valid_contract_dict())
         self.contract = load_contract(path)
+        self.hash = contract_sha256(path)
         path_one = _write_contract(
             Path(self._tmpdir.name),
             _valid_contract_dict(one_dimension=True),
             name="one_dim.json",
         )
         self.one_dim = load_contract(path_one)
+        self.one_hash = contract_sha256(path_one)
+
+    def _normalized(
+        self,
+        scores: dict[str, float],
+        *,
+        judge_id: str = "judge-a",
+        contract: EvaluationContract | None = None,
+        contract_hash: str | None = None,
+        submission_id: str = "sub-1",
+    ) -> ValidatedJudgeScores:
+        target = contract or self.contract
+        digest = contract_hash if contract_hash is not None else self.hash
+        raw = _judge_result(
+            scores=scores,
+            judge_id=judge_id,
+            contract_sha256_value=digest,
+            submission_id=submission_id,
+            track=target.track,
+        )
+        return normalize_validated_judge_result(
+            raw,
+            target,
+            expected_track=target.track,
+            expected_submission_id=submission_id,
+            expected_contract_sha256=digest,
+            expected_judge_id=judge_id,
+        )
 
     def test_compute_weighted_score_exact_rounding(self) -> None:
         # 8*0.6 + 7*0.4 = 4.8 + 2.8 = 7.6
@@ -530,29 +561,86 @@ class ScoringAndAggregationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compute_weighted_score({"craft": -1, "depth": 7}, self.contract)
 
+    def test_normalize_validated_judge_result_after_full_validation(self) -> None:
+        raw = _judge_result(
+            scores={"craft": 6.0, "depth": 8.0},
+            contract_sha256_value=self.hash,
+            judge_id="judge-a",
+        )
+        normalized = normalize_validated_judge_result(
+            raw,
+            self.contract,
+            expected_track="fe",
+            expected_submission_id="sub-1",
+            expected_contract_sha256=self.hash,
+            expected_judge_id="judge-a",
+        )
+        self.assertIsInstance(normalized, ValidatedJudgeScores)
+        self.assertEqual(normalized.judge_id, "judge-a")
+        self.assertEqual(dict(normalized.scores), {"craft": 6.0, "depth": 8.0})
+        self.assertEqual(list(normalized.scores.keys()), ["craft", "depth"])
+        with self.assertRaises(TypeError):
+            ValidatedJudgeScores(judge_id="x", scores={"craft": 1.0})
+
+    def test_validated_scores_replace_cannot_bypass_validation_or_immutability(self) -> None:
+        normalized = self._normalized({"craft": 6.0, "depth": 8.0})
+        with self.assertRaisesRegex(ValueError, "judge_id"):
+            replace(normalized, judge_id="Unsafe Judge")
+        for bad_score in (float("nan"), float("inf"), -0.1, 10.1, True):
+            with self.subTest(score=bad_score):
+                with self.assertRaisesRegex(ValueError, "finite number 0..10"):
+                    replace(normalized, scores={"craft": bad_score, "depth": 8.0})
+
+        source = {"craft": 2.0, "depth": 3.0}
+        copied = replace(normalized, scores=source)
+        source["craft"] = 9.0
+        self.assertEqual(dict(copied.scores), {"craft": 2.0, "depth": 3.0})
+        with self.assertRaises(TypeError):
+            copied.scores["craft"] = 4.0  # type: ignore[index]
+
+    def test_normalize_rejects_identity_hash_notes_evidence_failures(self) -> None:
+        bad_identity = _judge_result(
+            scores={"craft": 6.0, "depth": 8.0},
+            contract_sha256_value="b" * 64,
+            judge_id="judge-b",
+            track="be",
+            submission_id="other",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            normalize_validated_judge_result(
+                bad_identity,
+                self.contract,
+                expected_track="fe",
+                expected_submission_id="sub-1",
+                expected_contract_sha256=self.hash,
+                expected_judge_id="judge-a",
+            )
+        joined = str(ctx.exception)
+        self.assertIn("track", joined)
+        self.assertIn("submission_id", joined)
+        self.assertIn("contract_sha256", joined)
+        self.assertIn("judge_id", joined)
+
+        raw = _judge_result(scores={"craft": 6.0, "depth": 8.0}, contract_sha256_value=self.hash)
+        raw["dimensions"]["craft"]["notes"] = ""
+        raw["dimensions"]["depth"]["evidence"] = []
+        with self.assertRaises(ValueError) as ctx2:
+            normalize_validated_judge_result(
+                raw,
+                self.contract,
+                expected_track="fe",
+                expected_submission_id="sub-1",
+                expected_contract_sha256=self.hash,
+                expected_judge_id="judge-a",
+            )
+        self.assertIn("notes", str(ctx2.exception))
+        self.assertIn("evidence", str(ctx2.exception))
+
     def test_aggregate_judges_median_stdev_min_max_and_overall(self) -> None:
         results = [
-            {
-                "judge_id": "judge-a",
-                "dimensions": {
-                    "craft": {"score": 6.0},
-                    "depth": {"score": 8.0},
-                },
-            },
-            {
-                "judge_id": "judge-b",
-                "dimensions": {
-                    "craft": {"score": 8.0},
-                    "depth": {"score": 4.0},
-                },
-            },
-            {
-                "judge_id": "judge-c",
-                "dimensions": {
-                    "craft": {"score": 10.0},
-                    "depth": {"score": 6.0},
-                },
-            },
+            self._normalized({"craft": 6.0, "depth": 8.0}, judge_id="judge-a"),
+            self._normalized({"craft": 8.0, "depth": 4.0}, judge_id="judge-b"),
+            self._normalized({"craft": 10.0, "depth": 6.0}, judge_id="judge-c"),
         ]
         agg = aggregate_judges(results, self.contract)
 
@@ -601,8 +689,18 @@ class ScoringAndAggregationTests(unittest.TestCase):
 
     def test_aggregate_judges_one_dimension(self) -> None:
         results = [
-            {"judge_id": "j1", "dimensions": {"craft": 4.0}},
-            {"judge_id": "j2", "dimensions": {"craft": 10.0}},
+            self._normalized(
+                {"craft": 4.0},
+                judge_id="j1",
+                contract=self.one_dim,
+                contract_hash=self.one_hash,
+            ),
+            self._normalized(
+                {"craft": 10.0},
+                judge_id="j2",
+                contract=self.one_dim,
+                contract_hash=self.one_hash,
+            ),
         ]
         agg = aggregate_judges(results, self.one_dim)
         self.assertEqual(agg["dimensions"]["craft"]["median"], 7.0)
@@ -614,113 +712,41 @@ class ScoringAndAggregationTests(unittest.TestCase):
 
     def test_aggregate_judges_rejects_duplicate_judge_ids(self) -> None:
         results = [
-            {
-                "judge_id": "judge-a",
-                "dimensions": {"craft": 8.0, "depth": 7.0},
-            },
-            {
-                "judge_id": "judge-a",
-                "dimensions": {"craft": 9.0, "depth": 6.0},
-            },
+            self._normalized({"craft": 8.0, "depth": 7.0}, judge_id="judge-a"),
+            self._normalized({"craft": 9.0, "depth": 6.0}, judge_id="judge-a"),
         ]
         with self.assertRaises(ValueError) as ctx:
             aggregate_judges(results, self.contract)
         self.assertIn("duplicate judge id", str(ctx.exception))
 
-    def test_aggregate_judges_requires_nonempty_and_complete(self) -> None:
+    def test_aggregate_judges_requires_nonempty_and_rejects_raw_mappings(self) -> None:
         with self.assertRaises(ValueError):
             aggregate_judges([], self.contract)
-        with self.assertRaises(ValueError):
+        raw_full = _judge_result(
+            scores={"craft": 8.0, "depth": 7.0},
+            contract_sha256_value=self.hash,
+        )
+        with self.assertRaises(TypeError):
+            aggregate_judges([raw_full], self.contract)  # type: ignore[list-item]
+        bare = {"judge_id": "j1", "dimensions": {"craft": 5.0, "depth": 9.0}}
+        with self.assertRaises(TypeError):
+            aggregate_judges([bare], self.contract)  # type: ignore[list-item]
+        with self.assertRaises(TypeError):
             aggregate_judges(
-                [{"judge_id": "j1", "dimensions": {"craft": 8.0}}],
+                [{"judge_id": "j1", "dimensions": {"craft": True, "depth": 7.0}}],
                 self.contract,
-            )
-        with self.assertRaises(ValueError):
-            aggregate_judges(
-                [
-                    {
-                        "judge_id": "j1",
-                        "dimensions": {
-                            "craft": 8.0,
-                            "depth": 7.0,
-                            "extra": 1.0,
-                        },
-                    }
-                ],
-                self.contract,
-            )
-        with self.assertRaises(ValueError):
-            aggregate_judges(
-                [
-                    {
-                        "judge_id": "j1",
-                        "dimensions": {"craft": True, "depth": 7.0},
-                    }
-                ],
-                self.contract,
-            )
+            )  # type: ignore[list-item]
 
-    def test_aggregate_judges_accepts_bare_scores(self) -> None:
+    def test_aggregate_judges_normalized_inputs_match_prior_statistics(self) -> None:
         results = [
-            {
-                "judge_id": "j1",
-                "dimensions": {"craft": 5.0, "depth": 9.0},
-            },
-            {
-                "judge_id": "j2",
-                "dimensions": {"craft": 7.0, "depth": 7.0},
-            },
+            self._normalized({"craft": 5.0, "depth": 9.0}, judge_id="j1"),
+            self._normalized({"craft": 7.0, "depth": 7.0}, judge_id="j2"),
         ]
         agg = aggregate_judges(results, self.contract)
         self.assertEqual(agg["dimensions"]["craft"]["median"], 6.0)
         self.assertEqual(agg["dimensions"]["depth"]["median"], 8.0)
         # 6*0.6 + 8*0.4 = 3.6 + 3.2 = 6.8
         self.assertEqual(agg["overall"], 6.8)
-
-    def test_aggregate_repetitions_statistics(self) -> None:
-        rows = [
-            {"score": 6.0, "success": True},
-            {"score": 8.0, "success": True},
-            {"score": 10.0, "success": False},
-        ]
-        agg = aggregate_repetitions(rows)
-        self.assertEqual(agg["count"], 3)
-        self.assertEqual(agg["median"], 8.0)
-        self.assertEqual(agg["mean"], 8.0)
-        self.assertAlmostEqual(agg["stdev"], math.sqrt(8 / 3), places=12)
-        self.assertEqual(agg["min"], 6.0)
-        self.assertEqual(agg["max"], 10.0)
-        self.assertEqual(agg["success_rate"], 2 / 3)
-        self.assertEqual(
-            set(agg.keys()),
-            {"count", "median", "mean", "stdev", "min", "max", "success_rate"},
-        )
-
-    def test_aggregate_repetitions_single_row(self) -> None:
-        agg = aggregate_repetitions([{"score": 4.5, "success": False}])
-        self.assertEqual(agg["count"], 1)
-        self.assertEqual(agg["median"], 4.5)
-        self.assertEqual(agg["mean"], 4.5)
-        self.assertEqual(agg["stdev"], 0.0)
-        self.assertEqual(agg["min"], 4.5)
-        self.assertEqual(agg["max"], 4.5)
-        self.assertEqual(agg["success_rate"], 0.0)
-
-    def test_aggregate_repetitions_rejects_malformed_and_empty(self) -> None:
-        with self.assertRaises(ValueError):
-            aggregate_repetitions([])
-        with self.assertRaises(ValueError):
-            aggregate_repetitions([{"score": True, "success": True}])
-        with self.assertRaises(ValueError):
-            aggregate_repetitions([{"score": 1.0, "success": 1}])
-        with self.assertRaises(ValueError):
-            aggregate_repetitions([{"score": 1.0}])
-        with self.assertRaises(ValueError):
-            aggregate_repetitions([{"score": float("nan"), "success": True}])
-        with self.assertRaises(ValueError):
-            aggregate_repetitions([{"score": float("inf"), "success": True}])
-        with self.assertRaises(ValueError):
-            aggregate_repetitions([{"score": 1.0, "success": True, "extra": 1}])
 
 
 if __name__ == "__main__":
