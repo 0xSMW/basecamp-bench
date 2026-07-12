@@ -219,6 +219,78 @@ class ReportCommandTests(TempDirTestCase):
         self.assertEqual(code, 1)
         self.assertIn("not a leaderboard JSON", stderr)
 
+    def test_rename_rejects_malformed_and_unsafe_names(self) -> None:
+        cases = [
+            "m1=",
+            "m1=   ",
+            "m1=name\x01ctrl",
+            "m1=/Users/secret",
+            r"m1=C:\Windows\system32",
+            "m1=file:///etc/passwd",
+            "m1=python -m evil --flag",
+            "m1=" + ("x" * 257),
+        ]
+        for rename in cases:
+            with self.subTest(rename=rename[:50]):
+                code, stdout, stderr = self.invoke(
+                    "report",
+                    os.fspath(self.root),
+                    "-o",
+                    os.fspath(self.root / "out.html"),
+                    "--rename",
+                    rename,
+                )
+                self.assertEqual((code, stdout), (1, ""))
+                self.assertTrue(stderr.startswith("error:"), stderr)
+
+    def test_rename_accepts_valid_unicode_display_name(self) -> None:
+        with patch("basecamp_bench.cli.write_report") as write:
+            output = self.root / "report.html"
+            write.return_value = output
+            lb = self._leaderboard(self.root / "leaderboard_a.json")
+            code, stdout, stderr = self.invoke(
+                "report",
+                os.fspath(lb),
+                "-o",
+                os.fspath(output),
+                "--rename",
+                "m1=Café Model ✨",
+            )
+            self.assertEqual((code, stderr), (0, ""))
+            self.assertEqual(write.call_args.kwargs["display_names"], {"m1": "Café Model ✨"})
+
+
+class ExportTabularCommandTests(TempDirTestCase):
+    @patch("basecamp_bench.cli.write_tabular_views")
+    def test_export_tabular_prints_both_paths(self, write: Mock) -> None:
+        src = self.root / f"leaderboard_fe_1.0_{'a' * 64}.json"
+        src.write_text("{}\n", encoding="utf-8")
+        out = self.root / "tabular"
+        csv_path = out / "leaderboard.csv"
+        md_path = out / "leaderboard.md"
+        write.return_value = (csv_path, md_path)
+        code, stdout, stderr = self.invoke(
+            "export-tabular",
+            os.fspath(src),
+            "--output-dir",
+            os.fspath(out),
+        )
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertEqual(stdout, f"{csv_path}\n{md_path}\n")
+        write.assert_called_once_with(src, out)
+
+    @patch("basecamp_bench.cli.write_tabular_views")
+    def test_export_tabular_surface_overwrite_errors(self, write: Mock) -> None:
+        write.side_effect = ValueError("refusing to overwrite existing files: x.csv")
+        code, stdout, stderr = self.invoke(
+            "export-tabular",
+            os.fspath(self.root / "in.json"),
+            "-o",
+            os.fspath(self.root / "out"),
+        )
+        self.assertEqual((code, stdout), (1, ""))
+        self.assertEqual(stderr, "error: refusing to overwrite existing files: x.csv\n")
+
 
 class UtilityCommandTests(TempDirTestCase):
     @patch("basecamp_bench.cli.verify_run", return_value=[])

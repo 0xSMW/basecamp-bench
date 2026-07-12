@@ -4,10 +4,17 @@ The renderer accepts an already validated payload and performs no filesystem,
 leaderboard, or network access. Keeping this boundary pure makes visual output
 reusable and independently testable.
 
-The page is ordered for a human reader — verdict, scoreboard, chart,
-dimension profile, comparison table — with audit material (provenance hashes,
-methodology, per-attempt detail) collapsed or placed last. Machine consumers
-read the embedded JSON payload, which carries every field unabridged.
+The page is an editorial briefing: masthead, results pivot across tracks,
+charts, per-model cards, then methodology. Optional *commentary* (a checked-in
+JSON document) adds human-written briefing text, per-model analysis, chart
+captions, and methodology prose; without it every section renders from data
+alone. Full evidence stays in the embedded JSON payload (provenance hashes,
+classifications, source IDs, raw attempts).
+
+Layout rule, learned the hard way: constrain page width ONCE, on ``.wrap``.
+Nothing inside gets its own max-width — nested caps read as broken right
+padding. Chart marks and swatches share each model's identity color; a swatch
+is a chart legend key, not decoration.
 """
 
 from __future__ import annotations
@@ -25,18 +32,13 @@ from basecamp_bench.validation import is_finite_number
 __all__ = ["render_report_html"]
 
 
+# =============================================================================
+# Formatting
+# =============================================================================
+
+
 def _escape(text: Any) -> str:
     return html.escape(str(text), quote=True)
-
-
-def _fmt_num(value: Any, digits: int = 4) -> str:
-    if value is None:
-        return "—"
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return _escape(value)
-    if not math.isfinite(float(value)):
-        return "—"
-    return f"{float(value):.{digits}f}".rstrip("0").rstrip(".") if digits else str(value)
 
 
 def _finite(value: Any) -> float | None:
@@ -86,57 +88,60 @@ def _fmt_tokens(value: Any) -> str:
     return f"{n:,.0f}"
 
 
-def _fmt_duration(value: Any) -> str:
+def _fmt_clock(value: Any) -> str:
     v = _finite(value)
     if v is None:
         return "—"
     total = int(round(v))
-    if total >= 3600:
-        return f"{total // 3600}h {total % 3600 // 60}m"
-    if total >= 60:
-        return f"{total // 60}m {total % 60}s"
-    return f"{total}s"
+    hours, rest = divmod(total, 3600)
+    minutes, seconds = divmod(rest, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes}:{seconds:02d}"
 
 
 # =============================================================================
 # Model identity — one stable color per point, reused in every view
 # =============================================================================
 
-
-def _color_slug(point_id: str) -> str:
-    return hashlib.sha256(point_id.encode("utf-8")).hexdigest()[:8]
+# Curated editorial palette for models without an explicit color override.
+# Hash-assigned by point id so a model keeps its color across reports.
+_PALETTE: tuple[str, ...] = (
+    "#d97757",
+    "#8a63d2",
+    "#2f3640",
+    "#10a37f",
+    "#74c6ad",
+    "#3b6ea5",
+    "#b48b2f",
+    "#a5527a",
+    "#5b8c5a",
+    "#8c5b45",
+)
 
 
 def _color_class(point_id: str) -> str:
-    return f"mc-{_color_slug(point_id)}"
+    return f"mc-{hashlib.sha256(point_id.encode('utf-8')).hexdigest()[:8]}"
 
 
-def _model_hue_sat(point_id: str) -> tuple[int, int]:
-    digest = hashlib.sha256(point_id.encode("utf-8")).hexdigest()
-    hue = int(digest[:8], 16) % 360
-    sat = 52 + (int(digest[8:10], 16) % 19)  # 52–70
-    return hue, sat
+def _identity_css(points: Mapping[str, str], colors: Mapping[str, str] | None) -> str:
+    """CSS classes carrying each model's identity color via ``color``.
 
-
-def _identity_css(point_ids: Sequence[str]) -> str:
-    """Per-model color classes, tuned separately for light and dark surfaces.
-
-    Marks, chips, and bars use ``currentColor`` so a single class carries the
-    identity everywhere. Identity is never color-alone: every colored mark is
-    accompanied by the model's printed name.
+    *points* maps point_id -> model_id. Explicit *colors* (keyed by model_id)
+    win; the curated palette is the deterministic fallback. Identity is never
+    color-alone: every colored mark sits beside the model's printed name.
     """
-    light: list[str] = []
-    dark: list[str] = []
-    for pid in sorted(set(point_ids)):
-        hue, sat = _model_hue_sat(pid)
-        cls = _color_class(pid)
-        light.append(f".{cls} {{ color: hsl({hue}, {sat}%, 37%); }}")
-        dark.append(f".{cls} {{ color: hsl({hue}, {sat}%, 66%); }}")
-    if not light:
-        return ""
-    return (
-        "\n".join(light) + "\n@media (prefers-color-scheme: dark) {\n" + "\n".join(dark) + "\n}\n"
-    )
+    rules: list[str] = []
+    for pid in sorted(points):
+        model_id = points[pid]
+        override = (colors or {}).get(model_id)
+        if override is not None:
+            color = str(override)
+        else:
+            index = int(hashlib.sha256(pid.encode("utf-8")).hexdigest()[:8], 16)
+            color = _PALETTE[index % len(_PALETTE)]
+        rules.append(f".{_color_class(pid)} {{ color: {_escape(color)}; }}")
+    return "\n".join(rules) + ("\n" if rules else "")
 
 
 def _sorted_models(models: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
@@ -158,7 +163,189 @@ def _embed_json(payload: Mapping[str, Any]) -> str:
 
 
 # =============================================================================
-# Verdict and scoreboard
+# Commentary (optional, human-written, checked in beside the evidence)
+# =============================================================================
+
+
+def _commentary_models(commentary: Mapping[str, Any] | None) -> Mapping[str, Any]:
+    if not commentary:
+        return {}
+    models = commentary.get("models")
+    return models if isinstance(models, Mapping) else {}
+
+
+def validate_commentary(commentary: Mapping[str, Any], known_model_ids: set[str]) -> None:
+    """Fail loudly when commentary targets a model the data does not contain."""
+    for key in ("models", "colors"):
+        section = commentary.get(key)
+        if not isinstance(section, Mapping):
+            continue
+        unknown = sorted(set(map(str, section)) - known_model_ids)
+        if unknown:
+            known = ", ".join(sorted(known_model_ids))
+            raise ValueError(
+                f"commentary {key} reference unknown model ids: "
+                f"{', '.join(unknown)} (known: {known})"
+            )
+
+
+# =============================================================================
+# Cross-track pivot
+# =============================================================================
+
+
+def _section_label(section: Mapping[str, Any], multi_version: bool) -> str:
+    track = str(section.get("track", "")).upper()
+    if multi_version:
+        return f"{track} {section.get('contract_version', '')}".strip()
+    return track
+
+
+def _ordered_sections(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    """FE before BE: the reader meets the product surface first."""
+    sections = [s for s in (payload.get("sections") or []) if isinstance(s, Mapping)]
+    return sorted(
+        sections,
+        key=lambda s: (
+            str(s.get("track", "")) != "fe",
+            str(s.get("track", "")),
+            str(s.get("contract_version", "")),
+        ),
+    )
+
+
+def _pivot_rows(
+    sections: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """One row per point across sections, joined on point_id."""
+    rows: dict[str, dict[str, Any]] = {}
+    for index, section in enumerate(sections):
+        for m in section.get("models") or []:
+            if not isinstance(m, Mapping) or m.get("point_id") is None:
+                continue
+            pid = str(m["point_id"])
+            row = rows.setdefault(
+                pid,
+                {
+                    "point_id": pid,
+                    "model_id": str(m.get("model_id", "")),
+                    "display_name": str(m.get("display_name") or m.get("model_id")),
+                    "cells": {},
+                },
+            )
+            row["cells"][index] = m
+    ordered = sorted(
+        rows.values(),
+        key=lambda r: (
+            -max(
+                (_finite_or(c.get("score"), -math.inf) for c in r["cells"].values()),
+                default=-math.inf,
+            ),
+            r["point_id"],
+        ),
+    )
+    return ordered
+
+
+def _row_total_cost(row: Mapping[str, Any]) -> float | None:
+    costs = [_finite(c.get("total_cost_per_attempt")) for c in row["cells"].values()]
+    known = [c for c in costs if c is not None]
+    return sum(known) if known else None
+
+
+def _row_total_duration(row: Mapping[str, Any]) -> float | None:
+    values = [_finite(c.get("duration_s")) for c in row["cells"].values()]
+    known = [v for v in values if v is not None]
+    return sum(known) if known else None
+
+
+def _row_total_tokens(row: Mapping[str, Any]) -> float | None:
+    values = [_finite(c.get("tokens")) for c in row["cells"].values()]
+    known = [v for v in values if v is not None]
+    return sum(known) if known else None
+
+
+def _results_table(sections: Sequence[Mapping[str, Any]], labels: Sequence[str]) -> str:
+    rows = _pivot_rows(sections)
+    if not rows:
+        return '<p class="muted">No scored results.</p>'
+    show_spread = any(
+        (c.get("repetitions") or 0) > 1 for row in rows for c in row["cells"].values()
+    )
+
+    heads = ['<th scope="col">Model</th>']
+    for label in labels:
+        heads.append(f'<th scope="col" class="num">{_escape(label)} score</th>')
+        heads.append(f'<th scope="col" class="num">{_escape(label)} time</th>')
+        heads.append(f'<th scope="col" class="num">{_escape(label)} cost</th>')
+    heads.append('<th scope="col" class="num">Total cost</th>')
+
+    # Best value per numeric column: highest score, lowest time/cost.
+    best: dict[tuple[int, str], float] = {}
+    for row in rows:
+        for index in range(len(labels)):
+            cell = row["cells"].get(index)
+            if not cell:
+                continue
+            score = _finite(cell.get("score"))
+            if score is not None:
+                best[(index, "score")] = max(best.get((index, "score"), -math.inf), score)
+            for field in ("duration_s", "total_cost_per_attempt"):
+                v = _finite(cell.get(field))
+                if v is not None:
+                    best[(index, field)] = min(best.get((index, field), math.inf), v)
+    totals = [t for t in (_row_total_cost(r) for r in rows) if t is not None]
+    best_total = min(totals) if totals else None
+
+    body: list[str] = []
+    for row in rows:
+        cls = _color_class(row["point_id"])
+        cells = [f'<td><span class="swatch {cls}"></span>{_escape(row["display_name"])}</td>']
+        for index in range(len(labels)):
+            cell = row["cells"].get(index)
+            if not cell:
+                cells.extend('<td class="num">—</td>' for _ in range(3))
+                continue
+            score = _finite(cell.get("score"))
+            score_text = _fmt_score(score)
+            if show_spread and _finite_or(cell.get("score_stdev"), 0.0) > 0:
+                score_text += f" ±{_fmt_score(cell.get('score_stdev'))}"
+            success = _finite(cell.get("success_rate"))
+            if success is not None and success < 1.0:
+                score_text += f" ({_fmt_percent(success)} success)"
+            win = " winner" if score is not None and score == best.get((index, "score")) else ""
+            cells.append(f'<td class="num{win}">{_escape(score_text)}</td>')
+            duration = _finite(cell.get("duration_s"))
+            win = (
+                " winner"
+                if duration is not None and duration == best.get((index, "duration_s"))
+                else ""
+            )
+            cells.append(f'<td class="num{win}">{_escape(_fmt_clock(duration))}</td>')
+            cost = _finite(cell.get("total_cost_per_attempt"))
+            win = (
+                " winner"
+                if cost is not None and cost == best.get((index, "total_cost_per_attempt"))
+                else ""
+            )
+            cells.append(f'<td class="num{win}">{_escape(_fmt_money(cost))}</td>')
+        total = _row_total_cost(row)
+        win = " winner" if total is not None and total == best_total else ""
+        cells.append(f'<td class="num{win}">{_escape(_fmt_money(total))}</td>')
+        body.append("<tr>" + "".join(cells) + "</tr>")
+
+    return (
+        '<div class="table-scroll"><table class="raw-table" id="results-table">'
+        "<caption>Scores, agent wall-clock time, and cost per track. "
+        "Cost includes evaluator overhead. Best value per column in bold."
+        "</caption>"
+        f"<thead><tr>{''.join(heads)}</tr></thead>"
+        f"<tbody>{''.join(body)}</tbody></table></div>"
+    )
+
+
+# =============================================================================
+# Verdicts
 # =============================================================================
 
 
@@ -174,16 +361,12 @@ def _ranked_for_verdict(models: Sequence[Mapping[str, Any]]) -> list[Mapping[str
     return eligible or scored
 
 
-def _leader_point_id(models: Sequence[Mapping[str, Any]]) -> str | None:
-    ranked = _ranked_for_verdict(models)
-    return str(ranked[0]["point_id"]) if ranked else None
-
-
-def _verdict_html(models: Sequence[Mapping[str, Any]]) -> str:
-    """One computed sentence that answers the report's question."""
+def _verdict_html(section: Mapping[str, Any], label: str) -> str:
+    """One computed sentence per track answering the report's question."""
+    models = [m for m in (section.get("models") or []) if isinstance(m, Mapping)]
     scored = _ranked_for_verdict(models)
     if not scored:
-        return '<p class="verdict muted">No scored results for this track.</p>'
+        return ""
     leader = scored[0]
     leader_score = _finite(leader.get("score")) or 0.0
     leader_cost = _finite(leader.get("expected_cost"))
@@ -218,15 +401,11 @@ def _verdict_html(models: Sequence[Mapping[str, Any]]) -> str:
             f" — {_model_name_html(value_pick)} delivers {_escape(quality_pct)} of the "
             f"quality at {_escape(cost_pct)} of the cost"
         )
-    return f'<p class="verdict">{text}.</p>'
+    return f'<p class="verdict"><span class="verdict-track">{_escape(label)}</span> {text}.</p>'
 
 
 def _uniform_ineligibility(models: Sequence[Mapping[str, Any]]) -> str | None:
-    """The shared reason string when every model is ineligible the same way.
-
-    Exploratory local runs mark every point publication-ineligible; repeating
-    that badge on each card is noise, so the section states it once instead.
-    """
+    """Shared reason string when every model is ineligible the same way."""
     if not models:
         return None
     signatures: set[tuple[str, ...]] = set()
@@ -239,40 +418,31 @@ def _uniform_ineligibility(models: Sequence[Mapping[str, Any]]) -> str | None:
     return ", ".join(next(iter(signatures)))
 
 
-def _scoreboard_html(models: Sequence[Mapping[str, Any]], show_badges: bool = True) -> str:
-    cards: list[str] = []
-    ordered = _sorted_models(models)
-    leader_id = _leader_point_id(models)
-    for m in ordered:
-        cls = _color_class(str(m["point_id"]))
-        name = _escape(m.get("display_name") or m["model_id"])
-        classification = str(m.get("classification") or "")
-        badge = ""
-        if classification == "frontier":
-            badge = '<span class="badge badge-frontier">frontier</span>'
-        elif classification and show_badges:
-            badge = f'<span class="badge">{_escape(classification)}</span>'
-        score = _fmt_score(m.get("score"))
-        expected = _fmt_money(m.get("expected_cost"))
-        tokens = _fmt_tokens(m.get("tokens"))
-        duration = _fmt_duration(m.get("duration_s"))
-        success = _fmt_percent(m.get("success_rate"))
-        winner = " kpi-lead" if str(m["point_id"]) == leader_id else ""
-        cards.append(
-            f'<article class="kpi {cls}{winner}">'
-            f'<div class="kpi-top"><span class="kpi-dot"></span>'
-            f'<span class="kpi-name">{name}</span>{badge}</div>'
-            f'<div class="kpi-score">{_escape(score)}</div>'
-            f'<div class="kpi-meta">{_escape(expected)} per valid result</div>'
-            f'<div class="kpi-meta muted">{_escape(duration)} · {_escape(tokens)} tokens '
-            f"· {_escape(success)} success</div>"
-            f"</article>"
-        )
-    return f'<div class="kpi-row">{"".join(cards)}</div>'
+def _eligibility_footnote(models: Sequence[Mapping[str, Any]], label: str) -> str:
+    """Name ineligible models when eligibility actually varies.
+
+    A uniform state (all eligible, or all ineligible the same way) carries no
+    per-model signal; classification stays in the JSON payload.
+    """
+    if _uniform_ineligibility(models) is not None:
+        return ""
+    entries: list[str] = []
+    for m in _sorted_models(models):
+        if m.get("eligible"):
+            continue
+        name = str(m.get("display_name") or m["model_id"])
+        reasons = ", ".join(str(r) for r in (m.get("ineligible_reasons") or []))
+        entries.append(f"{name} ({reasons})" if reasons else name)
+    if not entries:
+        return ""
+    return (
+        f'<p class="caption">Not frontier-eligible on {_escape(label)}: '
+        f"{_escape('; '.join(entries))}.</p>"
+    )
 
 
 # =============================================================================
-# Chart
+# Charts (inline SVG, deterministic, self-contained)
 # =============================================================================
 
 
@@ -302,54 +472,67 @@ def _fmt_tick(value: float, money: bool) -> str:
     return f"${text}" if money else text
 
 
-def _chart_svg(section: Mapping[str, Any], section_index: int) -> str:
-    models: list[dict[str, Any]] = list(section["models"])
-    width, height = 960, 460
-    margin_l, margin_r, margin_t, margin_b = 72, 36, 24, 64
+def _marker_svg(shape: str, cx: float, cy: float, r: float, extra: str) -> str:
+    if shape == "triangle":
+        points = (
+            f"{cx:.2f},{cy - r:.2f} {cx - r * 0.9:.2f},{cy + r * 0.7:.2f} "
+            f"{cx + r * 0.9:.2f},{cy + r * 0.7:.2f}"
+        )
+        return f'<polygon points="{points}" {extra}/>'
+    return f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r}" {extra}/>'
+
+
+_TRACK_SHAPES: tuple[str, ...] = ("circle", "triangle", "square")
+
+
+def _scatter_svg(sections: Sequence[Mapping[str, Any]], labels: Sequence[str]) -> str:
+    """All tracks on one canvas; marker shape encodes the track."""
+    width, height = 880, 460
+    margin_l, margin_r, margin_t, margin_b = 56, 24, 20, 64
     plot_w = width - margin_l - margin_r
     plot_h = height - margin_t - margin_b
 
-    plottable = [
-        m
-        for m in models
-        if m.get("expected_cost") is not None
-        and is_finite_number(m["expected_cost"])
-        and is_finite_number(m["score"])
-    ]
+    points: list[tuple[int, Mapping[str, Any]]] = []
+    for index, section in enumerate(sections):
+        for m in section.get("models") or []:
+            if (
+                isinstance(m, Mapping)
+                and m.get("expected_cost") is not None
+                and is_finite_number(m["expected_cost"])
+                and is_finite_number(m.get("score"))
+            ):
+                points.append((index, m))
 
-    track = section["track"]
-    title = f"Cost vs quality for track {track}, contract {section['contract_version']}"
-    aria = (
-        f"Scatter chart of expected implementation cost versus score for {track}. "
-        f"Expected implementation cost on the horizontal axis with cheaper "
-        f"to the right. Score on the vertical axis. Includes error bars, "
-        f"point labels, and a frontier polyline."
+    shape_note = ", ".join(
+        f"{_TRACK_SHAPES[min(i, len(_TRACK_SHAPES) - 1)]} = {label}"
+        for i, label in enumerate(labels)
     )
-
-    if not plottable:
+    aria = (
+        "Scatter chart of expected implementation cost versus score across "
+        f"tracks ({shape_note}). Expected implementation cost on the "
+        "horizontal axis with cheaper to the right. Score on the vertical "
+        "axis. Frontier polylines mark the best quality per dollar."
+    )
+    if not points:
         return (
             f'<svg class="chart" role="img" width="{width}" height="{height}" '
             f'viewBox="0 0 {width} {height}" aria-label="{_escape(aria)}">'
-            f"<title>{_escape(title)}</title>"
-            f"<desc>{_escape(aria)}</desc>"
+            f"<title>Quality versus cost</title><desc>{_escape(aria)}</desc>"
             f'<text x="{width / 2}" y="{height / 2}" text-anchor="middle" '
             f'class="muted">No plottable points</text></svg>'
         )
 
-    scores = [float(m["score"]) for m in plottable]
-    costs = [float(m["expected_cost"]) for m in plottable]
-    score_lo = min(scores)
-    score_hi = max(scores)
-    cost_lo = min(costs)
-    cost_hi = max(costs)
+    scores = [float(m["score"]) for _, m in points]
+    costs = [float(m["expected_cost"]) for _, m in points]
+    score_lo, score_hi = min(scores), max(scores)
+    cost_lo, cost_hi = min(costs), max(costs)
     if score_hi == score_lo:
         score_lo -= 1.0
         score_hi += 1.0
     if cost_hi == cost_lo:
         cost_lo = max(0.0, cost_lo - 1.0)
-        cost_hi = cost_hi + 1.0
-    # Pad for error bars.
-    score_pad = max((score_hi - score_lo) * 0.08, 0.05)
+        cost_hi += 1.0
+    score_pad = max((score_hi - score_lo) * 0.1, 0.05)
     cost_pad = max((cost_hi - cost_lo) * 0.08, 0.05)
     score_lo -= score_pad
     score_hi += score_pad
@@ -368,13 +551,9 @@ def _chart_svg(section: Mapping[str, Any], section_index: int) -> str:
     parts: list[str] = [
         f'<svg class="chart" role="img" width="{width}" height="{height}" '
         f'viewBox="0 0 {width} {height}" aria-label="{_escape(aria)}">',
-        f"<title>{_escape(title)}</title>",
+        "<title>Quality versus cost</title>",
         f"<desc>{_escape(aria)}</desc>",
-        f'<rect x="0" y="0" width="{width}" height="{height}" class="chart-bg"/>',
     ]
-
-    # Gridlines and tick labels. The x axis keeps the cheaper-right mapping,
-    # so tick values are computed in cost space and placed through x_of.
     for tick in _axis_ticks(cost_lo, cost_hi):
         tx = x_of(tick)
         parts.append(
@@ -395,209 +574,239 @@ def _chart_svg(section: Mapping[str, Any], section_index: int) -> str:
             f'<text class="tick-label" x="{margin_l - 8}" y="{ty + 4:.2f}" '
             f'text-anchor="end">{_escape(_fmt_tick(tick, money=False))}</text>'
         )
-
     parts += [
         f'<line x1="{margin_l}" y1="{margin_t}" x2="{margin_l}" '
         f'y2="{margin_t + plot_h}" class="axis"/>',
         f'<line x1="{margin_l}" y1="{margin_t + plot_h}" '
         f'x2="{margin_l + plot_w}" y2="{margin_t + plot_h}" class="axis"/>',
-        f'<text x="{margin_l + plot_w / 2}" y="{height - 12}" text-anchor="middle" '
+        f'<text x="{margin_l + plot_w / 2}" y="{height - 10}" text-anchor="middle" '
         f'class="axis-label">Expected implementation cost (cheaper to the right)</text>',
-        f'<text x="16" y="{margin_t + plot_h / 2}" text-anchor="middle" '
-        f'class="axis-label" transform="rotate(-90 16 {margin_t + plot_h / 2})">'
-        f"Score (quality)</text>",
-        f'<text x="{margin_l}" y="{height - 32}" text-anchor="start" class="muted">'
-        f"higher cost →</text>",
-        f'<text x="{margin_l + plot_w}" y="{height - 32}" text-anchor="end" '
-        f'class="muted">← lower cost (cheaper)</text>',
+        f'<text x="{margin_l}" y="{height - 30}" text-anchor="start" '
+        f'class="axis-note">higher cost →</text>',
+        f'<text x="{margin_l + plot_w}" y="{height - 30}" text-anchor="end" '
+        f'class="axis-note">← lower cost (cheaper)</text>',
     ]
 
-    # Frontier polyline in increasing score order.
-    frontier_ids: list[str] = list(section.get("frontier") or [])
-    by_id = {m["point_id"]: m for m in models}
-    f_pts: list[tuple[float, float]] = []
-    for mid in frontier_ids:
-        m = by_id.get(mid)
-        if not m or m.get("expected_cost") is None:
-            continue
-        f_pts.append((x_of(float(m["expected_cost"])), y_of(float(m["score"]))))
-    if len(f_pts) >= 2:
-        points_attr = " ".join(f"{x:.2f},{y:.2f}" for x, y in f_pts)
-        parts.append(f'<polyline class="frontier-line" fill="none" points="{points_attr}"/>')
-        mid_x = (f_pts[0][0] + f_pts[-1][0]) / 2
-        mid_y = (f_pts[0][1] + f_pts[-1][1]) / 2
-        parts.append(
-            f'<text class="frontier-label" x="{mid_x + 10:.2f}" y="{mid_y - 10:.2f}">'
-            f"Pareto frontier — best quality per dollar</text>"
-        )
+    for index, section in enumerate(sections):
+        frontier_ids = list(section.get("frontier") or [])
+        by_id = {
+            str(m.get("point_id")): m for m in section.get("models") or [] if isinstance(m, Mapping)
+        }
+        f_pts: list[str] = []
+        for mid in frontier_ids:
+            m = by_id.get(str(mid))
+            if not m or m.get("expected_cost") is None:
+                continue
+            f_pts.append(f"{x_of(float(m['expected_cost'])):.2f},{y_of(float(m['score'])):.2f}")
+        if len(f_pts) >= 2:
+            parts.append(
+                f'<polyline class="frontier-line" fill="none" points="{" ".join(f_pts)}"/>'
+            )
 
-    for m in sorted(plottable, key=lambda item: item["point_id"]):
-        mid = m["point_id"]
+    for index, m in sorted(points, key=lambda item: (item[0], str(item[1]["point_id"]))):
+        shape = _TRACK_SHAPES[min(index, len(_TRACK_SHAPES) - 1)]
         score = float(m["score"])
         cost = float(m["expected_cost"])
         cx, cy = x_of(cost), y_of(score)
-        color_cls = _color_class(str(mid))
-        cls = m.get("classification", "ineligible")
-        if cls == "frontier":
-            marker = "frontier-point"
-            r = 7
-        elif cls == "dominated":
-            marker = "dominated-point"
-            r = 6
+        color_cls = _color_class(str(m["point_id"]))
+        name = _escape(m.get("display_name") or m["point_id"])
+        title = (
+            f"<title>{name} ({_escape(labels[index])}): "
+            f"score={score:.4g}, expected_cost={cost:.4g}</title>"
+        )
+        extra = f'class="mark {color_cls}" fill="currentColor"'
+        mark = _marker_svg(shape, cx, cy, 7, extra)
+        parts.append(mark[:-2] + f">{title}</" + mark[1 : mark.index(" ")] + ">")
+        if cx > margin_l + plot_w * 0.82:
+            label_x, anchor = cx - 11, "end"
         else:
-            marker = "ineligible-point"
-            r = 5
-
-        s_err = float(m.get("score_stdev") or 0.0)
-        c_err = float(m.get("cost_stdev") or 0.0)
-        # Vertical error bar (score).
-        y1, y2 = y_of(score + s_err), y_of(score - s_err)
+            label_x, anchor = cx + 11, "start"
         parts.append(
-            f'<line class="error-bar {color_cls}" x1="{cx:.2f}" y1="{y1:.2f}" '
-            f'x2="{cx:.2f}" y2="{y2:.2f}" stroke="currentColor"/>'
+            f'<text class="point-label" x="{label_x:.2f}" y="{cy + 4:.2f}" '
+            f'text-anchor="{anchor}">{name}</text>'
         )
-        # Horizontal error bar in data space (cost); cheaper-right mapping.
-        x1, x2 = x_of(cost - c_err), x_of(cost + c_err)
-        parts.append(
-            f'<line class="error-bar {color_cls}" x1="{x1:.2f}" y1="{cy:.2f}" '
-            f'x2="{x2:.2f}" y2="{cy:.2f}" stroke="currentColor"/>'
-        )
-        parts.append(
-            f'<circle class="{marker} {color_cls}" cx="{cx:.2f}" cy="{cy:.2f}" r="{r}" '
-            f'fill="currentColor" data-model="{_escape(mid)}">'
-            f"<title>{_escape(m.get('display_name') or mid)}: "
-            f"score={score:.4g}, expected_cost={cost:.4g}</title></circle>"
-        )
-        # Labels flip to the left of the marker near the right edge so cheap
-        # models (plotted rightmost) never clip outside the canvas.
-        if cx > margin_l + plot_w * 0.8:
-            label_x, anchor = cx - 10, "end"
-        else:
-            label_x, anchor = cx + 10, "start"
-        parts.append(
-            f'<text class="point-label" x="{label_x:.2f}" y="{cy - 10:.2f}" '
-            f'text-anchor="{anchor}">{_escape(m.get("display_name") or mid)}</text>'
-        )
-
     parts.append("</svg>")
     return "\n".join(parts)
 
 
-# =============================================================================
-# Dimension profile — bars for reading, a table view for lookup
-# =============================================================================
-
-
-def _dimension_profile_map(
-    profile: Sequence[Mapping[str, Any]],
-) -> tuple[dict[str, str], dict[str, float]]:
+def _dimension_keys(
+    section: Mapping[str, Any],
+) -> tuple[list[str], dict[str, str], dict[str, float]]:
     labels: dict[str, str] = {}
     weights: dict[str, float] = {}
-    for row in profile:
+    for row in section.get("dimension_profile") or []:
         if not isinstance(row, Mapping) or row.get("id") is None:
             continue
         rid = str(row["id"])
         if row.get("label"):
             labels[rid] = str(row["label"])
-        weight = _finite(row.get("weight"))
-        if weight is not None:
-            weights[rid] = weight
-    return labels, weights
+        w = _finite(row.get("weight"))
+        if w is not None:
+            weights[rid] = w
+    keys: set[str] = set()
+    for m in section.get("models") or []:
+        dims = m.get("dimensions") if isinstance(m, Mapping) else None
+        if isinstance(dims, Mapping):
+            keys.update(str(k) for k in dims)
+    ordered = sorted(keys, key=lambda k: (-(weights.get(k, 0.0)), k))
+    return ordered, labels, weights
 
 
-def _dimension_bars(
-    models: Sequence[Mapping[str, Any]],
-    profile: Sequence[Mapping[str, Any]],
-) -> str:
-    dim_keys: set[str] = set()
-    for m in models:
-        dims = m.get("dimensions") or {}
-        if isinstance(dims, dict):
-            dim_keys.update(str(k) for k in dims.keys())
-    if not dim_keys:
+def _dimension_bars_svg(section: Mapping[str, Any], label: str) -> str:
+    """Grouped horizontal bars: rows = dimensions, bars = models."""
+    keys, labels, weights = _dimension_keys(section)
+    models = _sorted_models([m for m in (section.get("models") or []) if isinstance(m, Mapping)])
+    if not keys or not models:
         return '<p class="muted">No dimension scores.</p>'
 
-    labels, weights = _dimension_profile_map(profile)
-    # Heaviest dimensions first; alphabetical only as a deterministic tiebreak.
-    keys = sorted(dim_keys, key=lambda k: (-(weights.get(k, 0.0)), k))
-    ordered_models = _sorted_models(models)
+    bar_h, bar_gap, group_gap, header_h = 14, 3, 18, 20
+    margin_l, margin_r, margin_t, margin_b = 8, 44, 6, 8
+    width = 880
+    plot_w = width - margin_l - margin_r
+    group_h = header_h + len(models) * (bar_h + bar_gap) + group_gap
+    height = margin_t + len(keys) * group_h + margin_b
 
-    all_values = [
-        _finite((m.get("dimensions") or {}).get(k))
+    observed = [
+        v
         for m in models
-        for k in dim_keys
-        if isinstance(m.get("dimensions"), dict)
+        for v in [_finite((m.get("dimensions") or {}).get(k)) for k in keys]
+        if v is not None
     ]
-    observed = [v for v in all_values if v is not None]
     scale = max(10.0, max(observed) if observed else 10.0)
 
-    blocks: list[str] = []
-    for k in keys:
-        weight = weights.get(k)
-        weight_html = (
-            f'<span class="dim-w">weight {_escape(_fmt_percent(weight))}</span>'
-            if weight is not None
-            else ""
-        )
-        rows: list[str] = []
-        for m in ordered_models:
-            dims = m.get("dimensions") or {}
-            value = _finite(dims.get(k)) if isinstance(dims, dict) else None
-            name = _escape(m.get("display_name") or m["model_id"])
-            cls = _color_class(str(m["point_id"]))
-            if value is None:
-                rows.append(
-                    f'<span class="dim-m">{name}</span>'
-                    f'<span class="dim-track"></span>'
-                    f'<span class="dim-v muted">—</span>'
-                )
-                continue
-            pct = max(0.0, min(value / scale, 1.0)) * 100
-            rows.append(
-                f'<span class="dim-m">{name}</span>'
-                f'<span class="dim-track"><span class="dim-fill {cls}" '
-                f'style="width:{pct:.1f}%"></span></span>'
-                f'<span class="dim-v">{_escape(_fmt_score(value))}</span>'
-            )
-        blocks.append(
-            f'<div class="dim"><div class="dim-head">{_escape(labels.get(k, k))}'
-            f"{weight_html}</div>"
-            f'<div class="dim-grid">{"".join(rows)}</div></div>'
-        )
-    caption = (
-        f'<p class="muted dim-note">Judge scores per weighted dimension, '
-        f"0–{_fmt_score(scale)} scale.</p>"
+    aria = (
+        f"Grouped bar chart of {label} dimension scores, 0 to "
+        f"{_fmt_score(scale)}, one group per weighted dimension with one bar "
+        "per model."
     )
-    return f'<div class="dims">{"".join(blocks)}</div>{caption}'
+    parts = [
+        f'<svg class="chart" role="img" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}" aria-label="{_escape(aria)}">',
+        f"<title>{_escape(label)} dimensions</title>",
+        f"<desc>{_escape(aria)}</desc>",
+    ]
+    y = float(margin_t)
+    for k in keys:
+        head = labels.get(k, k)
+        weight = weights.get(k)
+        weight_text = f" · weight {_fmt_percent(weight)}" if weight is not None else ""
+        parts.append(
+            f'<text class="bar-head" x="{margin_l}" y="{y + 13:.2f}">'
+            f'{_escape(head)}<tspan class="bar-weight">{_escape(weight_text)}'
+            f"</tspan></text>"
+        )
+        y += header_h
+        for m in models:
+            value = _finite((m.get("dimensions") or {}).get(k))
+            cls = _color_class(str(m["point_id"]))
+            name = _escape(m.get("display_name") or m["model_id"])
+            if value is not None:
+                w = max(0.0, min(value / scale, 1.0)) * plot_w
+                parts.append(
+                    f'<rect class="bar {cls}" x="{margin_l}" y="{y:.2f}" '
+                    f'width="{w:.2f}" height="{bar_h}" rx="2" fill="currentColor">'
+                    f"<title>{name}: {_escape(_fmt_score(value))}</title></rect>"
+                )
+                parts.append(
+                    f'<text class="bar-value" x="{margin_l + w + 6:.2f}" '
+                    f'y="{y + bar_h - 3:.2f}">{_escape(_fmt_score(value))}'
+                    f'<tspan class="bar-name"> {name}</tspan></text>'
+                )
+            else:
+                parts.append(
+                    f'<text class="bar-value muted" x="{margin_l}" '
+                    f'y="{y + bar_h - 3:.2f}">— {name}</text>'
+                )
+            y += bar_h + bar_gap
+        y += group_gap
+    parts.append("</svg>")
+    return "\n".join(parts)
 
 
-def _dimension_table(
-    models: Sequence[Mapping[str, Any]],
-    profile: Sequence[Mapping[str, Any]],
-) -> str:
-    """Accessible table view of the dimension bars, collapsed by default."""
-    dim_keys: set[str] = set()
-    for m in models:
-        dims = m.get("dimensions") or {}
-        if isinstance(dims, dict):
-            dim_keys.update(str(k) for k in dims.keys())
-    if not dim_keys:
+def _gap_chart_svg(sections: Sequence[Mapping[str, Any]], labels: Sequence[str]) -> str:
+    """Score gap between the first two tracks per model, joined on point_id."""
+    if len(sections) < 2:
+        return ""
+    rows = _pivot_rows(sections[:2])
+    gaps: list[tuple[str, str, float]] = []
+    for row in rows:
+        a = row["cells"].get(0)
+        b = row["cells"].get(1)
+        if not a or not b:
+            continue
+        sa, sb = _finite(a.get("score")), _finite(b.get("score"))
+        if sa is None or sb is None:
+            continue
+        gaps.append((row["point_id"], row["display_name"], sb - sa))
+    if not gaps:
         return ""
 
-    labels, weights = _dimension_profile_map(profile)
-    keys = sorted(dim_keys, key=lambda k: (-(weights.get(k, 0.0)), k))
-    head_cells: list[str] = []
+    row_h, name_w = 30, 130
+    margin_t, margin_b = 10, 30
+    width = 880
+    height = margin_t + len(gaps) * row_h + margin_b
+    max_abs = max(0.5, max(abs(g) for _, _, g in gaps))
+    zero_x = name_w + (width - name_w - 60) / 2
+    unit = (width - name_w - 60) / 2 / max_abs
+
+    aria = (
+        f"Bar chart of per-model score gap, {labels[1]} minus {labels[0]}. "
+        "Bars right of the zero line mean the model scored higher on "
+        f"{labels[1]}."
+    )
+    parts = [
+        f'<svg class="chart" role="img" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}" aria-label="{_escape(aria)}">',
+        f"<title>{_escape(labels[0])} versus {_escape(labels[1])} gap</title>",
+        f"<desc>{_escape(aria)}</desc>",
+        f'<line class="axis" x1="{zero_x:.2f}" y1="{margin_t}" '
+        f'x2="{zero_x:.2f}" y2="{height - margin_b}"/>',
+        f'<text class="tick-label" x="{zero_x:.2f}" y="{height - 12}" '
+        f'text-anchor="middle">0</text>',
+    ]
+    y = float(margin_t)
+    for pid, name, gap in gaps:
+        cls = _color_class(pid)
+        bar_w = abs(gap) * unit
+        x = zero_x if gap >= 0 else zero_x - bar_w
+        parts.append(
+            f'<text class="bar-value" x="{name_w - 8}" y="{y + row_h / 2 + 4:.2f}" '
+            f'text-anchor="end">{_escape(name)}</text>'
+        )
+        parts.append(
+            f'<rect class="bar {cls}" x="{x:.2f}" y="{y + 6:.2f}" '
+            f'width="{bar_w:.2f}" height="{row_h - 12}" rx="2" fill="currentColor">'
+            f"<title>{_escape(name)}: {gap:+.2f}</title></rect>"
+        )
+        tx = x + bar_w + 6 if gap >= 0 else x - 6
+        anchor = "start" if gap >= 0 else "end"
+        parts.append(
+            f'<text class="bar-value" x="{tx:.2f}" y="{y + row_h / 2 + 4:.2f}" '
+            f'text-anchor="{anchor}">{gap:+.2f}</text>'
+        )
+        y += row_h
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+def _dimension_table(section: Mapping[str, Any], label: str) -> str:
+    """Tabular fallback for the dimension chart."""
+    keys, labels, weights = _dimension_keys(section)
+    models = _sorted_models([m for m in (section.get("models") or []) if isinstance(m, Mapping)])
+    if not keys or not models:
+        return ""
+    head_cells = []
     for k in keys:
-        label = _escape(labels.get(k, k))
+        head = _escape(labels.get(k, k))
         weight = weights.get(k)
         sub = (
             f'<span class="dim-weight">weight {_escape(_fmt_percent(weight))}</span>'
             if weight is not None
             else ""
         )
-        head_cells.append(f'<th scope="col" class="num">{label}{sub}</th>')
-    rows: list[str] = []
-    for m in _sorted_models(models):
+        head_cells.append(f'<th scope="col" class="num">{head}{sub}</th>')
+    rows = []
+    for m in models:
         dims = m.get("dimensions") or {}
         cells = "".join(f'<td class="num">{_escape(_fmt_score(dims.get(k)))}</td>' for k in keys)
         rows.append(
@@ -605,126 +814,235 @@ def _dimension_table(
             f"</th>{cells}</tr>"
         )
     return (
-        '<details class="table-view"><summary>Dimension score table</summary>'
+        f'<details class="table-view"><summary>{_escape(label)} dimension table '
+        f"(tabular fallback)</summary>"
         '<div class="table-scroll"><table class="dim-table">'
-        "<caption>Dimension scores</caption>"
+        f"<caption>{_escape(label)} dimension scores and weights</caption>"
         f'<thead><tr><th scope="col">Model</th>{"".join(head_cells)}</tr></thead>'
         f"<tbody>{''.join(rows)}</tbody></table></div></details>"
     )
 
 
-# =============================================================================
-# Comparison and attempts tables
-# =============================================================================
+def _caption(commentary: Mapping[str, Any] | None, key: str, computed: str) -> str:
+    captions = (commentary or {}).get("captions")
+    text = None
+    if isinstance(captions, Mapping):
+        text = captions.get(key)
+    return f'<p class="caption">{_escape(text if text else computed)}</p>'
 
 
-def _classification_cell(m: Mapping[str, Any]) -> str:
-    """Classification with ineligibility reasons folded in."""
-    label = str(m.get("classification") or "—")
-    reasons = [str(r) for r in (m.get("ineligible_reasons") or [])]
-    if not m.get("eligible") and reasons:
-        label = f"{label} — {', '.join(reasons)}"
-    return label
-
-
-def _models_table(models: Sequence[Mapping[str, Any]]) -> str:
-    # Single-repetition sections collapse every spread statistic to the point
-    # value, so stdev/min/max columns are shown only when a model actually has
-    # repeats. Full statistics stay in the JSON payload.
-    show_spread = any((m.get("repetitions") or 0) > 1 for m in models)
-
-    headers: list[tuple[str, bool]] = [("Model", False), ("Score", True)]
-    if show_spread:
-        headers += [("Score stdev", True), ("Score min–max", True)]
-    headers += [
-        ("Expected implementation cost per valid result", True),
-        ("Implementation cost per attempt", True),
-    ]
-    if show_spread:
-        headers += [("Impl cost stdev", True), ("Impl cost min–max", True)]
-    headers += [
-        ("Evaluation overhead per attempt", True),
-        ("Total cost per attempt", True),
-        ("Success rate", True),
-    ]
-    if show_spread:
-        headers.append(("Repetitions", True))
-    headers += [
-        ("Tokens", True),
-        ("Duration", True),
-        ("Classification", False),
-    ]
-    thead = "".join(
-        '<th scope="col"{}>{}</th>'.format(' class="num"' if num else "", _escape(h))
-        for h, num in headers
-    )
-    rows: list[str] = []
-    leader_id = _leader_point_id(models)
-    for m in _sorted_models(models):
-        cls = _color_class(str(m["point_id"]))
-        name = _escape(m.get("display_name") or m["model_id"])
-        model_cell = f'<span class="chip {cls}"></span>{name}'
-        cells: list[tuple[str, bool]] = [
-            (model_cell, False),
-            (_escape(_fmt_score(m.get("score"))), True),
-        ]
-        if show_spread:
-            cells += [
-                (_escape(_fmt_score(m.get("score_stdev"))), True),
-                (
-                    _escape(f"{_fmt_score(m.get('score_min'))}–{_fmt_score(m.get('score_max'))}"),
-                    True,
-                ),
-            ]
-        cells += [
-            (_escape(_fmt_money(m.get("expected_cost"))), True),
-            (_escape(_fmt_money(m.get("implementation_cost_per_attempt"))), True),
-        ]
-        if show_spread:
-            cells += [
-                (_escape(_fmt_money(m.get("cost_stdev"))), True),
-                (
-                    _escape(f"{_fmt_money(m.get('cost_min'))}–{_fmt_money(m.get('cost_max'))}"),
-                    True,
-                ),
-            ]
-        cells += [
-            (_escape(_fmt_money(m.get("evaluation_cost_per_attempt"))), True),
-            (_escape(_fmt_money(m.get("total_cost_per_attempt"))), True),
-            (_escape(_fmt_percent(m.get("success_rate"))), True),
-        ]
-        if show_spread:
-            cells.append((_escape(m.get("repetitions")), True))
-        cells += [
-            (_escape(_fmt_tokens(m.get("tokens"))), True),
-            (_escape(_fmt_duration(m.get("duration_s"))), True),
-            (_escape(_classification_cell(m)), False),
-        ]
-        row_cls = ' class="winner"' if str(m["point_id"]) == leader_id else ""
-        rows.append(
-            f"<tr{row_cls}>"
-            + "".join("<td{}>{}</td>".format(' class="num"' if num else "", c) for c, num in cells)
-            + "</tr>"
-        )
+def _computed_dim_caption(section: Mapping[str, Any]) -> str:
+    keys, labels, _ = _dimension_keys(section)
+    values: list[tuple[float, str]] = []
+    for m in section.get("models") or []:
+        dims = m.get("dimensions") if isinstance(m, Mapping) else None
+        if not isinstance(dims, Mapping):
+            continue
+        for k in keys:
+            v = _finite(dims.get(k))
+            if v is not None:
+                values.append((v, labels.get(k, k)))
+    if not values:
+        return "Judge scores per weighted dimension."
+    lo = min(values)
+    hi = max(values)
     return (
-        '<div class="table-scroll"><table class="raw-table">'
-        "<caption>Aggregate model metrics for this contract section</caption>"
-        f"<thead><tr>{thead}</tr></thead>"
-        f"<tbody>{''.join(rows)}</tbody></table></div>"
+        f"Scores span {_fmt_score(lo[0])} ({lo[1]}) to {_fmt_score(hi[0])} "
+        f"({hi[1]}), 0–10 scale, heaviest weights first."
     )
 
 
-def _raw_attempts_table(models: Sequence[Mapping[str, Any]]) -> str:
-    # Purely mechanical columns (run/submission ids, evaluator counts) stay in
-    # the JSON payload; conditional columns render only when they carry signal.
+def _computed_gap_caption(sections: Sequence[Mapping[str, Any]], labels: Sequence[str]) -> str:
+    rows = _pivot_rows(sections[:2])
+    gaps = []
+    for row in rows:
+        a, b = row["cells"].get(0), row["cells"].get(1)
+        if a and b:
+            sa, sb = _finite(a.get("score")), _finite(b.get("score"))
+            if sa is not None and sb is not None:
+                gaps.append(sb - sa)
+    if not gaps:
+        return ""
+    if min(gaps) >= 0:
+        return (
+            f"Every model scores higher on {labels[1]}, gaps {min(gaps):+.1f} to {max(gaps):+.1f}."
+        )
+    return f"Score gaps range {min(gaps):+.1f} to {max(gaps):+.1f} ({labels[1]} minus {labels[0]})."
+
+
+# =============================================================================
+# Model cards
+# =============================================================================
+
+_BANDS: tuple[tuple[float, str, str], ...] = (
+    (8.0, "score-strong", "Strong"),
+    (7.0, "score-good", "Good"),
+    (6.0, "score-mixed", "Mixed"),
+    (5.0, "score-weak", "Weak"),
+    (-math.inf, "score-poor", "Poor"),
+)
+
+
+def _band_class(value: float | None) -> str:
+    if value is None:
+        return "score-poor"
+    for floor, cls, _ in _BANDS:
+        if value >= floor:
+            return cls
+    return "score-poor"
+
+
+def _score_legend() -> str:
+    entries = [
+        ("score-strong", "8.0–10 Strong"),
+        ("score-good", "7.0–7.9 Good"),
+        ("score-mixed", "6.0–6.9 Mixed"),
+        ("score-weak", "5.0–5.9 Weak"),
+        ("score-poor", "<5.0 Poor"),
+    ]
+    badges = "".join(
+        f'<span class="score-badge {cls}">{_escape(text)}</span>' for cls, text in entries
+    )
+    return f'<div class="score-legend">{badges}</div>'
+
+
+def _computed_headline(row: Mapping[str, Any], rows: Sequence[Mapping[str, Any]]) -> str:
+    """A data-derived descriptor when no commentary headline exists."""
+    scores = [_finite(c.get("score")) for c in row["cells"].values()]
+    known = [s for s in scores if s is not None]
+    best_avg = max(
+        (
+            sum(v for v in (map(lambda c: _finite_or(c.get("score"), 0.0), r["cells"].values())))
+            / max(len(r["cells"]), 1)
+            for r in rows
+        ),
+        default=0.0,
+    )
+    avg = sum(known) / len(known) if known else 0.0
+    total = _row_total_cost(row)
+    cheapest = min(
+        (t for t in (_row_total_cost(r) for r in rows) if t is not None),
+        default=None,
+    )
+    if known and avg == best_avg:
+        return "highest scores overall"
+    if total is not None and cheapest is not None and total == cheapest:
+        return "lowest total cost"
+    return f"{_fmt_score(avg)} average across tracks" if known else "no scored results"
+
+
+def _commentary_list(items: Any) -> str:
+    if not isinstance(items, Sequence) or isinstance(items, (str, bytes)):
+        return ""
+    parts = []
+    for item in items:
+        if not isinstance(item, Mapping):
+            continue
+        title = str(item.get("title") or "")
+        body = str(item.get("body") or "")
+        title_html = f"<b>{_escape(title)}</b> " if title else ""
+        parts.append(f"<li>{title_html}{_escape(body)}</li>")
+    return f"<ul>{''.join(parts)}</ul>" if parts else ""
+
+
+def _model_card(
+    row: Mapping[str, Any],
+    rows: Sequence[Mapping[str, Any]],
+    sections: Sequence[Mapping[str, Any]],
+    labels: Sequence[str],
+    commentary: Mapping[str, Any] | None,
+) -> str:
+    model_id = row["model_id"]
+    pid = row["point_id"]
+    cls = _color_class(pid)
+    name = _escape(row["display_name"])
+    entry = _commentary_models(commentary).get(model_id)
+    entry = entry if isinstance(entry, Mapping) else {}
+    headline = str(entry.get("headline") or _computed_headline(row, rows))
+
+    stats: list[str] = []
+    for index, label in enumerate(labels):
+        cell = row["cells"].get(index)
+        if cell:
+            stats.append(f"{label} {_fmt_score(cell.get('score'))}")
+    total = _row_total_cost(row)
+    if total is not None:
+        stats.append(f"{_fmt_money(total)} total")
+    duration = _row_total_duration(row)
+    if duration is not None:
+        stats.append(f"{_fmt_clock(duration)} total")
+    tokens = _row_total_tokens(row)
+    if tokens is not None:
+        stats.append(f"{_fmt_tokens(tokens)} tokens")
+
+    parts = [
+        # Identity color rides only on the swatch: the card text stays ink.
+        f'<div class="model" id="model-{_escape(model_id)}">',
+        f'<h3><span class="swatch {cls}"></span>{name} — {_escape(headline)}</h3>',
+        f'<p class="scores">{_escape(" · ".join(stats))}</p>',
+    ]
+    for key, title in (
+        ("shines", "Where it shines"),
+        ("okay", "Where it's okay"),
+        ("underperforms", "Where it underperforms"),
+    ):
+        rendered = _commentary_list(entry.get(key))
+        if rendered:
+            parts.append(f"<h4>{_escape(title)}</h4>{rendered}")
+    failure = entry.get("failure_modes")
+    if failure:
+        parts.append(f"<h4>Failure modes</h4><p>{_escape(str(failure))}</p>")
+
+    tile_tracks: list[str] = []
+    for index, label in enumerate(labels):
+        cell = row["cells"].get(index)
+        if not cell:
+            continue
+        section = sections[index]
+        keys, dim_labels, _ = _dimension_keys(section)
+        dims = cell.get("dimensions") or {}
+        tiles: list[str] = []
+        for k in keys:
+            value = _finite(dims.get(k)) if isinstance(dims, Mapping) else None
+            if value is None:
+                continue
+            full = dim_labels.get(k, k)
+            short = full.split()[0] if full else k
+            tiles.append(
+                f'<span class="tile {_band_class(value)}" '
+                f'data-tip="{_escape(full)}" tabindex="0">'
+                f'<span class="tile-box">{_escape(_fmt_score(value))}</span>'
+                f'<span class="tile-label">{_escape(short)}</span></span>'
+            )
+        if tiles:
+            tile_tracks.append(
+                f'<div class="dims-track">{_escape(label)}</div>'
+                f'<div class="dims-row">{"".join(tiles)}</div>'
+            )
+    if tile_tracks:
+        parts.append(
+            '<details class="dims"><summary>Dimension scores</summary>'
+            + "".join(tile_tracks)
+            + "</details>"
+        )
+    parts.append("</div>")
+    return "".join(parts)
+
+
+# =============================================================================
+# Attempts (rendered only when it adds information beyond the pivot)
+# =============================================================================
+
+
+def _raw_attempts_table(sections: Sequence[Mapping[str, Any]]) -> str:
     attempts: list[Mapping[str, Any]] = []
-    for m in models:
-        raw_value = m.get("raw_attempts") or []
-        assert isinstance(raw_value, Sequence) and not isinstance(raw_value, (str, bytes))
-        raw_list = list(raw_value)
-        assert all(isinstance(raw, Mapping) for raw in raw_list)
-        for raw in raw_list:
-            attempts.append(raw)
+    for section in sections:
+        for m in section.get("models") or []:
+            raw_value = m.get("raw_attempts") or []
+            assert isinstance(raw_value, Sequence) and not isinstance(raw_value, (str, bytes))
+            for raw in raw_value:
+                assert isinstance(raw, Mapping)
+                attempts.append(raw)
     attempts.sort(key=raw_attempt_sort_key)
 
     show_repetition = any((raw.get("repetition") or 0) > 1 for raw in attempts)
@@ -735,8 +1053,13 @@ def _raw_attempts_table(models: Sequence[Mapping[str, Any]]) -> str:
         or raw.get("ineligible_reasons")
         for raw in attempts
     )
+    # A clean single-repetition run repeats the results table row for row, so
+    # per-attempt detail renders only when it adds information. The full
+    # per-attempt record always remains in the JSON payload.
+    if not attempts or (not has_problem and not show_repetition):
+        return ""
 
-    headers: list[tuple[str, bool]] = [("Model", False)]
+    headers: list[tuple[str, bool]] = [("Model", False), ("Track", False)]
     if show_repetition:
         headers.append(("Repetition", True))
     headers += [
@@ -754,11 +1077,11 @@ def _raw_attempts_table(models: Sequence[Mapping[str, Any]]) -> str:
         '<th scope="col"{}>{}</th>'.format(' class="num"' if num else "", _escape(h))
         for h, num in headers
     )
-
     rows: list[str] = []
     for raw in attempts:
         cells: list[tuple[str, bool]] = [
             (_escape(raw.get("display_name") or raw.get("model_id") or "—"), False),
+            (_escape(str(raw.get("track") or "—").upper()), False),
         ]
         if show_repetition:
             cells.append((_escape(raw.get("repetition")), True))
@@ -769,7 +1092,7 @@ def _raw_attempts_table(models: Sequence[Mapping[str, Any]]) -> str:
             (_escape(_fmt_money(raw.get("implementation_cost_usd"))), True),
             (_escape(_fmt_money(raw.get("evaluation_cost_usd"))), True),
             (_escape(_fmt_tokens(raw.get("tokens"))), True),
-            (_escape(_fmt_duration(raw.get("duration_s"))), True),
+            (_escape(_fmt_clock(raw.get("duration_s"))), True),
         ]
         if show_reasons:
             reasons = ", ".join(raw.get("ineligible_reasons") or []) or "—"
@@ -779,8 +1102,6 @@ def _raw_attempts_table(models: Sequence[Mapping[str, Any]]) -> str:
             + "".join("<td{}>{}</td>".format(' class="num"' if num else "", c) for c, num in cells)
             + "</tr>"
         )
-    if not rows:
-        rows.append(f'<tr><td colspan="{len(headers)}" class="muted">No raw attempts.</td></tr>')
     table = (
         '<div class="table-scroll"><table class="attempts-table">'
         "<caption>Per-attempt raw results including failures "
@@ -790,7 +1111,7 @@ def _raw_attempts_table(models: Sequence[Mapping[str, Any]]) -> str:
     )
     if has_problem:
         # Failures are part of the story — keep them visible.
-        return f"<h3>Attempts</h3>{table}"
+        return f"<h2>Attempts</h2>{table}"
     count = len(attempts)
     noun = "attempt" if count == 1 else "attempts"
     return (
@@ -799,273 +1120,279 @@ def _raw_attempts_table(models: Sequence[Mapping[str, Any]]) -> str:
     )
 
 
-def _methodology_html() -> str:
-    return """
-<section class="methodology" id="methodology">
-  <h2>Methodology and provenance</h2>
-  <ul>
-    <li><strong>Expected implementation cost per valid result</strong> is
-      <code>implementation_cost_per_attempt / success_rate</code>
-      (equal to <code>cost_per_attempt / success_rate</code> when aggregates
-      are consistent). It estimates the expected implementation cost per valid
-      submission. When success rate is zero, or inputs are non-finite or
-      negative, expected cost is undefined and the point cannot join the
-      Pareto frontier.</li>
-    <li><strong>Evaluation overhead per attempt</strong>
-      (<code>evaluation_cost_per_attempt</code>) is reported for transparency
-      only. It never changes Pareto membership or expected implementation
-      cost.</li>
-    <li><strong>Total cost per attempt</strong> is observed implementation cost
-      plus evaluator overhead. The frontier continues to use implementation
-      cost so evaluator routing does not change contestant cost ranking.</li>
-    <li><strong>End-to-end agent duration</strong> is implementation process
-      time plus the critical-path evaluator process time. Parallel evaluators
-      contribute their maximum duration rather than their sum; queueing,
-      snapshot copying, aggregation, and report rendering are excluded.</li>
-    <li><strong>Runner compatibility</strong>: local exploratory reports may
-      combine matching benchmark evidence from different runner revisions and
-      list every source hash. Publication reports keep runner revisions in
-      separate comparison sections.</li>
-    <li><strong>Success handling</strong>: a success rate of zero forces the
-      entry ineligible even if the source marked it eligible. Ineligible and
-      failed attempts remain visible in tables and denominators.</li>
-    <li><strong>Pareto frontier</strong>: among eligible points with finite
-      nonnegative score and expected implementation cost, point A dominates B
-      when A has score ≥ B and expected cost ≤ B, with at least one strict
-      inequality. Exact score/cost ties keep the lexicographically smaller
-      <code>model_id</code> as the frontier representative. Among multiple
-      dominators, prefer lowest expected cost, then highest score, then
-      lexicographically smallest model id.</li>
-    <li><strong>Marginal cost per quality</strong> is computed only between
-      adjacent frontier points ordered by increasing score:
-      Δexpected_cost / Δscore when Δscore &gt; 0.</li>
-    <li><strong>Contracts and hashes</strong>: FE and BE tracks are never
-      combined. Distinct <code>contract_version</code> /
-      <code>contract_sha256</code> values form separate report sections.</li>
-    <li><strong>Schema version and generated_at</strong> are carried from the
-      source leaderboard files only; this report does not inject wall-clock
-      time.</li>
-    <li><strong>Harness</strong> identifies the agent/tooling configuration
-      that produced the attempts.</li>
-    <li><strong>Judge spread and error bars</strong>: score standard deviation
-      and judge spread quantify observed variance; cost standard deviation is
-      shown as horizontal error bars. These do not make nondeterministic
-      models deterministic.</li>
-    <li><strong>Colors</strong> are stable hues derived from
-      SHA-256(<code>model_id</code>). Classification is also labeled in text.</li>
-    <li>Only run IDs/hashes are shown; filesystem paths are never rendered.</li>
-  </ul>
-</section>
-"""
+# =============================================================================
+# Assembly
+# =============================================================================
 
 
-def _provenance_details(section: Mapping[str, Any]) -> str:
-    parts: list[str] = [
-        '<details class="provenance-box"><summary>Provenance and hashes</summary>',
-        '<dl class="provenance">',
-    ]
-    sha = section.get("contract_sha256", "")
-    schema = section.get("schema_version")
-    generated = section.get("generated_at")
-    parts.append(f"<dt>contract_sha256</dt><dd><code>{_escape(sha)}</code></dd>")
-    parts.append(
-        f"<dt>schema_version</dt><dd>{_escape(schema if schema is not None else 'null')}</dd>"
+def _report_date(sections: Sequence[Mapping[str, Any]]) -> str:
+    stamps = sorted(
+        str(s.get("generated_at")) for s in sections if s.get("generated_at") is not None
     )
-    parts.append(
-        f"<dt>generated_at</dt><dd>{_escape(generated if generated is not None else 'null')}</dd>"
-    )
-    for name in (
-        "mode",
-        "runner_source_sha256",
-        "seed_tree_sha256",
-        "reference_manifest_sha256",
-        "reference_tree_sha256",
-        "prompt_sha256",
-        "rubric_sha256",
-        "schema_bundle_sha256",
-    ):
-        parts.append(f"<dt>{name}</dt><dd><code>{_escape(section.get(name, 'null'))}</code></dd>")
-    runner_sources = section.get("runner_source_sha256_values") or []
-    if len(runner_sources) > 1:
-        parts.append(f"<dt>source runner hashes</dt><dd>{_escape(', '.join(runner_sources))}</dd>")
-    parts.append(
-        f"<dt>source timestamps</dt><dd>{_escape(', '.join(section.get('generated_at_values') or []) or '—')}</dd>"
-    )
-    parts.append(
-        f"<dt>source run IDs</dt><dd>{_escape(', '.join(section.get('source_run_ids') or []) or '—')}</dd>"
-    )
-    parts.append(
-        f"<dt>frontier</dt><dd>{_escape(', '.join(section.get('frontier') or []) or '—')}</dd>"
-    )
-    parts.append("</dl></details>")
-    return "".join(parts)
+    return stamps[-1] if stamps else ""
 
 
-def render_report_html(payload: Mapping[str, Any]) -> str:
+def render_report_html(
+    payload: Mapping[str, Any],
+    commentary: Mapping[str, Any] | None = None,
+) -> str:
     """Render a self-contained offline HTML5 report for *payload*."""
-    sections = list(payload.get("sections") or [])
-    all_point_ids: list[str] = [
-        str(m["point_id"])
-        for section in sections
-        for m in (section.get("models") or [])
-        if isinstance(m, Mapping) and m.get("point_id") is not None
+    sections = _ordered_sections(payload)
+    track_counts: dict[str, int] = {}
+    for s in sections:
+        track = str(s.get("track", ""))
+        track_counts[track] = track_counts.get(track, 0) + 1
+    labels = [_section_label(s, track_counts[str(s.get("track", ""))] > 1) for s in sections]
+    rows = _pivot_rows(sections)
+    known_model_ids = {row["model_id"] for row in rows}
+    if commentary:
+        validate_commentary(commentary, known_model_ids)
+    point_to_model = {row["point_id"]: row["model_id"] for row in rows}
+    colors = (commentary or {}).get("colors")
+    colors = colors if isinstance(colors, Mapping) else None
+
+    date = _report_date(sections)
+    contract_versions = " · ".join(
+        sorted({str(s.get("contract_version", "")) for s in sections if s.get("contract_version")})
+    )
+
+    briefing_paras = (commentary or {}).get("briefing")
+    commentary_paras = (commentary or {}).get("commentary")
+    methodology_blocks = (commentary or {}).get("methodology")
+
+    toc: list[str] = []
+    if isinstance(briefing_paras, Sequence) and briefing_paras:
+        toc.append('<a href="#briefing">Briefing</a>')
+    toc.append('<a href="#results">Results</a>')
+    toc.append('<a href="#charts">Charts</a>')
+    toc.append('<a href="#models">Models</a>')
+    if isinstance(commentary_paras, Sequence) and commentary_paras:
+        toc.append('<a href="#commentary">Commentary</a>')
+    toc.append('<a href="#methodology">Methodology</a>')
+
+    body: list[str] = ['<div class="wrap">']
+    body.append('<nav class="toc" aria-label="Sections">' + "".join(toc) + "</nav>")
+    subtitle_bits = [
+        b for b in (f"eval {contract_versions}" if contract_versions else "", date) if b
     ]
+    body.append(
+        '<header><div class="masthead"><h1>Basecamp Bench</h1>'
+        f'<span class="date">{_escape(" · ".join(subtitle_bits))}</span></div>'
+        '<p class="sub">Which agent builds it best, at what cost.</p></header>'
+    )
 
-    body_parts: list[str] = [
-        "<header><h1>Basecamp Bench Report</h1>",
-        '<p class="lede">Which agent builds it best, and at what cost. '
-        "Cheaper sits to the right on every chart; methodology and provenance "
-        "are at the end.</p></header>",
-    ]
+    if isinstance(briefing_paras, Sequence) and briefing_paras:
+        body.append('<section id="briefing">')
+        for para in briefing_paras:
+            body.append(f"<p>{_escape(str(para))}</p>")
+        body.append("</section>")
 
-    for index, section in enumerate(sections):
-        track = section.get("track", "")
-        cv = section.get("contract_version", "")
-        models = list(section.get("models") or [])
-        profile = [
-            row for row in (section.get("dimension_profile") or []) if isinstance(row, Mapping)
-        ]
-        sid = f"section-{index}-{track}-{cv}"
+    body.append('<section id="results"><h2>Results</h2>')
+    for section, label in zip(sections, labels):
+        body.append(_verdict_html(section, label))
+    body.append(_results_table(sections, labels))
+    for section, label in zip(sections, labels):
+        models = [m for m in (section.get("models") or []) if isinstance(m, Mapping)]
+        body.append(_eligibility_footnote(models, label))
+    body.append("</section>")
 
-        body_parts.append(f'<section class="track-section" id="{_escape(sid)}">')
-        body_parts.append(f'<p class="eyebrow">Track {_escape(track)} · contract {_escape(cv)}</p>')
-        body_parts.append(_verdict_html(models))
-        shared_ineligibility = _uniform_ineligibility(models)
-        if shared_ineligibility is not None:
-            reason = f" ({_escape(shared_ineligibility)})" if shared_ineligibility else ""
-            body_parts.append(
-                f'<p class="note muted">Exploratory run — every model is outside '
-                f"publication eligibility{reason}.</p>"
+    body.append('<section id="charts"><h2>Charts</h2>')
+    shape_note = ", ".join(
+        f"{_TRACK_SHAPES[min(i, len(_TRACK_SHAPES) - 1)]} = {label}"
+        for i, label in enumerate(labels)
+    )
+    body.append('<div class="chart-card"><h3>Quality versus cost</h3>')
+    body.append(
+        _caption(
+            commentary,
+            "Quality versus cost",
+            f"Each model appears once per track: {shape_note}. Cheaper to the right.",
+        )
+    )
+    body.append(_scatter_svg(sections, labels))
+    body.append("</div>")
+    for index, (section, label) in enumerate(zip(sections, labels)):
+        body.append(f'<div class="chart-card"><h3>{_escape(label)} dimensions</h3>')
+        body.append(_caption(commentary, f"{label} dimensions", _computed_dim_caption(section)))
+        body.append(_dimension_bars_svg(section, label))
+        body.append(_dimension_table(section, label))
+        body.append("</div>")
+    if len(sections) >= 2:
+        gap = _gap_chart_svg(sections, labels)
+        if gap:
+            body.append(
+                f'<div class="chart-card"><h3>{_escape(labels[0])} versus '
+                f"{_escape(labels[1])} gap</h3>"
             )
-        body_parts.append(_scoreboard_html(models, show_badges=shared_ineligibility is None))
+            body.append(
+                _caption(
+                    commentary,
+                    f"{labels[0]} versus {labels[1]} gap",
+                    _computed_gap_caption(sections, labels),
+                )
+            )
+            body.append(gap)
+            body.append("</div>")
+    body.append("</section>")
 
-        body_parts.append("<h3>Cost vs quality</h3>")
-        body_parts.append(_chart_svg(section, index))
+    body.append('<section id="models"><h2>Model deep dives</h2>')
+    body.append(_score_legend())
+    for row in rows:
+        body.append(_model_card(row, rows, sections, labels, commentary))
+    body.append("</section>")
 
-        body_parts.append("<h3>Dimension scores</h3>")
-        body_parts.append(_dimension_bars(models, profile))
-        body_parts.append(_dimension_table(models, profile))
+    body.append(_raw_attempts_table(sections))
 
-        body_parts.append("<h3>Model comparison</h3>")
-        body_parts.append(_models_table(models))
+    if isinstance(commentary_paras, Sequence) and commentary_paras:
+        body.append('<section id="commentary"><h2>Commentary</h2>')
+        for para in commentary_paras:
+            body.append(f"<p>{_escape(str(para))}</p>")
+        body.append("</section>")
 
-        body_parts.append(_raw_attempts_table(models))
-        body_parts.append(_provenance_details(section))
-        body_parts.append("</section>")
+    body.append('<section id="methodology"><h2>Methodology</h2>')
+    if isinstance(methodology_blocks, Sequence):
+        for block in methodology_blocks:
+            if not isinstance(block, Mapping):
+                continue
+            body.append(f"<h4>{_escape(str(block.get('title') or ''))}</h4>")
+            for para in block.get("paragraphs") or []:
+                body.append(f"<p>{_escape(str(para))}</p>")
+    body.append(
+        "<h4>Definitions</h4>"
+        "<p>Expected implementation cost per valid result is "
+        "<code>implementation_cost_per_attempt / success_rate</code>; it sets "
+        "the scatter's cost axis and the Pareto frontier. Table costs include "
+        "evaluator overhead, which never changes frontier membership. Duration "
+        "is implementation time plus critical-path evaluator time. Scoring "
+        "rules, eligibility, dominance, and claim boundaries: see the "
+        "repository methodology document. Provenance hashes, classifications, "
+        "source IDs, judge spread, and raw attempts are in the embedded JSON "
+        "payload.</p>"
+    )
+    body.append("</section>")
 
-    body_parts.append(_methodology_html())
+    body.append(
+        f'<div class="foot">basecamp-bench{" run of " + _escape(date) if date else ""}</div>'
+    )
+    body.append("</div>")
 
     embedded = _embed_json(payload)
-    identity_css = _identity_css(all_point_ids)
+    identity_css = _identity_css(point_to_model, colors)
     css = """
-:root { color-scheme: light dark; --bg:#f6f6f3; --fg:#17181a; --muted:#6a6d71;
-  --card:#fff; --border:#e3e3de; --hairline:#ecece7; --frontier:#0b6e4f;
-  --dom:#8a6d3b; --inel:#8a8a8a; --track:rgba(23,24,26,.08); }
-@media (prefers-color-scheme: dark) {
-  :root { --bg:#101113; --fg:#ecedee; --muted:#9ba0a6; --card:#17191c;
-    --border:#2a2d31; --hairline:#222528; --frontier:#3dcea0; --dom:#e0b15c;
-    --inel:#888; --track:rgba(236,237,238,.1); }
+:root {
+  color-scheme: light;
+  --ink: #1a1a1a; --muted: #6b6b6b; --faint: #9a9a9a; --line: #e4e0da;
+  --bg: #faf9f7; --card: #ffffff; --accent: #c15f3c;
 }
-* { box-sizing: border-box; }
-body { margin:0; font: 15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
-header, section { width: 100%; margin: 0;
-  padding: 1.25rem clamp(1rem, 2vw, 2rem); }
-header { border-bottom: 1px solid var(--border); padding-top: 1.5rem; }
-h1 { font-size: 1.15rem; margin: 0 0 .25rem; letter-spacing: -.01em; }
-h2 { font-size: 1.2rem; margin: 0 0 .75rem; }
-h3 { font-size: .72rem; margin: 2.25rem 0 .75rem; text-transform: uppercase;
-  letter-spacing: .09em; color: var(--muted); font-weight: 650; }
-.lede, .muted { color: var(--muted); }
-.lede { margin: 0; font-size: .9rem; }
-.eyebrow { font-size: .72rem; text-transform: uppercase; letter-spacing: .09em;
-  color: var(--muted); font-weight: 650; margin: 0 0 .5rem; }
-.track-section { background: var(--card); border: 1px solid var(--border);
-  border-radius: 12px; margin: 1.25rem clamp(.75rem, 1.5vw, 1.5rem);
-  width: auto; padding: 1.75rem clamp(1.25rem, 2vw, 2.25rem) 1.5rem; }
-.verdict { font-size: clamp(1.25rem, 2.2vw, 1.6rem); font-weight: 650;
-  line-height: 1.3; letter-spacing: -.015em; margin: 0 0 1.5rem; max-width: 62ch; }
-.hl-name { color: currentColor; }
-.verdict .hl-name { border-bottom: 3px solid currentColor; padding-bottom: 1px; }
-.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: .75rem; margin: 0 0 .5rem; }
-.kpi { border: 1px solid var(--border); border-radius: 10px; padding: .9rem 1rem;
-  background: var(--bg); }
-.kpi-lead { border-color: color-mix(in srgb, currentColor 45%, var(--border)); }
-.kpi-top { display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem; }
-.kpi-dot { width: 10px; height: 10px; border-radius: 50%;
-  background: currentColor; flex: none; }
-.kpi-name { color: var(--fg); font-weight: 650; font-size: .9rem; min-width: 0; }
-.badge { margin-left: auto; font-size: .66rem; text-transform: uppercase;
-  letter-spacing: .07em; font-weight: 650; color: var(--muted);
-  border: 1px solid var(--border); border-radius: 99px; padding: .1rem .5rem;
-  white-space: nowrap; }
-.badge-frontier { color: var(--frontier); border-color: var(--frontier); }
-.kpi-score { color: var(--fg); font-size: 2.3rem; font-weight: 700;
-  font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1.1; }
-.kpi-meta { color: var(--fg); font-size: .82rem; margin-top: .3rem;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg);
+  line-height: 1.55; font-size: 15.5px; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 940px; margin: 0 auto; padding: 40px 28px 96px; }
+.toc { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px;
+  margin-bottom: 28px; }
+.toc a { color: var(--muted); text-decoration: none; }
+.toc a:hover { color: var(--ink); text-decoration: underline; }
+header { border-bottom: 1px solid var(--line); padding-bottom: 20px;
+  margin-bottom: 36px; }
+.masthead { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; }
+.masthead .date { color: var(--muted); font-size: 14.5px; white-space: nowrap;
   font-variant-numeric: tabular-nums; }
-.kpi-meta.muted { color: var(--muted); margin-top: .1rem; }
-.dims { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1rem 2.5rem; }
-.dim-head { font-size: .85rem; font-weight: 650; margin-bottom: .35rem;
-  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
-.dim-w { color: var(--muted); font-weight: 400; font-size: .74rem;
-  font-variant-numeric: tabular-nums; white-space: nowrap; }
-.dim-grid { display: grid; grid-template-columns: minmax(9rem, max-content) 1fr 2.5rem;
-  gap: .3rem .6rem; align-items: center; }
-.dim-m { font-size: .78rem; color: var(--muted); text-align: right;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dim-track { display: block; height: 10px; background: var(--track);
-  border-radius: 5px; overflow: hidden; }
-.dim-fill { display: block; height: 100%; background: currentColor;
-  border-radius: 0 4px 4px 0; }
-.dim-v { font-size: .78rem; font-variant-numeric: tabular-nums; text-align: right; }
-.dim-note { font-size: .78rem; margin: .75rem 0 0; }
-.table-view { margin-top: 1rem; }
-.table-view summary, .provenance-box summary { cursor: pointer;
-  color: var(--muted); font-size: .82rem; font-weight: 600; }
-.provenance-box { margin-top: 2rem; padding-top: 1rem;
-  border-top: 1px solid var(--hairline); }
-.provenance { display:grid; grid-template-columns: 14rem 1fr; gap:.25rem .75rem;
-  margin: .75rem 0 0; font-size: 12.5px; }
-.provenance dt { font-weight:600; }
-.provenance dd { margin:0; word-break: break-all; color: var(--muted); }
-.table-scroll { overflow-x: auto; margin: .5rem 0 1rem; }
-table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
-th, td { border: 0; border-bottom: 1px solid var(--hairline);
-  padding: .5rem .75rem; text-align: left; vertical-align: top; white-space: nowrap; }
-thead th { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
-  color: var(--muted); border-bottom: 1.5px solid var(--border);
-  white-space: normal; vertical-align: bottom; }
+h1 { font-size: 28px; letter-spacing: -0.4px; line-height: 1.2; }
+.sub { color: var(--muted); margin-top: 8px; font-size: 14.5px; }
+h2 { font-size: 20px; margin: 52px 0 14px; letter-spacing: -0.2px;
+  border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+h3 { font-size: 16px; margin: 26px 0 8px; }
+h4 { font-size: 13px; margin: 18px 0 6px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+p { margin: 0 0 14px; }
+ul { margin: 0 0 16px 20px; }
+li { margin-bottom: 8px; }
+li b { display: block; font-weight: 600; margin-bottom: 2px; }
+.muted { color: var(--muted); }
+.verdict { text-wrap: pretty; }
+.verdict-track { font-weight: 600; color: var(--muted); font-size: 13px;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px; }
+.hl-name { color: currentColor; font-weight: 600;
+  border-bottom: 2px solid currentColor; padding-bottom: 1px; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; margin: 18px 0 8px;
+  font-size: 14px; }
+th { text-align: left; font-weight: 600; border-bottom: 2px solid var(--ink);
+  padding: 8px 10px; white-space: nowrap; }
 th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
-tr.winner td { background: color-mix(in srgb, var(--frontier) 7%, transparent); }
-tr.winner td:first-child { box-shadow: inset 3px 0 0 var(--frontier); }
-.chip { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
-  background: currentColor; margin-right: .5rem; vertical-align: baseline; }
+td { border-bottom: 1px solid var(--line); padding: 8px 10px;
+  white-space: nowrap; }
+td.winner { font-weight: 600; }
+table caption { caption-side: bottom; text-align: left; color: var(--muted);
+  font-size: 13px; padding-top: 8px; }
+.caption { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px;
+  background: currentColor; margin-right: 8px; vertical-align: baseline; flex: none; }
+.score-badge { display: inline-block; padding: 1px 7px;
+  border: 1px solid transparent; border-radius: 999px; font-weight: 600;
+  line-height: 1.35; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.score-strong { color: #175c38; background: #e1f2e8; border-color: #b8ddc7; }
+.score-good { color: #52611e; background: #eef2dc; border-color: #d4dda9; }
+.score-mixed { color: #785400; background: #fff0c7; border-color: #efd58b; }
+.score-weak { color: #864100; background: #fde3c8; border-color: #edbd8b; }
+.score-poor { color: #882626; background: #f8dddd; border-color: #e9b7b7; }
+.score-legend { display: flex; flex-wrap: wrap; gap: 7px 12px;
+  align-items: center; margin: 8px 0 22px; color: var(--muted); font-size: 12px; }
+.score-legend .score-badge { font-size: 11px; }
+.chart-card { background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 24px; margin: 22px 0 30px; }
+.chart-card h3 { margin-top: 0; }
+.chart { width: 100%; height: auto; margin-top: 12px; }
+.chart .muted { fill: var(--muted); }
+.axis { stroke: var(--ink); stroke-width: 1.2; }
+.axis-label { fill: var(--ink); font-size: 12.5px; }
+.axis-note { fill: var(--muted); font-size: 11.5px; }
+.grid { stroke: var(--line); stroke-width: 1; }
+.tick-label { fill: var(--muted); font-size: 11px; }
+.frontier-line { stroke: var(--accent); stroke-width: 1.5;
+  stroke-dasharray: 4 3; opacity: 0.85; }
+.mark { stroke: var(--card); stroke-width: 1.5; }
+.point-label { font-size: 12px; font-weight: 600; fill: var(--ink); }
+.bar-head { font-size: 12.5px; font-weight: 600; fill: var(--ink); }
+.bar-weight { fill: var(--muted); font-weight: 400; font-size: 11px; }
+.bar-value { font-size: 11px; fill: var(--ink);
+  font-variant-numeric: tabular-nums; }
+.bar-name { fill: var(--muted); }
+.model { background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 24px; margin: 24px 0; }
+.model h3 { margin-top: 0; display: flex; align-items: center; gap: 9px; }
+.model p:last-child { margin-bottom: 0; }
+.model .scores { color: var(--muted); font-size: 13.5px; margin-bottom: 14px;
+  font-variant-numeric: tabular-nums; }
+.dims { margin-top: 16px; }
+.dims summary, .table-view summary { cursor: pointer; font-size: 13px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+  font-weight: 600; }
+.table-view { margin-top: 10px; }
+.dims-track { font-size: 11px; letter-spacing: 0.08em; color: var(--faint);
+  font-weight: 600; margin: 14px 0 6px; }
+.dims-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.tile { display: flex; flex-direction: column; align-items: center; gap: 1px;
+  position: relative; width: 64px; padding: 8px 4px 7px; border-radius: 8px;
+  border: 0; }
+.tile-box { font-weight: 600; font-size: 14px;
+  font-variant-numeric: tabular-nums; }
+.tile-label { font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: 0.04em; opacity: 0.75; max-width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.tile:hover::after, .tile:focus-visible::after { content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 7px); left: 50%;
+  transform: translateX(-50%); background: var(--ink); color: var(--bg);
+  padding: 5px 9px; border-radius: 6px; font-size: 12px; line-height: 1.3;
+  white-space: nowrap; z-index: 10; pointer-events: none; }
 .dim-weight { display: block; font-weight: 400; font-size: 10px;
   letter-spacing: 0; text-transform: none; color: var(--muted); }
-.chart { width: 100%; max-width: 1200px; height: auto; background: transparent;
-  margin-top: .25rem; }
-.chart-bg { fill: transparent; }
-.axis { stroke: var(--fg); stroke-width: 1.2; }
-.axis-label { fill: var(--fg); font-size: 12.5px; }
-.grid { stroke: var(--hairline); stroke-width: 1; }
-.tick-label { fill: var(--muted); font-size: 11px; }
-.frontier-line { stroke: var(--frontier); stroke-width: 2; stroke-dasharray: 4 2; }
-.frontier-label { fill: var(--frontier); font-size: 11.5px; font-weight: 600; }
-.frontier-point { stroke: var(--card); stroke-width: 1.5; }
-.dominated-point { opacity: .8; stroke: var(--card); stroke-width: 1.5; }
-.ineligible-point { opacity: .75; fill-opacity: .75; stroke: var(--card);
-  stroke-width: 1.5; }
-.note { font-size: .85rem; margin: -1rem 0 1.25rem; }
-.error-bar { stroke-width: 1.25; opacity: .55; }
-.point-label { font-size: 12.5px; font-weight: 600; fill: var(--fg); }
-.methodology ul { padding-left: 1.2rem; max-width: 82ch; }
-.methodology h2 { font-size: .9rem; }
-.methodology { color: var(--muted); font-size: .85rem; }
-table caption { caption-side: top; text-align: left; font-weight: 600;
-  margin-bottom: .35rem; color: var(--muted); font-size: 12.5px; }
-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+.foot { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--line);
+  color: var(--faint); font-size: 13px; text-align: center; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em; }
 """
 
     doc = (
@@ -1078,7 +1405,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
         f"<style>\n{css}\n{identity_css}</style>\n"
         "</head>\n"
         "<body>\n"
-        f"{''.join(body_parts)}\n"
+        f"{''.join(body)}\n"
         f'<script type="application/json" id="report-payload">{embedded}</script>\n'
         "</body>\n"
         "</html>\n"

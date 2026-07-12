@@ -1,4 +1,10 @@
 {
+  "commentary": "commentary.json",
+  "display_names": {
+    "claude-fable-5": "Fable 5",
+    "claude-sonnet-5": "Sonnet 5",
+    "gpt-5.6-sol": "GPT-5.6 Sol"
+  },
   "evaluator": {
     "harness": "codex",
     "model": "gpt-5.6-sol"
@@ -10,7 +16,7 @@
     "gpt-5.6-sol",
     "grok-4.5"
   ],
-  "report_sha256": "23208d4c90b50e77e8d8ced99a51ee20543715c70e8bce01c2a7972bfc149e71",
+  "report_sha256": "0ecbed3c54022a45b7df5732ccfc13ee71e9576c12870dc7a4b7d20a65beebdd",
   "runs": [
     {
       "path": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol--20260711t161255z-843ef2",

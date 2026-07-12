@@ -1,0 +1,330 @@
+{
+  "briefing": [
+    "Basecamp Bench measures a model's ability to ship production-grade software from a fixed specification on a well-known application. Each workspace begins like a real greenfield project: AGENTS.md maps the source material and sets its order of precedence, DESIGN.md provides production design tokens, and INIT.md specifies the product, domain model, and sample data. Each project item uses a shared Recording model that unifies identity, lifecycle, visibility, comments, reactions, subscriptions, and events across tools. Agents build two parts of a Basecamp 5 clone: a single-file frontend SPA evaluated as a release-ready product across 11 weighted dimensions and nine reference screenshots, and a production-ready backend API implementing all 203 operations in the canonical OpenAPI contract across 9 weighted dimensions. All implementation and architecture decisions are evaluated as written for direct production use. Each model starts without an existing implementation, so it must translate the same complete requirements and reference materials into its own architecture and product decisions. The benchmark reveals how well each model exercises greenfield engineering judgment, prioritizes competing concerns, and carries those decisions through to working software.",
+    "The results reveal how each model applies engineering judgment and effort from the same starting point. Fable 5 leads both tracks because it builds the shared Recording model described in the specification and connects every surface and endpoint to it. This decision strengthens product modeling, surface coverage, seed fidelity, and behavioral depth. Backend scores cluster tightly because most models register the complete route surface. Invariant enforcement, contract-correct responses, and honest failure handling separate them. Frontend scores vary more because models make different tradeoffs between breadth and functional depth. Sonnet prioritizes working, persistent workflows, while GPT-5.5 prioritizes visual polish and leaves many controls inert, creating a 1.3-point gap. Grok 4.5 delivers the strongest balance of speed, cost, and functional depth, outperforming Sol 5.6 on the frontend and nearly matching it on the backend. Sol 5.6 shows greater backend discipline through explicit failure handling and operational safeguards, but its shallow frontend workflows limit its overall performance.",
+    "Scores are weighted composites computed by the benchmark runner from per-dimension judge scores (0–10)."
+  ],
+  "captions": {
+    "Backend dimensions": "Four perfect 10s on coverage, scope honesty falls to 4.5",
+    "Frontend dimensions": "Functional depth spans 3.5 to 8.1, accessibility never clears 6.0",
+    "Frontend versus backend gap": "All models score higher on backend, gaps +0.3 to +1.5",
+    "Quality versus cost": "Each model appears twice: circle = frontend, triangle = backend"
+  },
+  "colors": {
+    "claude-fable-5": "#d97757",
+    "claude-sonnet-5": "#8a63d2",
+    "gpt-5.5": "#74c6ad",
+    "gpt-5.6-sol": "#10a37f",
+    "grok-4.5": "#2f3640"
+  },
+  "commentary": [
+    "Software teams rarely expect a model to produce finished production software from one prompt and a specification. They work iteratively, review the output, run tests, identify gaps, and ask the model to refine what it built. Basecamp Bench removes that correction loop for the initial build, revealing the decisions and failure modes each model introduces before an engineer intervenes.",
+    "Every model leaves different work for the engineer. Fable builds the deepest product model and the most complete workflows, yet still ships unsafe stored content, schema errors, and exposed credentials. Sonnet builds many working workflows but misses critical authorization, reset, and state-integrity safeguards. Grok moves quickly and covers substantial ground while cutting depth in validation, mobile behavior, and lifecycle handling. Sol clearly marks unsupported backend operations, but leaves 71 of them unfinished and produces a shallow frontend. GPT-5.5 builds the only durable backend, yet its frontend leaves core controls inert and its API drifts from the contract.",
+    "This creates a practical value question. Grok 4.5 reaches roughly 85–87% of Fable 5's score for about 11% of the total cost and finishes in 37 minutes instead of more than two hours. Fable delivers a substantially stronger starting point, yet it still requires review and hardening before release. Teams must decide whether that additional quality justifies the higher cost, or whether a cheaper model plus deliberate engineering iteration produces better overall value. The answer depends on the team's expertise, the risk of missed defects, and the cost of bringing each result across the finish line.",
+    "The results suggest that a skilled prompter and experienced engineer can use any of these agent combinations to reach a strong result through iteration. Model choice primarily changes the starting point, working style, and review burden. Preference for output style and the time available for review may matter more than the final attainable outcome."
+  ],
+  "methodology": [
+    {
+      "paragraphs": [
+        "Each model receives one prompt per track. The frontend prompt asks for a complete single-file SPA prototype of Basecamp 5, built from the product specification and reference screenshots, with every decision suitable for direct inclusion in the final production release. The backend prompt asks for a single-file production-ready API implementing the canonical SDK contract. Both tracks carry the same standing instruction from the spec. Prefer explicit stubs over fake success. When the spec and instinct disagree, the spec wins."
+      ],
+      "title": "Prompts"
+    },
+    {
+      "paragraphs": [
+        "Every model starts from an identical repository containing everything needed to score 10 on every dimension. INIT.md (572 lines) defines the product model, the shell and its nine tools, the shared Recording domain rules, and a per-screen surface checklist. It also specifies the deterministic \"Launch the new website\" sample seed down to named people, message threads, card lanes, and chat lines. DESIGN.md (681 lines) supplies the production design tokens for light and dark color ramps, the 10px root scale, spacing, radii, shadows, and motion, and instructs the model to use these values rather than invent its own. reference/screens/ holds nine 3456×1780 dark-mode captures of the real app covering Home, Jump, the project dock, and all six core tools. reference/basecamp-sdk/ is the backend contract. It contains openapi.json with 131 path templates, 203 operations, and full request and response schemas, plus a 1,403-line SPEC.md and behavior-model.json . AGENTS.md orients the agent and sets precedence between these sources of truth."
+      ],
+      "title": "Resources in the seed repo"
+    },
+    {
+      "paragraphs": [
+        "The frontend rubric scores submissions on 11 weighted dimensions: reference fidelity (14%), functional depth (12%), visual craft (10%), surface coverage (10%), state and persistence (10%), product-model fidelity (9%), interaction quality (8%), responsive adaptation (8%), accessibility (7%), code architecture (6%), and reliability, safety, and performance (6%).",
+        "The backend rubric scores submissions on 9 dimensions: architecture and domain modeling, endpoint surface coverage, behavioral depth and statefulness, HTTP and schema contract fidelity, seed data fidelity, validation and hardening, operability and packaging, code quality, and scope honesty.",
+        "The judge scores each dimension 0 to 10 from direct evidence, and the benchmark runner computes the weighted overall. The rubric requires the judge to distinguish absent, visually present, stubbed, working, and persistent functionality, and forbids crediting the same capability twice."
+      ],
+      "title": "Evaluation criteria"
+    },
+    {
+      "paragraphs": [
+        "GPT-5.6 Sol, at high reasoning effort, judges every submission and produces one review each. The evaluator bases its scores on repository diffs, executed code, schema validation, and cited file evidence. It diffs the full seed-to-submission delta, enumerates every route against the OpenAPI document, and executes each submission's actual code, using in-process request handlers for backends and DOM and localStorage harnesses for frontends. Where applicable it sweeps all 203 operations, validates responses against their schemas, and probes malformed input, authorization boundaries, lifecycle cascades, and reload persistence. The evaluation sandbox denies socket binding and browser startup, so the judge exercises servers through their real handlers in process and withholds pixel-level claims rather than assuming them. Every score cites file and line evidence."
+      ],
+      "title": "Evaluator"
+    },
+    {
+      "paragraphs": [
+        "The exploratory baseline records one attempt per model, so sampling variance can materially affect close scores, costs, and completion times. Testing one well-known application may reward prior familiarity with Basecamp, while the prescribed Recording model and single-file constraint favor specification adherence, long-context synthesis, and monolithic implementation over repository-scale engineering. Harness-specific tools and stopping behavior also contribute to each result. Evaluation-adjacent terms such as “scope honesty” and “stubbed vs working” may cue rewarded behavior. Because the evaluator selects its own test strategy for each implementation, test coverage can vary across submissions, although the completed reviews show no evidence that this affected the rankings. Evaluator trials with Fable, Grok, and Sol produced the same rankings and directionally similar findings. Sol was selected for greater attention to detail and showed no self-preference when judging its own work, which ranked second on backend and fourth on frontend. Readers should treat small score differences as provisional, compare FE and BE separately, and interpret quality, cost, and time as outcomes for these exact model-harness configurations and inputs."
+      ],
+      "title": "Bias"
+    },
+    {
+      "paragraphs": [
+        "The complete benchmark is open source at github.com/0xSMW/basecamp-bench under Apache-2.0: the dependency-free Python runner in basecamp_bench/ , the track prompts, rubrics, and versioned contracts in benchmarks/ , the exact seed pack agents receive in Repo/ , and a verified baseline/ directory with reference runs, evaluator reports, leaderboards, and provenance manifests. basecamp-bench run executes a fresh comparison against any configured harness, report regenerates the self-contained HTML report from any set of run directories, and reevaluate re-judges immutable submissions under current contracts. The runner takes the median evaluator score per dimension, computes the weighted overall, and rejects unknown dimensions, out-of-range scores, hash mismatches, and any evidence mutation."
+      ],
+      "title": "Code"
+    }
+  ],
+  "models": {
+    "claude-fable-5": {
+      "failure_modes": "Fable's remaining defects cluster in security, configuration, and data-integrity review. The submission renders stored HTML without sanitization, prints production tokens by default, allows wildcard CORS with Authorization, and overstates support for operations whose prerequisite state remains unreachable. A sanitizer, safer configuration defaults, and a corrected copy operation address these defects within the existing architecture.",
+      "headline": "highest scores and greatest functional depth",
+      "okay": [
+        {
+          "body": "Accepts 2025-02-31 as a date, accepts JSON without a Content-Type, coerces active: \"false\" to true, and webhook SSRF checks compare URL strings and never resolve DNS, so a hostname pointing at an internal IP passes.",
+          "title": "Malformed input and SSRF checks remain weak"
+        },
+        {
+          "body": "Zero-install with health endpoints and structured logs, but no tests, no manifest, and reset doesn't clear the rate limiter: requests stayed 429-limited after reset.",
+          "title": "Healthy runtime with an incomplete reset"
+        },
+        {
+          "body": "Nearly every mutation persists through one graph, but modals don't trap or restore focus and editing leans on deprecated execCommand and native prompts.",
+          "title": "Persistent shared state with weak modal UX"
+        }
+      ],
+      "shines": [
+        {
+          "body": "203/203 operations implemented, 35 of 37 state assertions passed, cross-resource invariants enforced explicitly: assignees must see the project, todo moves stay in-bucket, card moves stay in-board.",
+          "title": "Complete API with deep workflows"
+        },
+        {
+          "body": "The exact nine-person cast, five threaded messages with mentions and boosts, the full Kanban state, and a 16-line chat, reproduced nearly verbatim.",
+          "title": "Exact seed across both tracks"
+        },
+        {
+          "body": "Nine required surfaces plus Adminland, Trash, Reports, Search, and profiles, with create/edit/comment/move/archive/restore workflows that mutate and persist.",
+          "title": "Broad product with persistent workflows"
+        },
+        {
+          "body": "ETags with 304s, HEAD, 405 + Allow, pagination with Link headers, consistent error envelopes, graceful shutdown.",
+          "title": "HTTP plumbing"
+        }
+      ],
+      "underperforms": [
+        {
+          "body": "Below 760px five fixed controls lose their accessible names entirely, star buttons nest inside links, menus lack menu-item semantics.",
+          "title": "Mobile controls lose accessible names"
+        },
+        {
+          "body": "Rich text is stored from innerHTML and rendered raw across comments, docs, chat, and notes, so any markup that reaches storage executes on render. URLs accepted without scheme validation.",
+          "title": "Stored HTML creates an XSS risk"
+        },
+        {
+          "body": "\"Make a copy\" passes an undefined ID that overwrites the generated one, corrupting the copied record. Permanent delete removes a record and its direct children only, leaving grandchildren, events, boosts, and bookmarks pointing at dead IDs.",
+          "title": "Data integrity"
+        }
+      ]
+    },
+    "claude-sonnet-5": {
+      "failure_modes": "Sonnet implements substantial functionality but leaves 19 controls and several primary actions disconnected from their handlers. The frontend's New message button has no dispatch case. The backend exposes credentials by default, and its notImplemented error helper is never called. Partial features return successful empty responses.",
+      "headline": "strong frontend with critical backend authorization defects",
+      "okay": [
+        {
+          "body": "Correct statuses and envelopes, but 18 of 44 paginated operations skip pagination, sort/direction params are ignored, and nulls appear where the schema requires strings.",
+          "title": "Pagination and response schemas drift"
+        },
+        {
+          "body": "Whole-app rerenders drop focus, hover-only actions vanish on touch, the calendar stays seven columns at every width.",
+          "title": "Rerenders break focus and mobile actions"
+        },
+        {
+          "body": "Health checks, structured logs, graceful shutdown. State is memory-only and there are no tests.",
+          "title": "Healthy runtime with memory-only state"
+        }
+      ],
+      "shines": [
+        {
+          "body": "74 recordings with events, comments, boosts, readings, and bookmarks in one deterministic graph. All eight screenshot surfaces reachable plus ten optional destinations.",
+          "title": "One shared graph powers every surface"
+        },
+        {
+          "body": "Verified creation of messages, docs, to-dos, cards, projects, and columns, plus completion, comments, boosts, card moves, and trash/restore, all surviving reload.",
+          "title": "FE workflows"
+        },
+        {
+          "body": "The only allowlist sanitizer in the field. Every other model either escaped everything or rendered raw HTML.",
+          "title": "Rich-text sanitizer"
+        },
+        {
+          "body": "Verified end-to-end project, message, and todo lifecycles, 403 on non-owner edits, reset invalidating pre-reset tokens.",
+          "title": "Complete routes with working lifecycles"
+        }
+      ],
+      "underperforms": [
+        {
+          "body": "A client token issued DELETE /1/projects/1011 and got 204, trashing the sample project. Unauthenticated GET /_seed/tokens returns every raw bearer credential, and reset ships enabled by default.",
+          "title": "Client tokens can trash projects"
+        },
+        {
+          "body": "Resource URLs append .json where the registered routes don't, so following a returned project URL yields 400. Navigability breaks on the API's own links.",
+          "title": "Broken emitted URLs"
+        },
+        {
+          "body": "19 explicit no-op controls, and the primary Message Board \"New message\" button has no dispatch case at all while the quick-add path works. Reset leaves bookmarks, readings, and notes behind.",
+          "title": "FE loose ends"
+        }
+      ]
+    },
+    "gpt-5.5": {
+      "failure_modes": "GPT-5.5 frequently reports success without completing the requested behavior. Examples include orphan-resource creation, unchanged notification state, and frontend confirmation messages that perform no mutation. Nonnumeric IDs and invalid UTF-8 produce uncaught exceptions and 500 responses. In-memory mode fails across threads because each thread receives a separate SQLite database. Sol returns explicit 501 responses for missing features. GPT-5.5 returns 200 and 201 responses for several incomplete operations.",
+      "headline": "durable backend with limited frontend behavior",
+      "okay": [
+        {
+          "body": "A real shared recording foundation over SQLite, weakened by projection drift: disabling a tool updated the tool row while the project's embedded dock still said enabled.",
+          "title": "Shared records develop projection drift"
+        },
+        {
+          "body": "The main graph matches the specification, but subscriptions, chat volume, and deterministic timestamps do not. The kickoff has zero required subscriptions, the seed contains eight chat lines instead of sixteen, and wall-clock timestamps break the determinism requirement.",
+          "title": "Seed data is incomplete and nondeterministic"
+        },
+        {
+          "body": "A coherent token system and disciplined dark shell give GPT-5.5 higher visual-craft scores than Grok and Sol.",
+          "title": "Polished shell with disciplined tokens"
+        }
+      ],
+      "shines": [
+        {
+          "body": "Verified restart persistence over the same SQLite file, WAL mode, atomic idempotency replay with 409 on conflict, and owner reset restoring the stable seed. No other model kept state across a process.",
+          "title": "Durability"
+        },
+        {
+          "body": "All 203 operations loaded from the spec into the route table with zero collisions.",
+          "title": "Every contract operation is registered"
+        },
+        {
+          "body": "415 on wrong media types, 413 over 10 MiB, 405 with Allow, malformed JSON errors with line and column, client-mutation 403s, and client tokens blocked from reading internal-only content.",
+          "title": "Hardening basics"
+        },
+        {
+          "body": "$10.94 and 44 minutes for both tracks.",
+          "title": "Cheap and fast"
+        }
+      ],
+      "underperforms": [
+        {
+          "body": "16 of 26 seeded responses failed schema validation, 14 operations returned undocumented success statuses, and a spec-valid schedule entry was rejected because the generic creator demands a title .",
+          "title": "Schemas and success statuses drift"
+        },
+        {
+          "body": "Creating an answer under nonexistent question 999999 returned 201, template construction under a nonexistent template returned 201, and MarkAsRead reports success while every notification stays unread.",
+          "title": "Missing parents still return success"
+        },
+        {
+          "body": "Toasts announce \"Comment posted\" and \"Chat line posted\" without reading the textarea or touching state. No creation, editing, commenting, movement, or deletion works anywhere.",
+          "title": "Controls confirm actions without mutations"
+        },
+        {
+          "body": "Stored state is parsed with no try/catch, so malformed JSON prevents startup. The filter rerenders the whole app per keystroke and drops focus after one character. Jump's Enter key ignores the filtered results.",
+          "title": "FE fragility"
+        }
+      ]
+    },
+    "gpt-5.6-sol": {
+      "failure_modes": "Sol's backend reports 71 unsupported operations explicitly. Its frontend leaves twelve controls marked as prototypes, keeps other controls inert without feedback, and routes invalid detail links to the wrong record. The generic recording router simplifies dispatch but removes type context, causing the submission's most serious correctness defects. This loss of type context makes each new handler vulnerable to the same errors.",
+      "headline": "strong operability with explicit backend limitations",
+      "okay": [
+        {
+          "body": "The right project, cast, dock, and counts, with specific gaps: missing assignees on the Review card, eight chat authors instead of five, absent completion events.",
+          "title": "Core seed data omits events and assignees"
+        },
+        {
+          "body": "Coherent tokens, dark/light themes, reduced motion, and detailed empty states, all wrapped around emoji icons and gradient-initial avatars.",
+          "title": "Coherent design with weak iconography"
+        },
+        {
+          "body": "Labeled jump dialog, focus restoration, inert closed layers, foundations most other models skipped. It is the only frontend that restores focus to the triggering control.",
+          "title": "Best focus management in the field"
+        }
+      ],
+      "shines": [
+        {
+          "body": "Every unimplemented operation returns an explicit 501 not_implemented . Binary and multipart uploads return explicit 501s instead of pretending to store files. No fabricated CRUD.",
+          "title": "Unsupported operations return explicit 501s"
+        },
+        {
+          "body": "Environment validation, allowlisted CORS, atomic mode-0600 state persistence, structured logs with request IDs, graceful shutdown, and exported router/state/reset functions so tests can drive it without a socket.",
+          "title": "Strongest production scaffolding in the field"
+        },
+        {
+          "body": "Replaying a creation key returned the same ID with Idempotency-Replayed: true , and changing the payload under that key returned 409.",
+          "title": "Genuinely stateful idempotency"
+        },
+        {
+          "body": "Compiles all 203 operations directly from the OpenAPI document and asserts the count, giving coverage by construction.",
+          "title": "The contract generates every route"
+        }
+      ],
+      "underperforms": [
+        {
+          "body": "A GET for a todo returned a Message with 200, and a POST created a Todo whose parent was a Message. Both defects trace to one function, routedRecording() , which resolves an ID without ever checking resource type or parent.",
+          "title": "The generic router erases types"
+        },
+        {
+          "body": "71 stubs cap it, trashed todos still appear in normal lists, archive doesn't cascade despite serializing inherits_status , and a valid chunked request body is rejected for lacking Content-Length.",
+          "title": "Explicit stubs limit workflow depth"
+        },
+        {
+          "body": "Twelve controls self-report prototype status and more are silently inert. No create, edit, comment, or delete workflow exists end to end. Persistence covers four localStorage keys.",
+          "title": "Core workflows remain prototypes"
+        },
+        {
+          "body": "Malformed JSON aborts boot, wrong-shaped data crashes renderers, and invalid detail IDs silently render the first record, so a broken link shows wrong data with no error.",
+          "title": "FE state handling"
+        }
+      ]
+    },
+    "grok-4.5": {
+      "failure_modes": "Grok's failures concentrate in validation, malformed state, responsive behavior, and partial features. Client mistakes become 500s, malformed persistence causes crashes, partial features report success, and the public root response exposes credentials. Its four lowest dimensions are responsive adaptation at 4.0, scope honesty at 4.5, accessibility at 4.8, and validation at 5.0. Addressing these dimensions requires additional implementation and review time.",
+      "headline": "lowest cost with competitive scores",
+      "okay": [
+        {
+          "body": "Creation, completion, comments, boosts, card moves, and chat all work and persist. Editing and deletion don't exist, and Bubble Up is a toast with no state change.",
+          "title": "Core workflows persist, but editing is absent"
+        },
+        {
+          "body": "A real shared recording table with generic events and lifecycle actions, but cascade stops at immediate children: archiving a board archived its message and left the message's comment active.",
+          "title": "Shared recordings stop cascading too early"
+        },
+        {
+          "body": "Rich canonical shapes and correct statuses in most places, undermined by two operations returning 200 bodies where the spec requires 204.",
+          "title": "Response statuses drift at the edges"
+        }
+      ],
+      "shines": [
+        {
+          "body": "Both tracks done in 37 minutes for under $10, while landing above both OpenAI models on FE and within 0.11 of second place on BE.",
+          "title": "Speed and cost"
+        },
+        {
+          "body": "The full verified inventory of five messages, ten todos, thirteen cards, and sixteen chat lines, navigable through the live API with stable IDs.",
+          "title": "Rich seed data with stable API IDs"
+        },
+        {
+          "body": "Project and todo CRUD with lifecycle, comments incrementing counts, boosts, subscriptions, and correct pagination across 21 projects with proper Link headers.",
+          "title": "Verified stateful flows"
+        },
+        {
+          "body": "Categories, pinned messages, watchers, on-hold lanes, and a coherent cross-tool narrative.",
+          "title": "Dense sample data connects every tool"
+        }
+      ],
+      "underperforms": [
+        {
+          "body": "An invalid numeric ID returns 500, router literals are compiled as unescaped regex so /projects/1000Xjson matched and returned project 1000, and the default unauthenticated reset destroyed runtime state in testing.",
+          "title": "Invalid input reaches server errors"
+        },
+        {
+          "body": "The canonical projects/recordings.json operation is intercepted by an earlier route and 500s, the only unreachable canonical operation in the field.",
+          "title": "Route shadowing"
+        },
+        {
+          "body": "No mobile navigation model, a fixed footer that overflows at every narrow width, and stored state containing only {version: 1} crashes boot. Creating projects across a reload produces duplicate IDs.",
+          "title": "Mobile layouts and malformed state break"
+        },
+        {
+          "body": "The header claims no hollow surface while cloning copies the tool container and none of its content yet reports success, template construction reports completion on an empty project, and reminders always return an empty success.",
+          "title": "Partial features report success"
+        }
+      ]
+    }
+  }
+}

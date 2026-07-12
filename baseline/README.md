@@ -16,7 +16,11 @@ report:
 
 ```sh
 for run in baseline/runs/*; do basecamp-bench verify-run "$run"; done
-basecamp-bench report baseline/runs --output /tmp/basecamp-bench-report.html
+basecamp-bench report baseline/runs --output /tmp/basecamp-bench-report.html \
+  --rename 'claude-fable-5=Fable 5' \
+  --rename 'claude-sonnet-5=Sonnet 5' \
+  --rename 'gpt-5.6-sol=GPT-5.6 Sol' \
+  --commentary baseline/commentary.json
 cmp baseline/report.html /tmp/basecamp-bench-report.html
 ```
 

@@ -11,6 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from .config import BenchConfig, config_to_public_dict, load_config
+from .leaderboard import require_display_name, write_tabular_views
 from .manifest import export_run, verify_run
 from .reporting import write_report
 from .runner import RunOptions, run_benchmark
@@ -98,6 +99,19 @@ def build_parser() -> argparse.ArgumentParser:
         "inputs", nargs="+", type=_path, help="leaderboard JSON files or directories"
     )
     report.add_argument("-o", "--output", required=True, type=_path)
+    report.add_argument(
+        "--rename",
+        action="append",
+        dest="renames",
+        metavar="MODEL_ID=NAME",
+        help="override a model's display name at render time; evidence is untouched",
+    )
+    report.add_argument(
+        "--commentary",
+        type=_path,
+        metavar="JSON",
+        help="human-written commentary document merged into the report at render time",
+    )
 
     verify = sub.add_parser("verify-run", help="verify a run manifest and artifacts")
     verify.add_argument("run_dir", type=_path)
@@ -106,9 +120,40 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("run_dir", type=_path)
     export.add_argument("output_zip", type=_path)
 
+    export_tabular = sub.add_parser(
+        "export-tabular",
+        help="project one leaderboard JSON into deterministic CSV and Markdown views",
+    )
+    export_tabular.add_argument(
+        "leaderboard_json",
+        type=_path,
+        help="canonical schema 2.0 attempt ledger or legacy schema 1.0 leaderboard JSON",
+    )
+    export_tabular.add_argument(
+        "--output-dir",
+        "-o",
+        required=True,
+        type=_path,
+        help="directory for the written .csv and .md files (refuses overwrite)",
+    )
+
     show = sub.add_parser("show-config", help="print deterministic effective public config JSON")
     _add_config_args(show)
     return parser
+
+
+def _parse_renames(values: list[str] | None) -> dict[str, str] | None:
+    if not values:
+        return None
+    renames: dict[str, str] = {}
+    for value in values:
+        model_id, sep, name = value.partition("=")
+        if not sep or not model_id.strip():
+            raise ValueError(f"--rename expects MODEL_ID=NAME, got {value!r}")
+        if model_id in renames:
+            raise ValueError(f"duplicate --rename for {model_id!r}")
+        renames[model_id] = require_display_name(name, f"--rename display name for {model_id!r}")
+    return renames
 
 
 def _root(args: argparse.Namespace) -> Path:
@@ -279,8 +324,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "reevaluate":
             print(os.fspath(_reevaluate(args)))
         elif args.command == "report":
+            display_names = _parse_renames(args.renames)
             paths = _discover_leaderboards(args.inputs)
-            print(os.fspath(write_report(paths, args.output)))
+            commentary = None
+            if args.commentary is not None:
+                if args.commentary.is_symlink() or not args.commentary.is_file():
+                    raise ValueError(f"commentary must be a regular file: {args.commentary}")
+                commentary = json.loads(args.commentary.read_text(encoding="utf-8"))
+                if not isinstance(commentary, dict):
+                    raise ValueError("commentary document must be a JSON object")
+            print(
+                os.fspath(
+                    write_report(
+                        paths,
+                        args.output,
+                        display_names=display_names,
+                        commentary=commentary,
+                    )
+                )
+            )
         elif args.command == "verify-run":
             errors = verify_run(args.run_dir)
             if errors:
@@ -290,6 +352,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"verified: {args.run_dir}")
         elif args.command == "export-run":
             print(os.fspath(export_run(args.run_dir, args.output_zip)))
+        elif args.command == "export-tabular":
+            csv_path, md_path = write_tabular_views(args.leaderboard_json, args.output_dir)
+            print(os.fspath(csv_path))
+            print(os.fspath(md_path))
         elif args.command == "show-config":
             _show_config(args)
         else:  # pragma: no cover - argparse enforces subcommands

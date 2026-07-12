@@ -41,10 +41,13 @@ class BaselineTests(unittest.TestCase):
             )
 
         self.assertEqual(_sha256(BASELINE / "report.html"), manifest["report_sha256"])
+        commentary = json.loads((BASELINE / manifest["commentary"]).read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as tmp:
             regenerated = write_report(
                 sorted((BASELINE / "runs").rglob("leaderboard_*.json")),
                 Path(tmp) / "report.html",
+                display_names=manifest["display_names"],
+                commentary=commentary,
             )
             self.assertEqual(regenerated.read_bytes(), (BASELINE / "report.html").read_bytes())
 

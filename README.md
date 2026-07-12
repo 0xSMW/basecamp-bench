@@ -10,6 +10,19 @@ The runner preserves raw attempts, computes scores and eligibility itself, and
 generates a self-contained HTML quality-versus-cost report. FE and BE results
 remain separate.
 
+## Baseline results — July 11, 2026
+
+Basecamp Bench asks each agent to build a Basecamp 5 clone from a fixed spec —
+a single-file frontend SPA and a production-shaped backend API — then scores
+every submission across weighted quality dimensions with an independent
+evaluator. In the July 11 baseline, Fable 5 leads both tracks (8.39 backend,
+7.58 frontend) at the highest cost, $85.87 across both builds. Grok 4.5
+delivers the best value at $9.30 total with a competitive 7.28 backend, while
+Sonnet 5 ($36.23) and GPT-5.6 Sol ($15.13) land between them with strong
+backends and weaker frontends. Every frontier model scored higher on the
+backend than the frontend — release-ready UI remains the harder problem. Full
+evidence and the combined report live in [baseline/](baseline/).
+
 ## Getting Started
 
 Basecamp Bench runs locally with Python 3.11 or newer and no runtime
@@ -72,28 +85,61 @@ limits outside the runner.
 
 ## Regenerate the report
 
-Reports discover every matching leaderboard beneath the supplied directories,
-so adding later model runs requires no hand-edited data:
+Reports discover every matching attempt ledger (or legacy leaderboard JSON)
+beneath the supplied directories. Each ledger stores comparison identity,
+dimension profile, and raw attempts; statistics are derived at report time, so
+adding later model runs requires no hand-edited aggregates. Canonical machine
+artifacts are schema 2.0 JSON attempt ledgers (plus the HTML report). Normal
+runs do not write leaderboard CSV or Markdown files.
 
 ```sh
 basecamp-bench report runs --output model-performance.html
 ```
 
-The output is one deterministic, offline HTML file containing separate
-track/contract sections, Pareto frontier charts, expected implementation cost
-per valid result, evaluator overhead, total observed cost, end-to-end agent
-duration, uncertainty, dimension profiles, raw attempts, failures, eligibility
-reasons, and provenance hashes. End-to-end agent duration is implementation
-process time plus the critical-path evaluator process time; it excludes
-queueing, copying, aggregation, and report rendering. Imported text is escaped
-and the underlying tables remain usable without SVG. Local reports combine
-matching benchmark evidence across runner revisions for exploratory comparison
-and list every source hash; publication reports keep those revisions separate.
+Optional display-name overrides apply only at render time and never rewrite
+evidence:
+
+```sh
+basecamp-bench report runs --output model-performance.html \
+  --rename model-id="Friendly Name"
+```
+
+The output is one deterministic, offline HTML decision surface: separate
+track/contract sections, a plain-language verdict, a cost-versus-quality chart
+with model labels, a comparison table (score, expected implementation cost per
+valid result, success rate, tokens, duration, evaluator overhead, total
+observed cost, and uncertainty when repetitions exist), dimension scores and
+weights, failures and mixed-eligibility footnotes, and a complete embedded JSON
+payload with provenance hashes, classifications, source IDs, and raw attempts.
+Tables remain usable without SVG; imported text is escaped. Methodology prose
+lives in docs/METHODOLOGY.md. Local reports combine matching benchmark evidence
+across runner revisions for exploratory comparison; publication reports keep
+those revisions separate.
+
+## Optional CSV and Markdown projections
+
+When a spreadsheet or static Markdown table is needed, project one leaderboard
+JSON explicitly. Rows are derived only from the loaded attempts through the
+same aggregator the report uses; CSV/Markdown are never a second source of
+truth:
+
+```sh
+basecamp-bench export-tabular \
+  runs/<run-id>/leaderboards/leaderboard_<track>_<version>_<sha>.json \
+  --output-dir /tmp/tabular
+```
+
+The command writes two deterministic UTF-8 files named from the comparison
+identity (`leaderboard_*.csv` and `leaderboard_*.md`) and refuses to overwrite
+existing targets. Both schema 2.0 attempt ledgers and committed legacy schema
+1.0 leaderboards are accepted as input.
 
 ## Re-evaluate immutable submissions
 
 Re-evaluation verifies an earlier run and its declared snapshot hashes, then
 creates a new run with fresh evaluator attempts. The prior run is never changed.
+Verified prior snapshots and normal implementations share one evaluator and
+attempt-finalization path; only the submission source differs.
 
 ```sh
 basecamp-bench reevaluate runs/<run-id> --track fe
@@ -113,7 +159,10 @@ Verification checks the strict manifest shape, identifiers, relative paths, and
 every declared artifact hash. Export includes only the manifest and declared
 public artifacts, scans them for likely credentials, rejects symlinks and path
 escapes, and writes a deterministic archive without overwriting an existing
-file. Workspaces and private logs are never exported.
+file. Workspaces and private logs are never exported. Local evaluation imports
+only run provenance builders; publication verification and ZIP export load at
+the verify/export (and reevaluation) boundary. Public APIs
+`from basecamp_bench.manifest import verify_run, export_run` remain stable.
 
 ## Official baseline
 
@@ -125,7 +174,11 @@ credentials, and execution workspaces.
 
 ```sh
 for run in baseline/runs/*; do basecamp-bench verify-run "$run"; done
-basecamp-bench report baseline/runs --output /tmp/basecamp-bench-report.html
+basecamp-bench report baseline/runs --output /tmp/basecamp-bench-report.html \
+  --rename 'claude-fable-5=Fable 5' \
+  --rename 'claude-sonnet-5=Sonnet 5' \
+  --rename 'gpt-5.6-sol=GPT-5.6 Sol' \
+  --commentary baseline/commentary.json
 cmp baseline/report.html /tmp/basecamp-bench-report.html
 ```
 
