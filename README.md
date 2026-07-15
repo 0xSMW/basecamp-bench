@@ -19,9 +19,9 @@ Basecamp Bench was developed through three successive model-driven passes:
 3. **GPT-5.6 Sol** professionalized the project, hardening the architecture,
    tests, documentation, safety controls, and release workflow.
 
-Building the project consumed **1.8 billion tokens** and **$2,867.52 in model
-usage**. This development cost is separate from the benchmark-run costs
-reported below.
+Building the project with GPT-5.6 Sol consumed **682 million tokens** and
+**$449.33 in model usage**. This development cost is separate from the
+benchmark-run costs reported below.
 
 ## Frontier, July 11, 2026
 
