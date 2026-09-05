@@ -75,3 +75,6 @@ warn_unused_configs = true
 [tool.coverage.run]
 branch = true
 source = ["basecamp_bench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
