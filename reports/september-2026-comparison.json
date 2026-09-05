@@ -1,0 +1,370 @@
+{
+  "models": {
+    "claude-fable-5": {
+      "be": {
+        "score": 8.392,
+        "duration_s": 3866.4684293750033,
+        "implementation_cost_usd": 51.30838425,
+        "evaluation_cost_usd": 2.162177,
+        "run_ids": [
+          "20260711t161255z-843ef2"
+        ]
+      },
+      "fe": {
+        "score": 7.578,
+        "duration_s": 3734.2574930409974,
+        "implementation_cost_usd": 29.387052,
+        "evaluation_cost_usd": 3.009368,
+        "run_ids": [
+          "20260711t161255z-843ef2"
+        ]
+      }
+    },
+    "gpt-5.6-sol": {
+      "be": {
+        "score": 7.313,
+        "duration_s": 2567.4775289590034,
+        "implementation_cost_usd": 11.60926,
+        "evaluation_cost_usd": 1.907356,
+        "run_id": "20260712t125653z-ebee13",
+        "submission_id": "id-3a451d87",
+        "source": "runs/2026-07-12T12-56-53Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-6-sol--20260712t125653z-ebee13/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 6.489,
+        "duration_s": 1933.6194155419798,
+        "implementation_cost_usd": 5.91434,
+        "evaluation_cost_usd": 3.415264,
+        "run_id": "20260712t125653z-ebee13",
+        "submission_id": "id-475ae9d8",
+        "source": "runs/2026-07-12T12-56-53Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-6-sol--20260712t125653z-ebee13/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "gpt-5.5": {
+      "be": {
+        "score": 7.084,
+        "duration_s": 1553.1496575839992,
+        "implementation_cost_usd": 3.727977,
+        "evaluation_cost_usd": 2.479987,
+        "run_ids": [
+          "20260711t190035z-d06816"
+        ]
+      },
+      "fe": {
+        "score": 5.67,
+        "duration_s": 1101.3840947080025,
+        "implementation_cost_usd": 2.371877,
+        "evaluation_cost_usd": 2.35606,
+        "run_ids": [
+          "20260711t190035z-d06816"
+        ]
+      }
+    },
+    "grok-4.5": {
+      "be": {
+        "score": 7.278,
+        "duration_s": 1285.7250700410004,
+        "implementation_cost_usd": 2.11509,
+        "evaluation_cost_usd": 3.23478,
+        "run_ids": [
+          "20260711t170807z-db8473"
+        ]
+      },
+      "fe": {
+        "score": 6.384,
+        "duration_s": 922.2971673749998,
+        "implementation_cost_usd": 1.103158,
+        "evaluation_cost_usd": 2.848819,
+        "run_ids": [
+          "20260711t170807z-db8473"
+        ]
+      }
+    },
+    "claude-sonnet-5": {
+      "be": {
+        "score": 7.243,
+        "duration_s": 2571.7845924180074,
+        "implementation_cost_usd": 19.562980749999994,
+        "evaluation_cost_usd": 2.446213,
+        "run_ids": [
+          "20260711t190035z-d06816"
+        ]
+      },
+      "fe": {
+        "score": 6.982,
+        "duration_s": 2657.2634944589954,
+        "implementation_cost_usd": 10.636490100000001,
+        "evaluation_cost_usd": 3.579834,
+        "run_ids": [
+          "20260711t190035z-d06816"
+        ]
+      }
+    },
+    "0x-alpha": {
+      "be": {
+        "score": 7.956,
+        "duration_s": 3797.491141250022,
+        "implementation_cost_usd": 0.0,
+        "evaluation_cost_usd": 3.5649727999999996,
+        "run_id": "forced-eval-be-20260825t1816",
+        "submission_id": "id-2a53572e",
+        "source": "runs/run--be--opencode-0x-alpha--forced-eval-be-20260825t1816/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      }
+    },
+    "grok-4.6": {
+      "be": {
+        "score": 7.926,
+        "duration_s": 1946.3978619159898,
+        "implementation_cost_usd": 2.260536,
+        "evaluation_cost_usd": 4.697505,
+        "run_id": "20260812t163058z-d4b5fe",
+        "submission_id": "id-d34116cd",
+        "source": "runs/2026-08-12T16-30-58Z--fe-be--xai-grok-4-6--20260812t163058z-d4b5fe/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 7.104,
+        "duration_s": 1531.5490403329022,
+        "implementation_cost_usd": 0.948818,
+        "evaluation_cost_usd": 2.939441,
+        "run_id": "20260812t163058z-d4b5fe",
+        "submission_id": "id-e2ddfedf",
+        "source": "runs/2026-08-12T16-30-58Z--fe-be--xai-grok-4-6--20260812t163058z-d4b5fe/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "gemini-3.8-flash": {
+      "be": {
+        "score": 6.483,
+        "duration_s": 1512.2040823339485,
+        "implementation_cost_usd": 1.0048665,
+        "evaluation_cost_usd": 2.7549232000000003,
+        "run_id": "20260902t162821z-ac8708",
+        "submission_id": "id-d1024af2",
+        "source": "runs/2026-09-02T16-28-21Z--fe-be--google-gemini-3-8-flash--20260902t162821z-ac8708/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 5.7,
+        "duration_s": 785.1017800001428,
+        "implementation_cost_usd": 0.63564975,
+        "evaluation_cost_usd": 1.6791608,
+        "run_id": "20260903t022251z-bf72e3",
+        "submission_id": "id-2ce111d1",
+        "source": "runs/2026-09-03T02-22-51Z--fe--google-gemini-3-8-flash--20260903t022251z-bf72e3/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "opus": {
+      "be": {
+        "score": 6.59,
+        "duration_s": 2872.62194570899,
+        "implementation_cost_usd": 16.102826249999996,
+        "evaluation_cost_usd": 2.154043,
+        "run_id": "20260712t112956z-05f1ac",
+        "submission_id": "id-c5f47601",
+        "source": "runs/2026-07-12T11-29-56Z--fe-be--anthropic-opus--20260712t112956z-05f1ac/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 6.587,
+        "duration_s": 2608.1537250830006,
+        "implementation_cost_usd": 8.977933250000003,
+        "evaluation_cost_usd": 2.599315,
+        "run_id": "20260712t112956z-05f1ac",
+        "submission_id": "id-1d7a5d1e",
+        "source": "runs/2026-07-12T11-29-56Z--fe-be--anthropic-opus--20260712t112956z-05f1ac/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "claude-opus-5": {
+      "be": {
+        "score": 8.39,
+        "duration_s": 4134.89645650005,
+        "implementation_cost_usd": 32.88657649999999,
+        "evaluation_cost_usd": 3.218612,
+        "run_id": "20260726t035102z-e86366",
+        "submission_id": "id-c9cf6383",
+        "source": "runs/2026-07-26T03-51-02Z--fe-be--anthropic-claude-opus-5--20260726t035102z-e86366/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 7.583,
+        "duration_s": 4656.468485124875,
+        "implementation_cost_usd": 36.71319350000001,
+        "evaluation_cost_usd": 5.293669,
+        "run_id": "20260726t035102z-e86366",
+        "submission_id": "id-b95535bf",
+        "source": "runs/2026-07-26T03-51-02Z--fe-be--anthropic-claude-opus-5--20260726t035102z-e86366/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "gemini-3.1-pro": {
+      "be": {
+        "score": 3.872,
+        "duration_s": 651.7668701670045,
+        "implementation_cost_usd": 0.468424,
+        "evaluation_cost_usd": 1.468826,
+        "run_id": "20260712t113705z-0e7ec8",
+        "submission_id": "id-775ed920",
+        "source": "runs/2026-07-12T11-37-05Z--fe-be--google-gemini-3-1-pro--20260712t113705z-0e7ec8/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 3.19,
+        "duration_s": 675.6460891669994,
+        "implementation_cost_usd": 0.50708,
+        "evaluation_cost_usd": 2.120787,
+        "run_id": "20260712t113705z-0e7ec8",
+        "submission_id": "id-034dcf4e",
+        "source": "runs/2026-07-12T11-37-05Z--fe-be--google-gemini-3-1-pro--20260712t113705z-0e7ec8/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "gemini-3.7-flash": {
+      "be": {
+        "score": 5.8,
+        "duration_s": 778.396369333961,
+        "implementation_cost_usd": 0.60836625,
+        "evaluation_cost_usd": 2.911138,
+        "run_id": "20260814t035649z-253ec3",
+        "submission_id": "id-fa3a32a9",
+        "source": "runs/2026-08-14T03-56-49Z--fe-be--google-gemini-3-7-flash--20260814t035649z-253ec3/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 5.608,
+        "duration_s": 1080.9905912500108,
+        "implementation_cost_usd": 0.36324975,
+        "evaluation_cost_usd": 3.652266,
+        "run_id": "20260814t035649z-253ec3",
+        "submission_id": "id-2640b6ba",
+        "source": "runs/2026-08-14T03-56-49Z--fe-be--google-gemini-3-7-flash--20260814t035649z-253ec3/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "gemini-3.5-flash": {
+      "be": {
+        "score": 0.1,
+        "duration_s": 487.30609566599014,
+        "implementation_cost_usd": 1.593852,
+        "evaluation_cost_usd": 0.728786,
+        "run_id": "20260712t112004z-dc641b",
+        "submission_id": "id-4e73d05f",
+        "source": "runs/2026-07-12T11-20-04Z--fe-be--google-gemini-3-5-flash--20260712t112004z-dc641b/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 0.0,
+        "duration_s": 280.1659476259956,
+        "implementation_cost_usd": 0.37515,
+        "evaluation_cost_usd": 0.778547,
+        "run_id": "20260712t112004z-dc641b",
+        "submission_id": "id-65d441a3",
+        "source": "runs/2026-07-12T11-20-04Z--fe-be--google-gemini-3-5-flash--20260712t112004z-dc641b/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "claude-fable-5-1": {
+      "be": {
+        "score": 8.965,
+        "duration_s": 4865.346834875178,
+        "implementation_cost_usd": 45.95112324999999,
+        "evaluation_cost_usd": 2.4017527999999997,
+        "run_id": "20260902t103232z-36233c",
+        "submission_id": "id-a9441d0c",
+        "source": "runs/2026-09-02T10-32-32Z--fe-be--anthropic-claude-fable-5-1--20260902t103232z-36233c/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 8.183,
+        "duration_s": 6180.956812126096,
+        "implementation_cost_usd": 41.80463250000001,
+        "evaluation_cost_usd": 2.8000944000000003,
+        "run_id": "20260902t103232z-36233c",
+        "submission_id": "id-57f66d96",
+        "source": "runs/2026-09-02T10-32-32Z--fe-be--anthropic-claude-fable-5-1--20260902t103232z-36233c/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "muse-spark-1.3": {
+      "be": {
+        "score": 6.711,
+        "duration_s": 1312.276577501092,
+        "implementation_cost_usd": 0.0,
+        "evaluation_cost_usd": 2.3134968,
+        "run_id": "20260903t035433z-6bfd20",
+        "submission_id": "id-0974f4a0",
+        "source": "runs/2026-09-03T03-54-33Z--fe-be--meta-muse-spark-1-3--20260903t035433z-6bfd20/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 5.745,
+        "duration_s": 1231.7045197905973,
+        "implementation_cost_usd": 0.0,
+        "evaluation_cost_usd": 2.2639712000000003,
+        "run_id": "20260903t035433z-6bfd20",
+        "submission_id": "id-59525b3a",
+        "source": "runs/2026-09-03T03-54-33Z--fe-be--meta-muse-spark-1-3--20260903t035433z-6bfd20/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    },
+    "glm-5.2": {
+      "be": {
+        "score": 0.05,
+        "duration_s": 1098.852072416994,
+        "implementation_cost_usd": 0.060375132,
+        "evaluation_cost_usd": 0.72822,
+        "run_ids": [
+          "20260711t161255z-843ef2"
+        ],
+        "source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/leaderboards"
+      },
+      "fe": {
+        "score": 0.0,
+        "duration_s": 1206.595132292001,
+        "implementation_cost_usd": 0.029714124,
+        "evaluation_cost_usd": 0.727136,
+        "run_ids": [
+          "20260711t161255z-843ef2"
+        ],
+        "source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/leaderboards"
+      }
+    },
+    "gpt-6-astra": {
+      "be": {
+        "score": 9.305,
+        "duration_s": 2772.4739854168147,
+        "evaluation_cost_usd": 3.331896,
+        "run_id": "20260905t013627z-0c621d",
+        "submission_id": "id-355060ff",
+        "implementation_cost_usd": 9.070942,
+        "source": "runs/2026-09-05T01-36-27Z--fe-be--openai-gpt-6-astra--20260905t013627z-0c621d/leaderboards/leaderboard_be_2026-07-11.2_21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71.json"
+      },
+      "fe": {
+        "score": 7.607,
+        "duration_s": 3018.9536293740384,
+        "evaluation_cost_usd": 3.5360224,
+        "run_id": "20260905t013627z-0c621d",
+        "submission_id": "id-d2fb9a89",
+        "implementation_cost_usd": 9.627944,
+        "source": "runs/2026-09-05T01-36-27Z--fe-be--openai-gpt-6-astra--20260905t013627z-0c621d/leaderboards/leaderboard_fe_2026-07-11.2_ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1.json"
+      }
+    }
+  },
+  "astra_recost": [
+    {
+      "track": "be",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 4927232,
+        "input_tokens": 151506,
+        "output_tokens": 52573
+      },
+      "implementation_cost_usd": 9.070942,
+      "evaluation_cost_usd": 3.331896
+    },
+    {
+      "track": "fe",
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 4742784,
+        "input_tokens": 157131,
+        "output_tokens": 66277
+      },
+      "implementation_cost_usd": 9.627944,
+      "evaluation_cost_usd": 3.5360224
+    }
+  ],
+  "rates": {
+    "input": 10.0,
+    "output": 50.0,
+    "cache_read": 1.0,
+    "cache_write": 12.5
+  },
+  "pricing_source": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+  "original_run": "2026-09-05T01-36-27Z--fe-be--openai-gpt-6-astra--20260905t013627z-0c621d",
+  "integrity_verified": true
+}
