@@ -17,3 +17,5 @@ Evaluate from direct evidence in the rendered prototype, source code, and refere
 | Reliability, safety, and performance | 6% | Runtime stability, input escaping, defensive handling, route safety, browser compatibility, dependency resilience, rendering efficiency, and absence of console errors. |
 
 Inspect the complete submission delta, decide how to run it, and exercise enough routes, viewports, interactions, state transitions, and failure cases to support every score. The implementation may choose any architecture or runtime; evaluate the result it actually provides.
+
+You can use computer use to open the final HTML prototype in Chrome, inspect its rendered appearance, and interact with it to evaluate its behavior.
