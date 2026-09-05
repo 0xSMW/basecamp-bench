@@ -819,7 +819,10 @@ class GrokHarness(Harness):
         rules.extend(
             [
                 "--allow",
-                "Bash(*)",
+                # Grok 1.0 documents the bare Bash prefix as the catch-all
+                # permission rule. ``Bash(*)`` no longer authorizes native
+                # ``run_terminal_command`` calls under ``dontAsk``.
+                "Bash",
                 "--allow",
                 f"Write({workdir_s})",
                 "--allow",

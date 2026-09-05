@@ -320,7 +320,7 @@ class GrokCommandTests(TempDirTestCase):
         self.assertNotIn("run_terminal_cmd", denied)
         self.assertNotIn("get_task_output", denied)
         self.assertNotIn("kill_task", denied)
-        self.assertIn("Bash(*)", cmd)
+        self.assertIn("Bash", cmd)
         self.assertEqual(cmd[cmd.index("--sandbox") + 1], "basecamp_bench")
         self.assertIsNone(h.stdin_for(job))
         self.assertEqual(h.prepare_env({"PATH": "/bin"})["GROK_SUBAGENTS"], "0")
@@ -344,7 +344,7 @@ class GrokCommandTests(TempDirTestCase):
         for i, arg in enumerate(cmd):
             if arg in ("--allow", "--deny") and i + 1 < len(cmd):
                 rule = cmd[i + 1]
-                if rule == "Bash(*)":
+                if rule == "Bash":
                     continue
                 if "(" in rule and ")" in rule:
                     inner = rule[rule.index("(") + 1 : rule.rindex(")")]
