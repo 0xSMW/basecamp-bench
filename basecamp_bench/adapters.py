@@ -727,21 +727,21 @@ class OpenCodeHarness(Harness):
                 "external_directory": "deny",
             }
 
-        config_dir.mkdir(parents=True)
-        config_path.write_text(
-            json.dumps(
-                {
-                    "$schema": "https://opencode.ai/config.json",
-                    "permission": permission,
-                },
-                sort_keys=True,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        self._active_config = config_path
-        self._active_config_dir = config_dir
         try:
+            config_dir.mkdir(parents=True)
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "$schema": "https://opencode.ai/config.json",
+                        "permission": permission,
+                    },
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            self._active_config = config_path
+            self._active_config_dir = config_dir
             yield
         finally:
             self._active_config = None

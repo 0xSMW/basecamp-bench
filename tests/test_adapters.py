@@ -291,6 +291,17 @@ class ClaudeCommandTests(TempDirTestCase):
 
 
 class OpenCodeCommandTests(TempDirTestCase):
+    def test_config_write_failure_cleans_private_state(self) -> None:
+        h = OpenCodeHarness(binary=str(self.fake_bin))
+        job = self._job(harness="opencode", model="0x-alpha", effort="max")
+        with mock.patch.object(Path, "write_text", side_effect=OSError("disk full")):
+            with self.assertRaisesRegex(OSError, "disk full"):
+                with h.execution_context(job):
+                    self.fail("Setup should fail before yielding")
+        self.assertFalse(h._private_root(job).exists())
+        with h.execution_context(job):
+            self.assertTrue(h._private_root(job).exists())
+
     def test_implement_argv_and_private_config(self) -> None:
         h = OpenCodeHarness(binary=str(self.fake_bin))
         job = self._job(harness="opencode", model="0x-alpha", effort="max")
