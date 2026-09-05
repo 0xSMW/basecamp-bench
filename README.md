@@ -82,6 +82,12 @@ evaluator:
 basecamp-bench run --harness codex --track fe
 ```
 
+To benchmark GPT-6 Astra, enable the `codex-astra` block in `bench.toml`
+(shown in `bench.example.toml`) and run
+`basecamp-bench run --harness codex-astra --track fe --track be`. It uses
+`gpt-6-astra` at high reasoning effort through the Codex CLI; the configured
+independent evaluator remains unchanged.
+
 Independent implementation attempts run concurrently. As soon as one
 submission is snapshotted, its evaluator calls run concurrently while other
 implementations continue. Live progress is written to stderr with attributable

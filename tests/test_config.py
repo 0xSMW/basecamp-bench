@@ -113,6 +113,21 @@ class LoadingTests(TempRoot):
         self.assertEqual(config.harnesses["custom"].binary, "/secret/tool")
         self.assertFalse(config.harnesses["custom"].enabled)
 
+    def test_astra_uses_codex_adapter_without_replacing_evaluator(self) -> None:
+        path = self.config("""
+            [harnesses.codex-astra]
+            adapter = "codex"
+            model = "gpt-6-astra"
+            effort = "high"
+            provider_family = "openai"
+            display_name = "GPT-6 Astra"
+            enabled = true
+        """)
+        config = load_config(path, root=self.root)
+        spec = config.harnesses["codex-astra"]
+        self.assertEqual((spec.adapter, spec.model, spec.effort), ("codex", "gpt-6-astra", "high"))
+        self.assertEqual(config.evaluators[0].model, "gpt-5.6-sol")
+
     def test_opencode_preview_alias_and_max_effort(self) -> None:
         path = self.config("""
             [harnesses.opencode-alpha]
