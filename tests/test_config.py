@@ -113,6 +113,26 @@ class LoadingTests(TempRoot):
         self.assertEqual(config.harnesses["custom"].binary, "/secret/tool")
         self.assertFalse(config.harnesses["custom"].enabled)
 
+    def test_opencode_preview_alias_and_max_effort(self) -> None:
+        path = self.config("""
+            [harnesses.opencode-alpha]
+            adapter = "opencode"
+            model = "0x-alpha"
+            effort = "max"
+            provider_family = "opencode"
+            display_name = "0x Alpha (Max) via OpenCode"
+            binary = "/opt/opencode"
+            enabled = true
+            [pricing."0x-alpha"]
+            input = 0.0
+            output = 0.0
+        """)
+        config = load_config(path, root=self.root)
+        spec = config.harnesses["opencode-alpha"]
+        self.assertEqual((spec.adapter, spec.model, spec.effort), ("opencode", "0x-alpha", "max"))
+        self.assertEqual(spec.binary, "/opt/opencode")
+        self.assertEqual(config.pricing_overrides["0x-alpha"]["output"], 0.0)
+
     def test_new_harness_and_track_require_fields(self) -> None:
         cases = (
             "[harnesses.new]\nadapter='codex'",

@@ -272,6 +272,15 @@ routes it to OpenRouter's `z-ai/glm-5.2`; set `OPENROUTER_API_KEY` and use the
 commented example in `bench.example.toml`. Pi relies on the per-job workspace
 boundary in local mode; the optional container recipe adds OS isolation.
 
+The optional `opencode` adapter exposes safe benchmark model IDs and routes
+them to OpenCode's native IDs: `0x-alpha` maps to `opencode/x-preview-f-free`
+and requires the `max` effort, and `muse-spark-1.3` maps to
+`opencode/muse-spark-1.3-contributor-free` at `minimal` through `xhigh`. The
+configured effort is passed through as OpenCode's `--variant`. It reads
+prompts from stdin, consumes OpenCode's JSON event stream for
+usage, and installs a per-job config that denies external-directory access in
+workspace-write mode. Use the commented example in `bench.example.toml`.
+
 The optional `agy` adapter supports `gemini-3.1-pro` at `low` or `high` effort
 and `gemini-3.5-flash` at `low`, `medium`, or `high` effort. It enables
 Antigravity's terminal sandbox and stages evaluator evidence as disposable

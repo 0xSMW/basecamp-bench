@@ -11,6 +11,7 @@ from unittest import mock
 
 from basecamp_bench.adapters import (
     AGY_MODEL_ALIASES,
+    OPENCODE_MODEL_ALIASES,
     PI_MODEL_ALIASES,
     RETAINED_ENV_NAMES,
     AgentJob,
@@ -20,6 +21,7 @@ from basecamp_bench.adapters import (
     GrokHarness,
     Harness,
     ModelSpec,
+    OpenCodeHarness,
     ParsedOutput,
     PiHarness,
     Usage,
@@ -95,7 +97,7 @@ class RegistryTests(unittest.TestCase):
     def test_builtin_registration_deterministic(self) -> None:
         names = registered_harnesses()
         self.assertEqual(names, sorted(names))
-        self.assertEqual(names, ["agy", "claude", "codex", "grok", "pi"])
+        self.assertEqual(names, ["agy", "claude", "codex", "grok", "opencode", "pi"])
         self.assertIsInstance(get_harness("agy"), AgyHarness)
         self.assertIsInstance(get_harness("codex"), CodexHarness)
         self.assertIsInstance(get_harness("claude"), ClaudeHarness)
@@ -286,6 +288,136 @@ class ClaudeCommandTests(TempDirTestCase):
         cmd = h.build_command(job)
         self.assertNotIn("--settings", cmd)
         self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "bypassPermissions")
+
+
+class OpenCodeCommandTests(TempDirTestCase):
+    def test_implement_argv_and_private_config(self) -> None:
+        h = OpenCodeHarness(binary=str(self.fake_bin))
+        job = self._job(harness="opencode", model="0x-alpha", effort="max")
+        with h.execution_context(job):
+            cmd = h.build_command(job)
+            self._assert_no_sentinel_in_argv(cmd)
+            self.assertEqual(cmd[0], str(self.fake_bin))
+            self.assertEqual(cmd[1:3], ["run", "--model"])
+            self.assertEqual(cmd[cmd.index("--model") + 1], OPENCODE_MODEL_ALIASES["0x-alpha"])
+            self.assertEqual(cmd[cmd.index("--variant") + 1], "max")
+            self.assertEqual(cmd[cmd.index("--format") + 1], "json")
+            self.assertEqual(cmd[cmd.index("--dir") + 1], str(self.workdir))
+            self.assertIn("--pure", cmd)
+            self.assertNotIn("--auto", cmd)
+
+            env = h.prepare_env({"PATH": "/bin", "HOME": "/tmp", "OPENCODE_API_KEY": "secret"})
+            config_path = Path(env["OPENCODE_CONFIG"])
+            self.assertEqual(env["OPENCODE_CONFIG_DIR"], str(config_path.parent / "config"))
+            self.assertEqual(
+                json.loads(config_path.read_text(encoding="utf-8"))["permission"][
+                    "external_directory"
+                ],
+                "deny",
+            )
+            self.assertEqual(env["OPENCODE_API_KEY"], "secret")
+
+            stdin = h.stdin_for(job)
+            self.assertTrue(stdin.startswith(SENTINEL.encode("utf-8")))
+            self.assertIn(b"Never emit a large file in one tool call", stdin)
+        self.assertFalse(config_path.exists())
+
+    def test_danger_full_access_enables_auto_approval(self) -> None:
+        h = OpenCodeHarness(binary=str(self.fake_bin))
+        job = self._job(
+            harness="opencode", model="0x-alpha", effort="max", sandbox_mode="danger-full-access"
+        )
+        with h.execution_context(job):
+            cmd = h.build_command(job)
+            self.assertIn("--auto", cmd)
+            env = h.prepare_env()
+            config = json.loads(Path(env["OPENCODE_CONFIG"]).read_text(encoding="utf-8"))
+            self.assertEqual(config["permission"], "allow")
+
+    def test_muse_spark_alias_passes_effort_as_variant(self) -> None:
+        h = OpenCodeHarness(binary=str(self.fake_bin))
+        for effort in ("low", "medium", "high", "xhigh"):
+            with self.subTest(effort=effort):
+                job = self._job(harness="opencode", model="muse-spark-1.3", effort=effort)
+                with h.execution_context(job):
+                    cmd = h.build_command(job)
+                self.assertEqual(
+                    cmd[cmd.index("--model") + 1], OPENCODE_MODEL_ALIASES["muse-spark-1.3"]
+                )
+                self.assertEqual(cmd[cmd.index("--variant") + 1], effort)
+        with self.assertRaisesRegex(ValueError, "requires thinking effort"):
+            h.build_command(self._job(harness="opencode", model="muse-spark-1.3", effort="max"))
+
+    def test_truncated_write_is_a_failure(self) -> None:
+        h = OpenCodeHarness(binary=str(self.fake_bin))
+        job = self._job(harness="opencode", model="muse-spark-1.3", effort="xhigh")
+        stream = "\n".join(
+            json.dumps(obj)
+            for obj in (
+                {
+                    "type": "step_finish",
+                    "part": {
+                        "type": "step-finish",
+                        "reason": "length",
+                        "tokens": {"input": 10, "output": 31985, "cache": {"read": 0, "write": 0}},
+                    },
+                },
+                {
+                    "type": "tool_use",
+                    "part": {
+                        "type": "tool",
+                        "tool": "write",
+                        "state": {
+                            "status": "error",
+                            "error": "Tool execution aborted",
+                            "metadata": {"interrupted": True},
+                        },
+                    },
+                },
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "response length limit"):
+            h.parse_output(job, stream)
+
+    def test_completed_write_after_length_step_is_not_a_failure(self) -> None:
+        h = OpenCodeHarness(binary=str(self.fake_bin))
+        job = self._job(harness="opencode", model="muse-spark-1.3", effort="xhigh")
+        stream = "\n".join(
+            json.dumps(obj)
+            for obj in (
+                {
+                    "type": "step_finish",
+                    "part": {
+                        "type": "step-finish",
+                        "reason": "length",
+                        "tokens": {"input": 10, "output": 20, "cache": {"read": 0, "write": 0}},
+                    },
+                },
+                {
+                    "type": "tool_use",
+                    "part": {"type": "tool", "tool": "write", "state": {"status": "completed"}},
+                },
+                {
+                    "type": "step_finish",
+                    "part": {
+                        "type": "step-finish",
+                        "reason": "stop",
+                        "tokens": {"input": 5, "output": 7, "cache": {"read": 0, "write": 0}},
+                    },
+                },
+            )
+        )
+        parsed = h.parse_output(job, stream)
+        self.assertIsNotNone(parsed.usage)
+
+    def test_model_alias_and_effort_are_fail_closed(self) -> None:
+        h = OpenCodeHarness(binary=str(self.fake_bin))
+        with self.assertRaisesRegex(ValueError, "unsupported"):
+            h.build_command(
+                self._job(harness="opencode", model="opencode/x-preview-f-free", effort="max")
+            )
+        with self.assertRaisesRegex(ValueError, "requires thinking effort 'max'"):
+            h.build_command(self._job(harness="opencode", model="0x-alpha", effort="high"))
 
 
 class GrokCommandTests(TempDirTestCase):
@@ -950,6 +1082,50 @@ class ParseOutputTests(TempDirTestCase):
         self.assertEqual(parsed.last_message, "only text")
         self.assertIsNone(parsed.usage)
 
+    def test_opencode_json_events_normalize_usage_and_message(self) -> None:
+        h = OpenCodeHarness(binary=str(self.fake_bin))
+        job = self._job(harness="opencode", model="0x-alpha", effort="max")
+        text_part = {
+            "id": "text-1",
+            "type": "text",
+            "text": "final response",
+        }
+        events = [
+            {"type": "step_start", "sessionID": "ses-opencode"},
+            {"type": "text", "sessionID": "ses-opencode", "part": text_part},
+            {
+                "type": "step_finish",
+                "sessionID": "ses-opencode",
+                "part": {
+                    "type": "step-finish",
+                    "reason": "stop",
+                    "tokens": {
+                        "input": 100,
+                        "output": 20,
+                        "reasoning": 8,
+                        "cache": {"read": 30, "write": 4},
+                    },
+                    "cost": 0.0,
+                },
+            },
+        ]
+        parsed = h.parse_output(job, "\n".join(json.dumps(event) for event in events))
+        self.assertEqual(parsed.usage, Usage(66, 30, 4, 20))
+        self.assertEqual(parsed.last_message, "final response")
+        self.assertEqual(parsed.session_id, "ses-opencode")
+        self.assertEqual(parsed.reported_cost_usd, 0.0)
+
+    def test_opencode_unknown_finish_and_error_fail_closed(self) -> None:
+        h = OpenCodeHarness(binary=str(self.fake_bin))
+        job = self._job(harness="opencode", model="0x-alpha", effort="max")
+        unknown = {"type": "step_finish", "part": {"type": "step-finish", "reason": "unknown"}}
+        with self.assertRaisesRegex(ValueError, "unknown finish"):
+            h.parse_output(job, json.dumps(unknown))
+
+        error = {"type": "error", "error": {"data": {"message": "provider failed"}}}
+        with self.assertRaisesRegex(ValueError, "provider failed"):
+            h.parse_output(job, json.dumps(error))
+
     def test_pi_session_usage_and_message(self) -> None:
         h = PiHarness(binary=str(self.fake_bin))
         job = self._job(harness="pi", model="glm-5.2")
@@ -1047,6 +1223,7 @@ class ParseOutputTests(TempDirTestCase):
             (CodexHarness, "codex"),
             (ClaudeHarness, "claude"),
             (GrokHarness, "grok"),
+            (OpenCodeHarness, "opencode"),
             (PiHarness, "pi"),
         ):
             with self.subTest(harness=harness_name):

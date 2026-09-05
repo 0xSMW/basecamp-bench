@@ -28,6 +28,7 @@ __all__ = [
     "CodexHarness",
     "ClaudeHarness",
     "GrokHarness",
+    "OpenCodeHarness",
     "PiHarness",
     "AgyHarness",
     "register_harness",
@@ -183,6 +184,8 @@ RETAINED_ENV_NAMES: frozenset[str] = frozenset(
         "XAI_BASE_URL",
         "GROK_API_KEY",
         "GROK_HOME",
+        # OpenCode
+        "OPENCODE_API_KEY",
         # Pi / OpenRouter
         "OPENROUTER_API_KEY",
     }
@@ -641,6 +644,249 @@ class ClaudeHarness(Harness):
                 session_id=session_id,
             )
         return ParsedOutput()
+
+
+DEFAULT_OPENCODE_BINARY = "opencode"
+
+OPENCODE_MODEL_ALIASES: Mapping[str, str] = {
+    # Keep provider-qualified IDs out of benchmark config and map the stable
+    # benchmark alias at the CLI boundary.
+    "0x-alpha": "opencode/x-preview-f-free",
+    "muse-spark-1.3": "opencode/muse-spark-1.3-contributor-free",
+}
+
+# Reasoning efforts each alias accepts; the effort is passed through as
+# OpenCode's ``--variant``. Efforts outside this set fail closed.
+OPENCODE_MODEL_EFFORTS: Mapping[str, frozenset[str]] = {
+    "0x-alpha": frozenset({"max"}),
+    "muse-spark-1.3": frozenset({"minimal", "low", "medium", "high", "xhigh"}),
+}
+
+
+@register_harness
+class OpenCodeHarness(Harness):
+    """OpenCode CLI using JSON event output and a per-job permission policy."""
+
+    name = "opencode"
+    requires_usage = True
+    _PRIVATE_SUFFIX = ".opencode-state"
+    # Some OpenCode-hosted models cap a single response well below the size of a
+    # whole deliverable. A write emitted in one call is truncated at that cap and
+    # the tool call is aborted, leaving no artifact, so require bounded writes.
+    _COMPLETION_DIRECTIVE = (
+        "\n\nNever emit a large file in one tool call: a single response that exceeds the "
+        "output limit is truncated and its write is discarded, leaving no artifact. Write any "
+        "file longer than roughly 300 lines as a sequence of bounded chunks (about 200-300 lines "
+        "per write or append), one section at a time, and confirm each chunk landed before "
+        "writing the next. Build large deliverables as separate part files if that helps, then "
+        "consolidate them into the required final file and delete the parts. Verify the required "
+        "file exists and is complete before finishing, and keep the closing summary under five "
+        "sentences.\n"
+    )
+
+    def __init__(self, binary: str | None = None) -> None:
+        super().__init__(binary=DEFAULT_OPENCODE_BINARY if binary is None else binary)
+        self._active_config: Path | None = None
+        self._active_config_dir: Path | None = None
+
+    @classmethod
+    def _private_root(cls, job: AgentJob) -> Path:
+        return job.log_path.parent / f".{job.log_path.name}{cls._PRIVATE_SUFFIX}"
+
+    @staticmethod
+    def _native_model(model: str) -> str:
+        try:
+            return OPENCODE_MODEL_ALIASES[model]
+        except KeyError as exc:
+            known = ", ".join(sorted(OPENCODE_MODEL_ALIASES))
+            raise ValueError(
+                f"OpenCode model '{model}' is unsupported; configured aliases: {known}"
+            ) from exc
+
+    @contextmanager
+    def execution_context(self, job: AgentJob) -> Iterator[None]:
+        """Install private config so host OpenCode settings do not control the job."""
+        private_root = self._private_root(job)
+        config_path = private_root / "opencode.json"
+        config_dir = private_root / "config"
+        if os.path.lexists(private_root):
+            raise ValueError("run private directory contains a reserved OpenCode adapter path")
+
+        permission: str | dict[str, object]
+        if job.sandbox_mode == "danger-full-access":
+            permission = "allow"
+        else:
+            # OpenCode's default permissions allow normal workspace tools while
+            # asking before a tool touches an external directory. In headless
+            # mode an ask is rejected, so make the intended boundary explicit.
+            permission = {
+                "*": "allow",
+                "external_directory": "deny",
+            }
+
+        config_dir.mkdir(parents=True)
+        config_path.write_text(
+            json.dumps(
+                {
+                    "$schema": "https://opencode.ai/config.json",
+                    "permission": permission,
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self._active_config = config_path
+        self._active_config_dir = config_dir
+        try:
+            yield
+        finally:
+            self._active_config = None
+            self._active_config_dir = None
+            if private_root.is_symlink():
+                private_root.unlink()
+            elif private_root.is_dir():
+                shutil.rmtree(private_root)
+            elif os.path.lexists(private_root):
+                raise ValueError("OpenCode reserved private root changed type")
+
+    def prepare_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
+        env = super().prepare_env(base)
+        if self._active_config is not None and self._active_config_dir is not None:
+            env["OPENCODE_CONFIG"] = str(self._active_config)
+            env["OPENCODE_CONFIG_DIR"] = str(self._active_config_dir)
+        return env
+
+    def stdin_for(self, job: AgentJob) -> bytes | None:
+        prompt = job.prompt_path.read_text(encoding="utf-8")
+        return (prompt + self._COMPLETION_DIRECTIVE).encode("utf-8")
+
+    def build_command(self, job: AgentJob) -> list[str]:
+        native_model = self._native_model(job.model.model)
+        allowed = OPENCODE_MODEL_EFFORTS[job.model.model]
+        if job.model.effort not in allowed:
+            wanted = " or ".join(f"'{effort}'" for effort in sorted(allowed))
+            raise ValueError(
+                f"OpenCode model '{job.model.model}' requires thinking effort {wanted}"
+            )
+        cmd = [
+            self.resolve_binary(),
+            "run",
+            "--model",
+            native_model,
+            "--variant",
+            job.model.effort,
+            "--format",
+            "json",
+            "--dir",
+            str(job.workdir),
+            "--pure",
+        ]
+        if job.sandbox_mode == "danger-full-access":
+            cmd.append("--auto")
+        return cmd
+
+    @staticmethod
+    def _step_usage(tokens: Mapping[str, Any]) -> Usage:
+        cache = tokens.get("cache")
+        cache_read = 0
+        cache_write = 0
+        if isinstance(cache, Mapping):
+            cache_read = _int_of(cache.get("read"))
+            cache_write = _int_of(cache.get("write"))
+        inclusive_input = _int_of(tokens.get("input"))
+        return Usage(
+            input_tokens=max(inclusive_input - cache_read - cache_write, 0),
+            cached_input_tokens=cache_read,
+            cache_write_tokens=cache_write,
+            # OpenCode's output token count includes reasoning tokens.
+            output_tokens=_int_of(tokens.get("output")),
+        )
+
+    @staticmethod
+    def _error_message(value: Any) -> str:
+        if isinstance(value, str) and value:
+            return value
+        if isinstance(value, Mapping):
+            data = value.get("data")
+            if isinstance(data, Mapping) and isinstance(data.get("message"), str):
+                return data["message"]
+            for key in ("message", "name"):
+                if isinstance(value.get(key), str):
+                    return value[key]
+        return "unknown OpenCode error"
+
+    def parse_output(self, job: AgentJob, stdout_text: str) -> ParsedOutput:
+        del job
+        usage: Usage | None = None
+        cost: float | None = None
+        last_message: str | None = None
+        session_id: str | None = None
+        text_parts: dict[str, str] = {}
+        text_order: list[str] = []
+        last_finish_reason: str | None = None
+
+        for obj in _iter_json_objects(stdout_text):
+            for key in ("sessionID", "sessionId", "session_id"):
+                value = obj.get(key)
+                if isinstance(value, str) and value:
+                    session_id = value
+                    break
+
+            if obj.get("type") == "error":
+                raise ValueError(
+                    f"OpenCode execution failed: {self._error_message(obj.get('error'))}"
+                )
+
+            part = obj.get("part")
+            if not isinstance(part, Mapping):
+                continue
+            part_type = part.get("type")
+            if part_type == "tool":
+                state = part.get("state")
+                if isinstance(state, Mapping) and state.get("status") == "error":
+                    metadata = state.get("metadata")
+                    interrupted = (
+                        isinstance(metadata, Mapping) and metadata.get("interrupted") is True
+                    )
+                    if interrupted and last_finish_reason == "length":
+                        raise ValueError(
+                            "OpenCode execution failed: model output hit the response length "
+                            f"limit and the '{part.get('tool')}' tool call was aborted, so no "
+                            "file was written"
+                        )
+                continue
+            if part_type == "text" and isinstance(part.get("text"), str):
+                part_id = part.get("id")
+                if not isinstance(part_id, str) or not part_id:
+                    part_id = f"text-{len(text_order)}"
+                if part_id not in text_parts:
+                    text_order.append(part_id)
+                text_parts[part_id] = part["text"]
+                continue
+
+            if part_type != "step-finish":
+                continue
+            reason = part.get("reason")
+            last_finish_reason = reason if isinstance(reason, str) else None
+            tokens = part.get("tokens")
+            if isinstance(tokens, Mapping):
+                step_usage = self._step_usage(tokens)
+                usage = step_usage if usage is None else usage.add(step_usage)
+            step_cost = _float_of(part.get("cost"))
+            if step_cost is not None:
+                cost = step_cost if cost is None else cost + step_cost
+
+        if last_finish_reason == "unknown":
+            raise ValueError("OpenCode reported an unknown finish reason")
+        if text_order:
+            last_message = "\n".join(text_parts[key] for key in text_order)
+        return ParsedOutput(
+            usage=usage,
+            reported_cost_usd=cost,
+            last_message=last_message,
+            session_id=session_id,
+        )
 
 
 DEFAULT_GROK_BINARY = "grok"
