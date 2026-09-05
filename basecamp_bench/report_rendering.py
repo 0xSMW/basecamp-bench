@@ -510,7 +510,8 @@ def _scatter_svg(sections: Sequence[Mapping[str, Any]], labels: Sequence[str]) -
     aria = (
         "Scatter chart of expected implementation cost versus score across "
         f"tracks ({shape_note}). Expected implementation cost on the "
-        "horizontal axis with cheaper to the right. Score on the vertical "
+        "horizontal axis, decreasing from more expensive on the left to cheaper "
+        "on the right. Score on the vertical "
         "axis. Frontier polylines mark the best quality per dollar."
     )
     if not points:
@@ -580,11 +581,11 @@ def _scatter_svg(sections: Sequence[Mapping[str, Any]], labels: Sequence[str]) -
         f'<line x1="{margin_l}" y1="{margin_t + plot_h}" '
         f'x2="{margin_l + plot_w}" y2="{margin_t + plot_h}" class="axis"/>',
         f'<text x="{margin_l + plot_w / 2}" y="{height - 10}" text-anchor="middle" '
-        f'class="axis-label">Expected implementation cost (cheaper to the right)</text>',
+        f'class="axis-label">Expected implementation cost</text>',
         f'<text x="{margin_l}" y="{height - 30}" text-anchor="start" '
-        f'class="axis-note">higher cost →</text>',
+        f'class="axis-note">More expensive</text>',
         f'<text x="{margin_l + plot_w}" y="{height - 30}" text-anchor="end" '
-        f'class="axis-note">← lower cost (cheaper)</text>',
+        f'class="axis-note">Cheaper</text>',
     ]
 
     for index, section in enumerate(sections):
@@ -790,12 +791,16 @@ def _gap_chart_svg(sections: Sequence[Mapping[str, Any]], labels: Sequence[str])
 
 
 def _dimension_table(section: Mapping[str, Any], label: str) -> str:
-    """Tabular fallback for the dimension chart."""
+    """Tabular fallback with weighted dimensions as rows and models as columns."""
     keys, labels, weights = _dimension_keys(section)
     models = _sorted_models([m for m in (section.get("models") or []) if isinstance(m, Mapping)])
     if not keys or not models:
         return ""
-    head_cells = []
+    head_cells = "".join(
+        f'<th scope="col" class="num">{_escape(m.get("display_name") or m["model_id"])}</th>'
+        for m in models
+    )
+    rows = []
     for k in keys:
         head = _escape(labels.get(k, k))
         weight = weights.get(k)
@@ -804,21 +809,17 @@ def _dimension_table(section: Mapping[str, Any], label: str) -> str:
             if weight is not None
             else ""
         )
-        head_cells.append(f'<th scope="col" class="num">{head}{sub}</th>')
-    rows = []
-    for m in models:
-        dims = m.get("dimensions") or {}
-        cells = "".join(f'<td class="num">{_escape(_fmt_score(dims.get(k)))}</td>' for k in keys)
-        rows.append(
-            f'<tr><th scope="row">{_escape(m.get("display_name") or m["model_id"])}'
-            f"</th>{cells}</tr>"
+        cells = "".join(
+            f'<td class="num">{_escape(_fmt_score((m.get("dimensions") or {}).get(k)))}</td>'
+            for m in models
         )
+        rows.append(f'<tr><th scope="row">{head}{sub}</th>{cells}</tr>')
     return (
         f'<details class="table-view"><summary>{_escape(label)} dimension table '
         f"(tabular fallback)</summary>"
         '<div class="table-scroll"><table class="dim-table">'
-        f"<caption>{_escape(label)} dimension scores and weights</caption>"
-        f'<thead><tr><th scope="col">Model</th>{"".join(head_cells)}</tr></thead>'
+        f"<caption>{_escape(label)} dimension scores by model and weights</caption>"
+        f'<thead><tr><th scope="col">Dimension (weight)</th>{head_cells}</tr></thead>'
         f"<tbody>{''.join(rows)}</tbody></table></div></details>"
     )
 

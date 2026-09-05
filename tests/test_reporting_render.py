@@ -109,6 +109,51 @@ class RenderReportHtmlTests(unittest.TestCase):
         self.assertIn("<title>", html_out)
         self.assertIn("<desc>", html_out)
 
+    def test_cost_axis_uses_unambiguous_endpoint_labels(self) -> None:
+        html_out = render_report_html(self._sample_payload())
+        self.assertIn('class="axis-note">More expensive</text>', html_out)
+        self.assertIn('class="axis-note">Cheaper</text>', html_out)
+        self.assertIn('class="axis-label">Expected implementation cost</text>', html_out)
+        self.assertNotIn("higher cost →", html_out)
+        self.assertNotIn("← lower cost", html_out)
+
+    def test_dimension_tables_transpose_dimensions_into_rows(self) -> None:
+        points = [
+            _point(
+                model_id="alpha",
+                display_name="Alpha",
+                dimensions={"quality": 8.0, "craft": 7.0},
+            ),
+            _point(
+                model_id="beta",
+                display_name="Beta",
+                dimensions={"quality": 5.0, "craft": 5.5},
+            ),
+        ]
+        payload = build_report_payload(points)
+        payload["sections"][0]["dimension_profile"] = [
+            {"id": "quality", "label": "Quality", "weight": 0.6},
+            {"id": "craft", "label": "Craft", "weight": 0.4},
+        ]
+        html_out = render_report_html(payload)
+
+        self.assertIn(
+            '<thead><tr><th scope="col">Dimension (weight)</th>'
+            '<th scope="col" class="num">Alpha</th>'
+            '<th scope="col" class="num">Beta</th></tr></thead>',
+            html_out,
+        )
+        self.assertIn(
+            '<tr><th scope="row">Quality<span class="dim-weight">weight 60%</span></th>'
+            '<td class="num">8</td><td class="num">5</td></tr>',
+            html_out,
+        )
+        self.assertIn(
+            '<tr><th scope="row">Craft<span class="dim-weight">weight 40%</span></th>'
+            '<td class="num">7</td><td class="num">5.5</td></tr>',
+            html_out,
+        )
+
     def test_pivot_ordering_payload_and_no_external_assets(self) -> None:
         html_out = render_report_html(self._sample_payload())
         # The pivot joins tracks: FE columns precede BE columns.
