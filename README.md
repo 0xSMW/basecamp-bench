@@ -282,7 +282,8 @@ usage, and installs a per-job config that denies external-directory access in
 workspace-write mode. Use the commented example in `bench.example.toml`.
 
 The optional `agy` adapter supports `gemini-3.1-pro` at `low` or `high` effort
-and `gemini-3.5-flash` at `low`, `medium`, or `high` effort. It enables
+and `gemini-3.5-flash`, `gemini-3.7-flash`, and `gemini-3.8-flash` at `low`,
+`medium`, or `high` effort. It enables
 Antigravity's terminal sandbox and stages evaluator evidence as disposable
 workspace copies, preserving the immutable originals. See the commented
 `bench.example.toml` entry for setup.

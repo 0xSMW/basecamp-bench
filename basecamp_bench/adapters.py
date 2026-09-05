@@ -37,6 +37,9 @@ __all__ = [
     "is_retained_env_name",
     "RETAINED_ENV_NAMES",
     "DEFAULT_GROK_BINARY",
+    "DEFAULT_OPENCODE_BINARY",
+    "OPENCODE_MODEL_ALIASES",
+    "OPENCODE_MODEL_EFFORTS",
     "PI_MODEL_ALIASES",
     "AGY_MODEL_ALIASES",
 ]
@@ -1524,6 +1527,16 @@ AGY_MODEL_ALIASES: Mapping[str, Mapping[str, str]] = {
         "medium": "Gemini 3.5 Flash (Medium)",
         "high": "Gemini 3.5 Flash (High)",
     },
+    "gemini-3.7-flash": {
+        "low": "Gemini 3.7 Flash (Low)",
+        "medium": "Gemini 3.7 Flash (Medium)",
+        "high": "Gemini 3.7 Flash (High)",
+    },
+    "gemini-3.8-flash": {
+        "low": "Gemini 3.8 Flash (Low)",
+        "medium": "Gemini 3.8 Flash (Medium)",
+        "high": "Gemini 3.8 Flash (High)",
+    },
 }
 
 
@@ -1540,8 +1553,14 @@ class AgyHarness(Harness):
         "files. Implement the required deliverable directly and reserve enough output capacity for "
         "the final response. Once the required implementation is complete, run only brief local "
         "checks and stop. "
-        "When the implementation and local checks are complete, return a concise plain-text summary "
-        "and exit successfully.\n"
+        "Never emit a large file in one tool call: a single response that exceeds the output limit "
+        "is cut off and the run fails. Write any file longer than roughly 300 lines as a sequence of "
+        "bounded chunks (about 200-300 lines per write or append), one section at a time, and "
+        "confirm each chunk landed before writing the next. Build large deliverables as separate "
+        "part files if that helps, then consolidate them into the required final file and delete "
+        "the parts. "
+        "When the implementation and local checks are complete, return a plain-text summary of at "
+        "most five sentences and exit successfully.\n"
     )
     _PRIVATE_SUFFIX = ".agy-state"
     _PROMPT_FILE = "prompt.md"

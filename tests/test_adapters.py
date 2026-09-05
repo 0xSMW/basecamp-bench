@@ -640,6 +640,30 @@ class PiCommandTests(TempDirTestCase):
 
 
 class AgyCommandTests(TempDirTestCase):
+    def test_gemini_38_flash_model_aliases(self) -> None:
+        h = AgyHarness(binary=str(self.fake_bin))
+        for effort in ("low", "medium", "high"):
+            with self.subTest(effort=effort):
+                job = self._job(harness="agy", model="gemini-3.8-flash", effort=effort)
+                with h.execution_context(job):
+                    cmd = h.build_command(job)
+                self.assertEqual(
+                    cmd[cmd.index("--model") + 1],
+                    AGY_MODEL_ALIASES["gemini-3.8-flash"][effort],
+                )
+
+    def test_gemini_37_flash_model_aliases(self) -> None:
+        h = AgyHarness(binary=str(self.fake_bin))
+        for effort in ("low", "medium", "high"):
+            with self.subTest(effort=effort):
+                job = self._job(harness="agy", model="gemini-3.7-flash", effort=effort)
+                with h.execution_context(job):
+                    cmd = h.build_command(job)
+                self.assertEqual(
+                    cmd[cmd.index("--model") + 1],
+                    AGY_MODEL_ALIASES["gemini-3.7-flash"][effort],
+                )
+
     def test_gemini_31_pro_model_aliases(self) -> None:
         h = AgyHarness(binary=str(self.fake_bin))
         for effort in ("low", "high"):
@@ -689,7 +713,8 @@ class AgyCommandTests(TempDirTestCase):
             self.assertNotIn(SENTINEL, launcher)
             self.assertIn(str(staged_evidence), staged_prompt)
             self.assertNotIn(str(self.evidence), staged_prompt)
-            self.assertIn("return a concise plain-text summary", staged_prompt)
+            self.assertIn("return a plain-text summary of at most five sentences", staged_prompt)
+            self.assertIn("Never emit a large file in one tool call", staged_prompt)
             self.assertIn("Do not call artifact creation", staged_prompt)
             self.assertIn("Treat the remaining context as a hard budget", staged_prompt)
             self.assertIn("never dump large files or command output", staged_prompt)
