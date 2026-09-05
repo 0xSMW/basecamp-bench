@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "contract_version": "2026-07-11.2",
+  "contract_version": "2026-09-05.1",
   "track": "fe",
   "description": "Basecamp 5 frontend evaluation contract for intelligent evaluator agents.",
   "dimensions": [

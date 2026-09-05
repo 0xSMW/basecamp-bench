@@ -1,5 +1,10 @@
 # Changelog
 
+## FE contract 2026-09-05.1 - 2026-09-05
+
+- Explicitly allow evaluators to inspect and interact with final HTML prototypes in Chrome using computer use. Dimension weights and scoring anchors are unchanged.
+- Preserve existing runs under their recorded contracts. The BE contract remains 2026-07-11.2.
+
 ## 1.0.0a1 - 2026-07-11
 
 - Introduce canonical, weighted FE and BE evaluation contracts.
