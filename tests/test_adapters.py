@@ -441,16 +441,16 @@ class GrokCommandTests(TempDirTestCase):
         self.assertIn("--prompt-file", cmd)
         self.assertEqual(
             cmd[cmd.index("--prompt-file") + 1],
-            str(self.workdir / ".grok" / ".basecamp-bench-prompt.md"),
+            str(self.workdir.resolve() / ".grok" / ".basecamp-bench-prompt.md"),
         )
         self.assertIn("--cwd", cmd)
-        self.assertEqual(cmd[cmd.index("--cwd") + 1], str(self.workdir))
+        self.assertEqual(cmd[cmd.index("--cwd") + 1], str(self.workdir.resolve()))
         self.assertIn("-m", cmd)
         self.assertEqual(cmd[cmd.index("-m") + 1], "grok-4.5")
         self.assertIn("--reasoning-effort", cmd)
         self.assertEqual(cmd[cmd.index("--reasoning-effort") + 1], "high")
         self.assertIn("--output-format", cmd)
-        self.assertEqual(cmd[cmd.index("--output-format") + 1], "json")
+        self.assertEqual(cmd[cmd.index("--output-format") + 1], "streaming-json")
         self.assertIn("--no-memory", cmd)
         self.assertIn("--verbatim", cmd)
         self.assertNotIn("--no-plan", cmd)
@@ -463,10 +463,12 @@ class GrokCommandTests(TempDirTestCase):
         self.assertNotIn("run_terminal_cmd", denied)
         self.assertNotIn("get_task_output", denied)
         self.assertNotIn("kill_task", denied)
-        self.assertIn("Bash", cmd)
+        self.assertIn("Bash(*)", cmd)
         self.assertEqual(cmd[cmd.index("--sandbox") + 1], "basecamp_bench")
         self.assertIsNone(h.stdin_for(job))
-        self.assertEqual(h.prepare_env({"PATH": "/bin"})["GROK_SUBAGENTS"], "0")
+        env = h.prepare_env({"PATH": "/bin", "GROK_SANDBOX_AUTO_ALLOW_BASH": "0"})
+        self.assertEqual(env["GROK_SUBAGENTS"], "0")
+        self.assertEqual(env["GROK_SANDBOX_AUTO_ALLOW_BASH"], "1")
         # Prompt lives only in the file referenced by --prompt-file.
         self.assertEqual(self.prompt_path.read_text(encoding="utf-8"), SENTINEL)
 
@@ -487,14 +489,14 @@ class GrokCommandTests(TempDirTestCase):
         for i, arg in enumerate(cmd):
             if arg in ("--allow", "--deny") and i + 1 < len(cmd):
                 rule = cmd[i + 1]
-                if rule == "Bash":
+                if rule in {"Bash", "Bash(*)"}:
                     continue
                 if "(" in rule and ")" in rule:
                     inner = rule[rule.index("(") + 1 : rule.rindex(")")]
                     if inner:
                         self.assertTrue(
-                            inner.startswith(str(self.workdir))
-                            or inner.startswith(str(self.evidence)),
+                            inner.startswith(str(self.workdir.resolve()))
+                            or inner.startswith(str(self.evidence.resolve())),
                             msg=f"permission rule escapes supplied roots: {rule}",
                         )
         self.assertTrue(any(str(self.workdir) in a for a in cmd))
@@ -503,6 +505,43 @@ class GrokCommandTests(TempDirTestCase):
         sibling = self.root / "other-submission"
         sibling.mkdir()
         self.assertFalse(any(str(sibling) in a for a in cmd))
+
+    def test_permission_roots_resolve_parent_aliases(self) -> None:
+        alias = self.root / "root-alias"
+        alias.symlink_to(self.root, target_is_directory=True)
+        alias_workdir = alias / "workdir"
+        job = AgentJob(
+            kind="implement",
+            harness="grok",
+            model=ModelSpec("grok-4.7", "high"),
+            workdir=alias_workdir,
+            prompt_path=self.prompt_path,
+            log_path=self.log_path,
+            last_message_path=self.last_message_path,
+        )
+
+        cmd = GrokHarness(binary=str(self.fake_bin)).build_command(job)
+        self.assertEqual(cmd[cmd.index("--cwd") + 1], str(self.workdir.resolve()))
+        allow_rules = [
+            cmd[i + 1] for i, arg in enumerate(cmd[:-1]) if arg == "--allow"
+        ]
+        self.assertIn(f"Read({self.workdir.resolve()})", allow_rules)
+        self.assertIn(f"Write({self.workdir.resolve()}/**)", allow_rules)
+
+    def test_direct_symlink_permission_root_is_rejected(self) -> None:
+        link = self.root / "workdir-link"
+        link.symlink_to(self.workdir, target_is_directory=True)
+        job = AgentJob(
+            kind="implement",
+            harness="grok",
+            model=ModelSpec("grok-4.7", "high"),
+            workdir=link,
+            prompt_path=self.prompt_path,
+            log_path=self.log_path,
+            last_message_path=self.last_message_path,
+        )
+        with self.assertRaisesRegex(ValueError, "must not be a symlink"):
+            GrokHarness(binary=str(self.fake_bin)).build_command(job)
 
     def test_workspace_execution_context_installs_and_restores_sandbox(self) -> None:
         h = GrokHarness(binary=str(self.fake_bin))
@@ -905,7 +944,7 @@ class ParseOutputTests(TempDirTestCase):
                                     "input_tokens": 200,
                                     "cached_input_tokens": 40,
                                     "output_tokens": 15,
-                                    "cache_write_tokens": 8,
+                                    "cache_write_input_tokens": 8,
                                 }
                             },
                         }
@@ -957,6 +996,121 @@ class ParseOutputTests(TempDirTestCase):
         self.assertEqual(parsed.usage.input_tokens, 40)
         self.assertEqual(parsed.usage.cached_input_tokens, 10)
         self.assertEqual(parsed.usage.output_tokens, 10)
+
+    def test_codex_incomplete_or_failed_terminal_stream_has_no_usable_usage(self) -> None:
+        h = CodexHarness(binary=str(self.fake_bin))
+        job = self._job()
+        cases = {
+            "transport error without completion": [
+                {"type": "turn.started"},
+                {"type": "item.completed", "item": {"type": "agent_message", "text": "partial"}},
+                {"type": "error", "message": "HTTPS connection reset by peer"},
+            ],
+            "cancelled after a completed earlier turn": [
+                {"type": "turn.completed", "usage": {"input_tokens": 10, "output_tokens": 2}},
+                {"type": "turn.started"},
+                {"type": "turn.failed", "error": {"message": "cancelled"}},
+            ],
+        }
+        for name, events in cases.items():
+            with self.subTest(name=name):
+                text = "\n".join(json.dumps(event) for event in events)
+                parsed = h.parse_output(job, text)
+                self.assertIsNone(parsed.usage)
+        self.assertTrue(h.requires_usage)
+
+    def test_codex_missing_or_unparseable_turn_counts_are_not_zero_usage(self) -> None:
+        h = CodexHarness(binary=str(self.fake_bin))
+        job = self._job()
+        cases = {
+            "empty usage": {},
+            "missing cached count": {"input_tokens": 10, "output_tokens": 2},
+            "unparseable output count": {
+                "input_tokens": 10,
+                "cached_input_tokens": 0,
+                "output_tokens": "2",
+            },
+            "negative input count": {
+                "input_tokens": -1,
+                "cached_input_tokens": 0,
+                "output_tokens": 2,
+            },
+            "cached count exceeds total": {
+                "input_tokens": 2,
+                "cached_input_tokens": 3,
+                "output_tokens": 2,
+            },
+        }
+        for name, usage in cases.items():
+            with self.subTest(name=name):
+                text = json.dumps({"type": "turn.completed", "usage": usage})
+                self.assertIsNone(h.parse_output(job, text).usage)
+
+    def test_codex_malformed_cumulative_usage_falls_back_to_valid_turn_counts(self) -> None:
+        h = CodexHarness(binary=str(self.fake_bin))
+        job = self._job()
+        events = [
+            {
+                "msg": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 30,
+                            "cached_input_tokens": 10,
+                            "output_tokens": 8,
+                        }
+                    },
+                }
+            },
+            {
+                "type": "turn.completed",
+                "usage": {
+                    "input_tokens": 20,
+                    "cached_input_tokens": 5,
+                    "cache_write_input_tokens": 3,
+                    "output_tokens": 4,
+                },
+            },
+            {
+                "msg": {
+                    "type": "token_count",
+                    "info": {"total_token_usage": {}},
+                }
+            },
+        ]
+
+        parsed = h.parse_output(job, "\n".join(json.dumps(event) for event in events))
+        self.assertEqual(parsed.usage, Usage(15, 5, 3, 4))
+
+    def test_codex_invalid_completed_turn_prevents_partial_usage_fallback(self) -> None:
+        h = CodexHarness(binary=str(self.fake_bin))
+        job = self._job()
+        events = [
+            {
+                "msg": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 30,
+                            "cached_input_tokens": 10,
+                            "output_tokens": 8,
+                        }
+                    },
+                }
+            },
+            {
+                "type": "turn.completed",
+                "usage": {
+                    "input_tokens": 20,
+                    "cached_input_tokens": 5,
+                    "output_tokens": 4,
+                },
+            },
+            {"type": "turn.completed", "usage": {}},
+        ]
+
+        parsed = h.parse_output(job, "\n".join(json.dumps(event) for event in events))
+        self.assertIsNone(parsed.usage)
 
     def test_claude_json_model_usage_and_cost(self) -> None:
         h = ClaudeHarness(binary=str(self.fake_bin))
@@ -1039,6 +1193,69 @@ class ParseOutputTests(TempDirTestCase):
         blob = json.dumps(parsed.__dict__, default=str)
         self.assertNotIn("unified.jsonl", blob)
         self.assertNotIn(".grok/logs", blob)
+
+    def test_grok_streaming_json_uses_terminal_accounting_once(self) -> None:
+        h = GrokHarness(binary=str(self.fake_bin))
+        job = self._job(harness="grok")
+        events = [
+            {"type": "text", "data": "final "},
+            {"type": "text", "data": "answer"},
+            {
+                "type": "usage",
+                "usage": {
+                    "input_tokens": 12933,
+                    "cache_read_input_tokens": 1664,
+                    "cache_creation_input_tokens": 0,
+                    "output_tokens": 323,
+                },
+            },
+            {
+                "type": "end",
+                "stopReason": "end_turn",
+                "sessionId": "grok-session-1",
+                "usage": {
+                    "input_tokens": 12933,
+                    "cache_read_input_tokens": 1664,
+                    "cache_creation_input_tokens": 0,
+                    "output_tokens": 323,
+                },
+                "total_cost_usd": 0.00973624,
+            },
+        ]
+
+        parsed = h.parse_output(job, "\n".join(json.dumps(event) for event in events))
+        self.assertEqual(parsed.usage, Usage(12933, 1664, 0, 323))
+        self.assertEqual(parsed.last_message, "final answer")
+        self.assertEqual(parsed.session_id, "grok-session-1")
+        self.assertEqual(parsed.reported_cost_usd, 0.00973624)
+
+    def test_grok_streaming_json_cancelled_and_incomplete_fail_closed(self) -> None:
+        h = GrokHarness(binary=str(self.fake_bin))
+        job = self._job(harness="grok")
+        cancelled = [
+            {
+                "type": "tool_call_update",
+                "status": "failed",
+                "content": [{"type": "content", "content": {"type": "text", "text": "User cancelled the execution for tool `run_terminal_command`"}}],
+            },
+            {
+                "type": "end",
+                "stopReason": "cancelled",
+                "sessionId": "grok-cancelled-session",
+                "usage": {
+                    "input_tokens": 12933,
+                    "cache_read_input_tokens": 1664,
+                    "cache_creation_input_tokens": 0,
+                    "output_tokens": 323,
+                },
+                "total_cost_usd": 0.00973624,
+            },
+        ]
+        with self.assertRaisesRegex(ValueError, "stopReason='cancelled'.*reported_cost_usd=0.00973624"):
+            h.parse_output(job, "\n".join(json.dumps(event) for event in cancelled))
+
+        with self.assertRaisesRegex(ValueError, "without a terminal end event"):
+            h.parse_output(job, json.dumps({"type": "text", "data": "partial"}))
 
     def test_grok_global_log_only_for_matching_session(self) -> None:
         h = GrokHarness(binary=str(self.fake_bin))

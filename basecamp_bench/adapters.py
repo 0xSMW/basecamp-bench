@@ -409,6 +409,7 @@ class CodexHarness(Harness):
     """OpenAI Codex CLI — ``exec``, JSONL events, prompt on stdin."""
 
     name = "codex"
+    requires_usage = True
 
     def working_directory(self, job: AgentJob) -> Path | None:
         # Workspace is selected with ``-C``; keep process cwd neutral.
@@ -446,30 +447,76 @@ class CodexHarness(Harness):
         # Codex ``input_tokens`` includes cached reads; normalize to disjoint buckets.
         # Prefer a final cumulative ``token_count`` when present; otherwise sum
         # demonstrably per-turn ``turn.completed`` usage events.
-        def from_codex(data: dict[str, Any]) -> Usage:
-            raw_input = _int_of(data.get("input_tokens"))
-            cached = _int_of(data.get("cached_input_tokens"))
-            cache_write = _int_of(
-                data.get("cache_write_tokens") or data.get("cache_creation_input_tokens")
-            )
+        def from_codex(data: dict[str, Any]) -> Usage | None:
+            counts: dict[str, int] = {}
+            for field in ("input_tokens", "cached_input_tokens", "output_tokens"):
+                value = data.get(field)
+                if (
+                    not isinstance(value, int)
+                    or isinstance(value, bool)
+                    or value < 0
+                ):
+                    return None
+                counts[field] = value
+
+            cache_write = 0
+            for field in (
+                "cache_write_tokens",
+                "cache_write_input_tokens",
+                "cache_creation_input_tokens",
+            ):
+                if field in data:
+                    value = data[field]
+                    if (
+                        not isinstance(value, int)
+                        or isinstance(value, bool)
+                        or value < 0
+                    ):
+                        return None
+                    cache_write = value
+                    break
+
+            raw_input = counts["input_tokens"]
+            cached = counts["cached_input_tokens"]
+            if cached > raw_input:
+                return None
             return Usage(
-                input_tokens=max(raw_input - cached, 0),
+                input_tokens=raw_input - cached,
                 cached_input_tokens=cached,
                 cache_write_tokens=cache_write,
-                output_tokens=_int_of(data.get("output_tokens")),
+                output_tokens=counts["output_tokens"],
             )
 
         cumulative: Usage | None = None
+        cumulative_invalid = False
         per_turn = Usage()
         saw_turn = False
+        per_turn_valid = True
+        turn_succeeded = False
         last_message: str | None = None
         session_id: str | None = None
         cost: float | None = None
 
         for obj in _iter_json_objects(stdout_text):
-            if obj.get("type") == "turn.completed" and isinstance(obj.get("usage"), dict):
-                per_turn = per_turn.add(from_codex(obj["usage"]))
-                saw_turn = True
+            event_type = obj.get("type")
+            if event_type == "turn.started":
+                # A completed earlier turn does not make a later interrupted
+                # turn successful.
+                turn_succeeded = False
+            elif event_type == "turn.completed":
+                turn_succeeded = True
+            elif event_type in {"turn.failed", "turn.cancelled", "turn.aborted", "error"}:
+                turn_succeeded = False
+
+            if event_type == "turn.completed":
+                raw_usage = obj.get("usage")
+                parsed_turn = from_codex(raw_usage) if isinstance(raw_usage, dict) else None
+                if parsed_turn is None:
+                    per_turn_valid = False
+                    cumulative_invalid = True
+                else:
+                    per_turn = per_turn.add(parsed_turn)
+                    saw_turn = True
 
             msg = obj.get("msg")
             if isinstance(msg, dict) and msg.get("type") == "token_count":
@@ -477,7 +524,12 @@ class CodexHarness(Harness):
                 if isinstance(info, dict):
                     total = info.get("total_token_usage")
                     if isinstance(total, dict):
-                        cumulative = from_codex(total)
+                        parsed_cumulative = from_codex(total)
+                        if parsed_cumulative is None:
+                            cumulative_invalid = True
+                        else:
+                            cumulative = parsed_cumulative
+                            cumulative_invalid = False
 
             if isinstance(obj.get("session_id"), str):
                 session_id = obj["session_id"]
@@ -495,7 +547,16 @@ class CodexHarness(Harness):
             if parsed_cost is not None:
                 cost = parsed_cost
 
-        usage = cumulative if cumulative is not None else (per_turn if saw_turn else None)
+        usage = (
+            cumulative
+            if cumulative is not None and not cumulative_invalid
+            else (per_turn if saw_turn and per_turn_valid else None)
+        )
+        # A subprocess exit code of zero is insufficient: Codex can terminate
+        # after a transport error without completing the active turn. Clearing
+        # partial accounting makes execute_agent fail closed via requires_usage.
+        if not turn_succeeded:
+            usage = None
         return ParsedOutput(
             usage=usage,
             reported_cost_usd=cost,
@@ -916,7 +977,7 @@ _GROK_DISALLOWED_TOOLS = (
 
 @register_harness
 class GrokHarness(Harness):
-    """Grok Build — ``--prompt-file`` + ``--cwd``, JSON output, scoped permissions."""
+    """Grok Build — ``--prompt-file`` + ``--cwd``, streaming JSON, scoped permissions."""
 
     name = "grok"
 
@@ -939,6 +1000,10 @@ class GrokHarness(Harness):
         # ``--no-subagents``, this does not remove the task-output companions
         # that Grok's background-capable terminal requires at session startup.
         env["GROK_SUBAGENTS"] = "0"
+        # Grok 1.0.41's shell safety parser prompts for multiline/control-flow
+        # commands even with Bash(*) allowed. This only skips those prompts
+        # while the job's explicit OS sandbox profile remains active.
+        env["GROK_SANDBOX_AUTO_ALLOW_BASH"] = "1"
         return env
 
     @contextmanager
@@ -948,7 +1013,12 @@ class GrokHarness(Harness):
             yield
             return
 
-        grok_dir = job.workdir / ".grok"
+        workdir = self._canonical_scoped_dir(job.workdir, "Grok workdir")
+        evidence_dirs = tuple(
+            self._canonical_scoped_dir(path, "Grok evidence path")
+            for path in job.evidence_dirs
+        )
+        grok_dir = workdir / ".grok"
         profile_path = grok_dir / "sandbox.toml"
         prompt_copy = grok_dir / ".basecamp-bench-prompt.md"
         if grok_dir.is_symlink() or profile_path.is_symlink() or prompt_copy.is_symlink():
@@ -966,9 +1036,7 @@ class GrokHarness(Harness):
         if prompt_copy.exists():
             raise ValueError("workspace contains reserved Grok prompt path")
 
-        read_only = list(job.evidence_dirs)
-        if any(not path.is_dir() for path in read_only):
-            raise ValueError("Grok evidence paths must be directories")
+        read_only = list(evidence_dirs)
         for entry in os.environ.get("PATH", "").split(os.pathsep):
             path = Path(entry)
             if entry and path.is_absolute() and path.is_dir() and path not in read_only:
@@ -1003,22 +1071,27 @@ class GrokHarness(Harness):
                     pass
 
     def build_command(self, job: AgentJob) -> list[str]:
+        workdir = (
+            Path(job.workdir)
+            if job.sandbox_mode == "danger-full-access"
+            else self._canonical_scoped_dir(job.workdir, "Grok workdir")
+        )
         cmd: list[str] = [
             self.resolve_binary(),
             "--prompt-file",
             str(
                 job.prompt_path
                 if job.sandbox_mode == "danger-full-access"
-                else job.workdir / ".grok" / ".basecamp-bench-prompt.md"
+                else workdir / ".grok" / ".basecamp-bench-prompt.md"
             ),
             "--cwd",
-            str(job.workdir),
+            str(workdir),
             "-m",
             job.model.model,
             "--reasoning-effort",
             job.model.effort,
             "--output-format",
-            "json",
+            "streaming-json",
             "--no-memory",
             "--verbatim",
         ]
@@ -1048,8 +1121,12 @@ class GrokHarness(Harness):
     def _permission_rules(job: AgentJob) -> list[str]:
         """Build ``--allow`` / ``--deny`` rules from workdir and evidence_dirs only."""
         rules: list[str] = []
-        workdir = Path(job.workdir)
-        allowed_roots = (workdir, *job.evidence_dirs)
+        workdir = GrokHarness._canonical_scoped_dir(job.workdir, "Grok workdir")
+        evidence_dirs = tuple(
+            GrokHarness._canonical_scoped_dir(path, "Grok evidence path")
+            for path in job.evidence_dirs
+        )
+        allowed_roots = (workdir, *evidence_dirs)
 
         # Read/search across workdir and evidence; write only inside workdir.
         for root in allowed_roots:
@@ -1068,10 +1145,8 @@ class GrokHarness(Harness):
         rules.extend(
             [
                 "--allow",
-                # Grok 1.0 documents the bare Bash prefix as the catch-all
-                # permission rule. ``Bash(*)`` no longer authorizes native
-                # ``run_terminal_command`` calls under ``dontAsk``.
-                "Bash",
+                # Keep terminal access scoped to Grok's Bash command matcher.
+                "Bash(*)",
                 "--allow",
                 f"Write({workdir_s})",
                 "--allow",
@@ -1084,7 +1159,7 @@ class GrokHarness(Harness):
         )
         # Evidence trees are read-only: deny write/edit constructed only from
         # the supplied evidence_dirs (no implicit provenance paths).
-        for evidence in job.evidence_dirs:
+        for evidence in evidence_dirs:
             evidence_s = str(evidence)
             rules.extend(
                 [
@@ -1100,10 +1175,38 @@ class GrokHarness(Harness):
             )
         return rules
 
+    @staticmethod
+    def _canonical_scoped_dir(path: Path, label: str) -> Path:
+        """Resolve path aliases without permitting a symlink root or missing scope."""
+        path = Path(path)
+        if path.is_symlink():
+            raise ValueError(f"{label} must not be a symlink")
+        try:
+            resolved = path.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise ValueError(f"{label} must be an existing directory") from exc
+        if not resolved.is_dir():
+            raise ValueError(f"{label} must be an existing directory")
+        return resolved
+
     def parse_output(self, job: AgentJob, stdout_text: str) -> ParsedOutput:
         # Prefer the explicit command log / stdout. Usage may appear inline in
         # newer JSON; otherwise, only consult the global unified log when a
         # session id was observed and matches log event ``sid`` values.
+        objects = list(_iter_json_objects(stdout_text))
+        stream_types = {
+            "available_commands",
+            "error",
+            "end",
+            "text",
+            "thought",
+            "tool_call",
+            "tool_call_update",
+            "usage",
+        }
+        if any(obj.get("type") in stream_types for obj in objects):
+            return self._parse_streaming_output(objects)
+
         session_id: str | None = None
         last: str | None = None
         cost: float | None = None
@@ -1117,7 +1220,11 @@ class GrokHarness(Harness):
             if isinstance(obj.get("session_id"), str):
                 session_id = obj["session_id"]
 
-            parsed_cost = _float_of(obj.get("total_cost_usd") or obj.get("cost_usd"))
+            parsed_cost = _float_of(
+                obj.get("total_cost_usd")
+                if obj.get("total_cost_usd") is not None
+                else obj.get("cost_usd")
+            )
             if parsed_cost is not None:
                 cost = parsed_cost
 
@@ -1149,6 +1256,71 @@ class GrokHarness(Harness):
             last_message=last,
             session_id=session_id,
         )
+
+    def _parse_streaming_output(self, events: list[dict[str, Any]]) -> ParsedOutput:
+        """Read Grok 1.0.41 NDJSON and require an explicitly successful end event."""
+        chunks: list[str] = []
+        terminal: Mapping[str, Any] | None = None
+        saw_error = False
+        for event in events:
+            event_type = event.get("type")
+            if event_type == "text" and isinstance(event.get("data"), str):
+                chunks.append(event["data"])
+            elif event_type == "error":
+                saw_error = True
+            elif event_type == "end":
+                terminal = event
+
+        session_id = terminal.get("sessionId") if terminal is not None else None
+        if not isinstance(session_id, str):
+            session_id = None
+        cost = (
+            _float_of(terminal.get("total_cost_usd"))
+            if terminal is not None
+            else None
+        )
+
+        if terminal is None:
+            raise ValueError("Grok streaming output ended without a terminal end event")
+        if saw_error:
+            raise ValueError(
+                "Grok streaming execution reported an error event"
+                + self._stream_accounting_suffix(session_id, cost)
+            )
+        stop_reason = terminal.get("stopReason")
+        if stop_reason != "end_turn":
+            raise ValueError(
+                f"Grok execution did not complete successfully (stopReason={stop_reason!r})"
+                + self._stream_accounting_suffix(session_id, cost)
+            )
+
+        raw_usage = terminal.get("usage")
+        usage = None
+        if isinstance(raw_usage, Mapping):
+            # In streaming-json, input_tokens is the uncached bucket; cached
+            # reads and cache writes are reported separately. Ignore earlier
+            # usage events because they are partial/cumulative snapshots.
+            usage = Usage(
+                input_tokens=_int_of(raw_usage.get("input_tokens")),
+                cached_input_tokens=_int_of(raw_usage.get("cache_read_input_tokens")),
+                cache_write_tokens=_int_of(raw_usage.get("cache_creation_input_tokens")),
+                output_tokens=_int_of(raw_usage.get("output_tokens")),
+            )
+        return ParsedOutput(
+            usage=usage,
+            reported_cost_usd=cost,
+            last_message="".join(chunks) or None,
+            session_id=session_id,
+        )
+
+    @staticmethod
+    def _stream_accounting_suffix(session_id: str | None, cost: float | None) -> str:
+        details = []
+        if session_id:
+            details.append(f"session_id={session_id}")
+        if cost is not None:
+            details.append(f"reported_cost_usd={cost}")
+        return f" ({', '.join(details)})" if details else ""
 
     @staticmethod
     def _usage_from_mapping(data: Mapping[str, Any] | None) -> Usage | None:
