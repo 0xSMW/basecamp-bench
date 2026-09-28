@@ -522,9 +522,7 @@ class GrokCommandTests(TempDirTestCase):
 
         cmd = GrokHarness(binary=str(self.fake_bin)).build_command(job)
         self.assertEqual(cmd[cmd.index("--cwd") + 1], str(self.workdir.resolve()))
-        allow_rules = [
-            cmd[i + 1] for i, arg in enumerate(cmd[:-1]) if arg == "--allow"
-        ]
+        allow_rules = [cmd[i + 1] for i, arg in enumerate(cmd[:-1]) if arg == "--allow"]
         self.assertIn(f"Read({self.workdir.resolve()})", allow_rules)
         self.assertIn(f"Write({self.workdir.resolve()}/**)", allow_rules)
 
@@ -1236,7 +1234,15 @@ class ParseOutputTests(TempDirTestCase):
             {
                 "type": "tool_call_update",
                 "status": "failed",
-                "content": [{"type": "content", "content": {"type": "text", "text": "User cancelled the execution for tool `run_terminal_command`"}}],
+                "content": [
+                    {
+                        "type": "content",
+                        "content": {
+                            "type": "text",
+                            "text": "User cancelled the execution for tool `run_terminal_command`",
+                        },
+                    }
+                ],
             },
             {
                 "type": "end",
@@ -1251,7 +1257,9 @@ class ParseOutputTests(TempDirTestCase):
                 "total_cost_usd": 0.00973624,
             },
         ]
-        with self.assertRaisesRegex(ValueError, "stopReason='cancelled'.*reported_cost_usd=0.00973624"):
+        with self.assertRaisesRegex(
+            ValueError, "stopReason='cancelled'.*reported_cost_usd=0.00973624"
+        ):
             h.parse_output(job, "\n".join(json.dumps(event) for event in cancelled))
 
         with self.assertRaisesRegex(ValueError, "without a terminal end event"):

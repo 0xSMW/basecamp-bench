@@ -451,11 +451,7 @@ class CodexHarness(Harness):
             counts: dict[str, int] = {}
             for field in ("input_tokens", "cached_input_tokens", "output_tokens"):
                 value = data.get(field)
-                if (
-                    not isinstance(value, int)
-                    or isinstance(value, bool)
-                    or value < 0
-                ):
+                if not isinstance(value, int) or isinstance(value, bool) or value < 0:
                     return None
                 counts[field] = value
 
@@ -467,11 +463,7 @@ class CodexHarness(Harness):
             ):
                 if field in data:
                     value = data[field]
-                    if (
-                        not isinstance(value, int)
-                        or isinstance(value, bool)
-                        or value < 0
-                    ):
+                    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
                         return None
                     cache_write = value
                     break
@@ -1015,8 +1007,7 @@ class GrokHarness(Harness):
 
         workdir = self._canonical_scoped_dir(job.workdir, "Grok workdir")
         evidence_dirs = tuple(
-            self._canonical_scoped_dir(path, "Grok evidence path")
-            for path in job.evidence_dirs
+            self._canonical_scoped_dir(path, "Grok evidence path") for path in job.evidence_dirs
         )
         grok_dir = workdir / ".grok"
         profile_path = grok_dir / "sandbox.toml"
@@ -1274,11 +1265,7 @@ class GrokHarness(Harness):
         session_id = terminal.get("sessionId") if terminal is not None else None
         if not isinstance(session_id, str):
             session_id = None
-        cost = (
-            _float_of(terminal.get("total_cost_usd"))
-            if terminal is not None
-            else None
-        )
+        cost = _float_of(terminal.get("total_cost_usd")) if terminal is not None else None
 
         if terminal is None:
             raise ValueError("Grok streaming output ended without a terminal end event")
