@@ -23,7 +23,7 @@ Building the project with GPT-5.6 Sol consumed **682 million tokens** and
 **$449.33 in model usage**. This development cost is separate from the
 benchmark-run costs reported below.
 
-## Results updated September 5, 2026
+## Results updated September 29, 2026
 
 <img width="1326" height="994" alt="Fable's BC5 app shell" src="https://github.com/user-attachments/assets/90e68cf7-538c-42d5-b7bd-b31ec2163504" />
 
@@ -31,25 +31,35 @@ Basecamp Bench asks each agent to build two parts of a Basecamp 5 clone from a
 fixed specification: a single-file frontend SPA and a production-shaped backend
 API. An independent evaluator scores every submission across weighted quality
 dimensions. Fable 5.1 leads frontend at 8.183, ahead of GPT-6 Astra at
-7.607. Astra leads backend at 9.305, ahead of Fable at 8.965. Astra costs about
-a quarter as much as Fable 5.1 across both tracks ($25.57 versus $92.96).
-Every model in the table scores higher on backend than frontend.
+7.607. Astra leads backend at 9.305, ahead of Sonnet 5.5 at 9.011 and Fable 5.1
+at 8.965. Astra costs about a quarter as much as Fable 5.1 across both tracks
+($25.57 versus $92.96). Every model in the table except GPT-6 Sol scores higher
+on backend than frontend.
 
 | Model | Frontend | Backend | Total time | Total cost |
 | --- | ---: | ---: | ---: | ---: |
 | Fable 5.1 | 8.183 | 8.965 | 3:04:06 | $92.96 |
 | GPT-6 Astra | 7.607 | 9.305 | 1:36:31 | $25.57 |
 | Fable 5 | 7.578 | 8.392 | 2:06:40 | $85.87 |
+| Sonnet 5.5 | 7.575 | 9.011 | 2:18:20 | $52.30 |
 | Grok 4.6 | 7.104 | 7.926 | 57:58 | $10.85 |
 | Sonnet 5 | 6.982 | 7.243 | 1:27:09 | $36.23 |
+| Grok 4.7* | 6.650 | 7.605 | 4:20:06 | ≥$10.46 |
+| Opus 5.5 | 6.625 | 8.683 | 1:59:02 | $32.30 |
 | Grok 4.5 | 6.384 | 7.278 | 36:48 | $9.30 |
+| GPT-6 Sol | 6.212 | 6.155 | 1:33:42 | $6.73 |
 | GPT-5.6 Sol | 5.765 | 7.310 | 59:48 | $15.13 |
 | Muse Spark 1.3 | 5.745 | 6.711 | 42:24 | $4.63 |
 | Gemini 3.8 Flash High | 5.700 | 6.483 | 38:17 | $6.07 |
 | GPT-5.5 | 5.670 | 7.084 | 44:14 | $10.94 |
 | Gemini 3.7 Flash High | 5.608 | 5.800 | 30:59 | $7.54 |
+| GPT-6 Luna* | 5.434 | 6.695 | ~5:17:32 | ≥$3.30 |
 
 Total time and cost include implementation and evaluation across both tracks.
+GPT-6 Sol judged the five models added on September 29, and GPT-5.6 Sol judged
+the rest. \* GPT-6 Sol finished part of the Grok 4.7 and GPT-6 Luna work after
+their own attempts failed or stalled. Their costs are lower bounds because some
+failed attempts left no usage record.
 
 Original baseline evidence is available in [baseline/](baseline/). Read the
 [full report](https://basecamp-bench-report.smw-ai.chatgpt.site).
