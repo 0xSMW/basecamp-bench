@@ -22,6 +22,7 @@
     --grok46: #967014;
     --opus5: #3b6ea5;
     --fable: #d97757;
+    --sonnet55: #5b3fa0;
     --sonnet: #8a63d2;
     --opus: #c05a9d;
     --grok: #2f3640;
@@ -81,6 +82,7 @@
   .m-grok46 .swatch { background: var(--grok46); }
   .m-opus5 .swatch { background: var(--opus5); }
   .m-fable .swatch { background: var(--fable); }
+  .m-sonnet55 .swatch { background: var(--sonnet55); }
   .m-sonnet .swatch { background: var(--sonnet); }
   .m-opus .swatch { background: var(--opus); }
   .m-grok .swatch { background: var(--grok); }
@@ -148,6 +150,7 @@
   <a href="#m-astra" class="toc-model m-astra"><span class="swatch"></span>GPT-6 Astra</a>
   <a href="#m-opus5" class="toc-model m-opus5"><span class="swatch"></span>Opus 5</a>
   <a href="#m-fable" class="toc-model m-fable"><span class="swatch"></span>Fable 5</a>
+  <a href="#m-sonnet55" class="toc-model m-sonnet55"><span class="swatch"></span>Sonnet 5.5</a>
   <a href="#m-grok46" class="toc-model m-grok46"><span class="swatch"></span>Grok 4.6</a>
   <a href="#m-sonnet" class="toc-model m-sonnet"><span class="swatch"></span>Sonnet 5</a>
   <a href="#m-opus" class="toc-model m-opus"><span class="swatch"></span>Opus 4.8</a>
@@ -162,7 +165,7 @@
 <header>
   <div class="masthead">
     <h1>Basecamp Bench</h1>
-    <span class="date">eval 2026-07-11.2 · September 5, 2026</span>
+    <span class="date">eval 2026-07-11.2 · September 29, 2026</span>
   </div>
 </header>
 
@@ -170,18 +173,19 @@
 <section id="briefing">
   <p>Basecamp Bench measures a model's ability to ship production-grade software from a fixed specification on a well-known application. Each workspace begins like a real greenfield project: <code>AGENTS.md</code> maps the source material and sets its order of precedence, <code>DESIGN.md</code> provides production design tokens, and <code>INIT.md</code> specifies the product, domain model, and sample data. Each project item uses a shared <code>Recording</code> model that unifies identity, lifecycle, visibility, comments, reactions, subscriptions, and events across tools. Agents build two parts of a Basecamp 5 clone: a single-file frontend SPA evaluated as a release-ready product across 11 weighted dimensions and nine reference screenshots, and a production-ready backend API implementing all 203 operations in the canonical OpenAPI contract across 9 weighted dimensions. All implementation and architecture decisions are evaluated as written for direct production use. Each model starts without an existing implementation, so it must translate the same complete requirements and reference materials into its own architecture and product decisions. The benchmark reveals how well each model exercises greenfield engineering judgment, prioritizes competing concerns, and carries those decisions through to working software.</p>
 
-  <p>Fable 5.1 leads frontend at 8.183 through exceptional product fidelity, surface coverage, and working workflows. GPT-6 Astra leads backend at 9.305 through contract fidelity, deterministic seed data, durable state, and explicit unsupported-operation handling. Astra's frontend scores 7.607, just ahead of Opus 5 and Fable 5, and its $25.57 combined cost is about 28% of Fable 5.1's $92.96. Grok 4.6 improves on Grok 4.5 in both tracks for $10.85, with frontend content safety and backend credential disclosure driving its largest deductions. These ten model results separate product breadth from the validation, lifecycle, and contract work needed to make that breadth dependable.</p>
+  <p>Fable 5.1 leads frontend at 8.183 through exceptional product fidelity, surface coverage, and working workflows. GPT-6 Astra leads backend at 9.305 through contract fidelity, deterministic seed data, durable state, and explicit unsupported-operation handling. Astra's frontend scores 7.607, just ahead of Opus 5 and Fable 5, and its $25.57 combined cost is about 28% of Fable 5.1's $92.96. Grok 4.6 improves on Grok 4.5 in both tracks for $10.85, with frontend content safety and backend credential disclosure driving its largest deductions. Sonnet 5.5 takes second on backend at 9.011 and lands 0.003 behind Fable 5 on frontend, for $52.30. These eleven model results separate product breadth from the validation, lifecycle, and contract work needed to make that breadth dependable.</p>
 
   <ul>
-    <li>Fable 5.1 leads FE at 8.183 and places second on BE at 8.965 for $92.96. Its frontend passes 3,485 executable checks, but malformed persisted state and trusted stored HTML remain unsafe. Backend reset isolation, media validation, and snapshot shutdown need repair.</li>
+    <li>Fable 5.1 leads FE at 8.183 and places third on BE at 8.965 for $92.96. Its frontend passes 3,485 executable checks, but malformed persisted state and trusted stored HTML remain unsafe. Backend reset isolation, media validation, and snapshot shutdown need repair.</li>
     <li>GPT-6 Astra places second on FE at 7.607 and leads BE at 9.305 for $25.57. Its backend registers all 203 operations, returns explicit 501s for 11 unsupported operations, and preserves state across restart. Frontend state validation, new-project defaults, and boost-length validation remain incomplete.</li>
-    <li>Opus 5 places third on FE at 7.583 and fourth on BE at 8.390 for $78.11 across both tracks. It combines a broad connected frontend surface with complete backend route coverage, but malformed persisted state can brick the frontend, cross-project attachments can disclose private files, and webhook updates bypass the production private-address guard.</li>
-    <li>Fable 5 places fourth on FE (7.578) and third on BE (8.392) for $85.87. Fable implements broad capability and still has four hardening defects: unsanitized stored HTML, corrupted copy IDs, wildcard CORS with Authorization, and production logs that expose seed tokens.</li>
-    <li>Grok 4.6 places fifth on both FE (7.104) and BE (7.926) for $10.85. Its shared domain model supports broad workflows, but raw rich text, exposed credentials, and unrestricted webhook destinations undermine production safety.</li>
-    <li>Sonnet 5 places sixth on FE (6.982) with real persisted workflows and a rich-text sanitizer. Its backend contains two critical authorization defects. A client token can delete the sample project, and an unauthenticated endpoint exposes every raw credential.</li>
-    <li>Opus 4.8 places seventh on FE (6.587) with faithful surfaces and persisted workflows. Its BE (6.590) registers all 203 routes and broad CRUD, but leaks the owner token, exposes unauthenticated reset, and lets nonmembers edit projects.</li>
+    <li>Opus 5 places third on FE at 7.583 and fifth on BE at 8.390 for $78.11 across both tracks. It combines a broad connected frontend surface with complete backend route coverage, but malformed persisted state can brick the frontend, cross-project attachments can disclose private files, and webhook updates bypass the production private-address guard.</li>
+    <li>Fable 5 places fourth on FE (7.578) and fourth on BE (8.392) for $85.87. Fable implements broad capability and still has four hardening defects: unsanitized stored HTML, corrupted copy IDs, wildcard CORS with Authorization, and production logs that expose seed tokens.</li>
+    <li>Sonnet 5.5 places fifth on FE at 7.575, 0.003 behind Fable 5, and second on BE at 9.011 for $52.30. Its backend matches all 203 operations and passes schema validation on 77 sampled responses. Unchecked <code>javascript:</code> URLs, a query string that crashes search, and unenforced request media types drive its largest deductions. GPT-6 Sol judged both tracks.</li>
+    <li>Grok 4.6 places sixth on both FE (7.104) and BE (7.926) for $10.85. Its shared domain model supports broad workflows, but raw rich text, exposed credentials, and unrestricted webhook destinations undermine production safety.</li>
+    <li>Sonnet 5 places seventh on FE (6.982) with real persisted workflows and a rich-text sanitizer. Its backend contains two critical authorization defects. A client token can delete the sample project, and an unauthenticated endpoint exposes every raw credential.</li>
+    <li>Opus 4.8 places eighth on FE (6.587) with faithful surfaces and persisted workflows. Its BE (6.590) registers all 203 routes and broad CRUD, but leaks the owner token, exposes unauthenticated reset, and lets nonmembers edit projects.</li>
     <li>Grok 4.5 has the lowest combined cost among models scoring above 6, at $9.30 across both tracks in 37 minutes. Its main deductions come from validation, partial feature handling, narrow-screen navigation, and malformed stored state.</li>
-    <li>GPT-5.6 Sol places sixth on backend with strong operability and 71 explicit <code>501</code> stubs. Its frontend places ninth and leaves most controls inert. Its generic router introduces a type error that allows a todo request to return a Message.</li>
+    <li>GPT-5.6 Sol places seventh on backend with strong operability and 71 explicit <code>501</code> stubs. Its frontend places tenth and leaves most controls inert. Its generic router introduces a type error that allows a todo request to return a Message.</li>
     <li>GPT-5.5 ships a backend with restart persistence. Its frontend scores 5.670. The Post button fires a "Comment posted" toast without reading the textarea or writing state, and malformed storage crashes the app at boot.</li>
     <li>Recurring failure modes across the report: incomplete lifecycle behavior, contract drift, weak validation, and enabled-looking controls with no handler behind them.</li>
   </ul>
@@ -195,6 +199,7 @@
       <tr><td>GPT-6 Astra</td><td class="num">7.607</td><td class="num">50:19</td><td class="num">$13.16</td><td class="num winner">9.305</td><td class="num">46:12</td><td class="num">$12.40</td><td class="num">$25.57</td></tr>
       <tr><td>Opus 5</td><td class="num">7.583</td><td class="num">1:17:36</td><td class="num">$42.01</td><td class="num">8.390</td><td class="num">1:08:55</td><td class="num">$36.11</td><td class="num">$78.11</td></tr>
       <tr><td>Fable 5</td><td class="num">7.578</td><td class="num">1:02:14</td><td class="num">$32.40</td><td class="num">8.392</td><td class="num">1:04:26</td><td class="num">$53.47</td><td class="num">$85.87</td></tr>
+      <tr><td>Sonnet 5.5</td><td class="num">7.575</td><td class="num">1:25:47</td><td class="num">$37.77</td><td class="num">9.011</td><td class="num">52:34</td><td class="num">$14.54</td><td class="num">$52.30</td></tr>
       <tr><td>Grok 4.6</td><td class="num">7.104</td><td class="num">25:32</td><td class="num winner">$3.89</td><td class="num">7.926</td><td class="num">32:26</td><td class="num">$6.96</td><td class="num">$10.85</td></tr>
       <tr><td>Sonnet 5</td><td class="num">6.982</td><td class="num">44:17</td><td class="num">$14.22</td><td class="num">7.243</td><td class="num">42:52</td><td class="num">$22.01</td><td class="num">$36.23</td></tr>
       <tr><td>Opus 4.8</td><td class="num">6.587</td><td class="num">43:28</td><td class="num">$11.58</td><td class="num">6.590</td><td class="num">47:53</td><td class="num">$18.26</td><td class="num">$29.83</td></tr>
@@ -490,6 +495,67 @@
     </details>
   </div>
 
+  <!-- SONNET 5.5 -->
+  <div class="model m-sonnet55" id="m-sonnet55">
+    <h3><span class="swatch"></span>Sonnet 5.5 — second-best backend with a well-tested frontend</h3>
+    <p class="scores">FE 7.575 · BE 9.011 · $52.30 total · 2:18:20 total</p>
+    <p>Sonnet 5.5 scores 0.593 higher than Sonnet 5 on frontend and 1.768 higher on backend. Its backend trails Astra by 0.294 and beats Fable 5.1 by 0.046. Both tracks build on one Recording map with parent indexes, events, boosts, and subscriptions. The frontend ships a 491-line DOM test that renders 127 routes, dispatches 4,300 actions, and passes 1,114 assertions. GPT-6 Sol judged both submissions. GPT-5.6 Sol judged every other row.</p>
+
+    <h4>Where it shines</h4>
+    <ul>
+      <li><b data-scores="FE Surface:9.0|FE Depth:8.5">Wide route table with working workflows</b>Routes cover every screenshot surface plus Activity, Calendar, Reports, Search, Lineup, Assignments, Pings, Adminland, Trash, Check-ins, and Forwards. An independent scenario created a project, added a to-do list and a to-do, found it in search, completed it, trashed and restored it, and kept the result through reload.</li>
+      <li><b data-scores="BE Surface:9.8|BE Seed:9.6|BE Scope honesty:9.2">Complete routes and an honest scope</b>The route table matches all 203 canonical operations. The seed reproduces the website launch project with 13 cards and 16 chat lines, and reset restores the same IDs. The file header lists what the server does not support, including Pings, My Notes, OAuth, and billing.</li>
+      <li><b data-scores="BE Contract:9.0|BE Depth:8.8">Schema-valid, stateful responses</b>All 77 sampled GET responses pass OpenAPI schema validation. Client grants change what a client can read, card moves update parent and completion state, and a snapshot reload keeps a newly created message.</li>
+    </ul>
+
+    <h4>Where it's okay</h4>
+    <ul>
+      <li><b data-scores="FE Interaction:7.0|FE Accessibility:7.0">Keyboard and focus support, unconfirmed in a browser</b>The code has shortcuts, focus restore, modal Tab containment, Undo toasts, and touch-visible alternatives to hover controls. Chrome refused the local file URL, so the judge could not confirm real focus, drag, or touch behavior.</li>
+      <li><b data-scores="FE Reference:7.5|FE Visual:7.5">Close to the references in source</b>The CSS reproduces the dark sheet, pinned breadcrumb, My Bar, three-column dock, kanban lanes, and Jump layout from the captures. No one observed the rendered pixels.</li>
+      <li><b data-scores="BE Code:8.1">Readable code in one large file</b>Clear sections and shared serializers help. Routing, seed data, and transport still share one 5,069-line file.</li>
+    </ul>
+
+    <h4>Where it underperforms</h4>
+    <ul>
+      <li><b data-scores="FE Reliability:6.0">Unchecked URLs and query strings</b>Door and cloud-link forms accept <code>javascript:</code> URLs and render them into <code>href</code>. The route <code>#/1/search?q=%</code> throws <code>URIError</code> before the view error boundary can catch it.</li>
+      <li><b data-scores="FE State:7.0">Partial stored-state validation</b>Invalid JSON reseeds the app. A version-4 object with empty records and no <code>seq</code> still loads, and the next new project gets a <code>null</code> ID.</li>
+      <li><b data-scores="BE Validation:8.4">Request media types go unchecked</b>The JSON message route and the octet-stream attachment route both return 201 for <code>text/plain</code> bodies. Upcoming schedule responses always return an empty list of recurring occurrences.</li>
+    </ul>
+
+    <h4>Failure modes</h4>
+    <p>Sonnet 5.5 fixes the authorization problems that sank Sonnet 5's backend. Unauthorized client and collaborator changes return 403, and reset is owner-gated. What remains is input checking at the edges: URL schemes and query strings on the frontend, stored-state shape at boot, and request media types on the backend. Each fix is small. The frontend review relied on source reading and a DOM shim instead of a browser, so its visual, responsive, and accessibility scores carry more uncertainty than the backend's.</p>
+
+    <details class="dims">
+      <summary>Dimension scores</summary>
+      <div class="dims-track">FRONTEND</div>
+      <div class="dims-row">
+        <span class="tile score-good" data-tip="Accuracy against the nine reference screenshots and specs" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Ref</span></span>
+        <span class="tile score-good" data-tip="Typography, color, spacing, token, and motion consistency" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Craft</span></span>
+        <span class="tile score-strong" data-tip="Accuracy and richness of Basecamp concepts and relationships" tabindex="0"><span class="tile-box">8.5</span><span class="tile-label">Model</span></span>
+        <span class="tile score-strong" data-tip="Breadth of reachable screens, routes, overlays, empty states" tabindex="0"><span class="tile-box">9.0</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-strong" data-tip="Workflows run end-to-end instead of ending in stubs" tabindex="0"><span class="tile-box">8.5</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-good" data-tip="Discoverability, feedback, keyboard efficiency, focus, error recovery" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Inter</span></span>
+        <span class="tile score-good" data-tip="Correct state across mutations, navigation, reloads, resets" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">State</span></span>
+        <span class="tile score-good" data-tip="Usability and feature preservation across viewport sizes" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Resp</span></span>
+        <span class="tile score-good" data-tip="Semantics, accessible names, keyboard operability, focus, contrast" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">A11y</span></span>
+        <span class="tile score-good" data-tip="Readability, modularity, reuse, ease of safe modification" tabindex="0"><span class="tile-box">7.0</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-mixed" data-tip="Runtime stability, input escaping, defensive handling, performance" tabindex="0"><span class="tile-box">6.0</span><span class="tile-label">Rely</span></span>
+      </div>
+      <div class="dims-track">BACKEND</div>
+      <div class="dims-row">
+        <span class="tile score-strong" data-tip="Coherent shared domain model with enforced invariants" tabindex="0"><span class="tile-box">9.1</span><span class="tile-label">Arch</span></span>
+        <span class="tile score-strong" data-tip="All 203 canonical operations registered and reachable" tabindex="0"><span class="tile-box">9.8</span><span class="tile-label">Surf</span></span>
+        <span class="tile score-strong" data-tip="Real stateful mutations, lifecycle, cross-resource behavior" tabindex="0"><span class="tile-box">8.8</span><span class="tile-label">Depth</span></span>
+        <span class="tile score-strong" data-tip="Statuses, headers, pagination, response shapes match OpenAPI" tabindex="0"><span class="tile-box">9.0</span><span class="tile-label">HTTP</span></span>
+        <span class="tile score-strong" data-tip="Sample data matches the specified deterministic inventory" tabindex="0"><span class="tile-box">9.6</span><span class="tile-label">Seed</span></span>
+        <span class="tile score-strong" data-tip="Authentication, authorization, input validation, request hardening" tabindex="0"><span class="tile-box">8.4</span><span class="tile-label">Valid</span></span>
+        <span class="tile score-strong" data-tip="Configuration, health, logging, shutdown, packaging, testability" tabindex="0"><span class="tile-box">8.8</span><span class="tile-label">Ops</span></span>
+        <span class="tile score-strong" data-tip="Readability, structure, naming, safe extensibility" tabindex="0"><span class="tile-box">8.1</span><span class="tile-label">Code</span></span>
+        <span class="tile score-strong" data-tip="Incomplete features fail explicitly, never fake success" tabindex="0"><span class="tile-box">9.2</span><span class="tile-label">Hnsty</span></span>
+      </div>
+    </details>
+  </div>
+
   <div class="model m-grok46" id="m-grok46">
     <h3><span class="swatch"></span>Grok 4.6 — higher scores at low cost with critical safety gaps</h3>
     <p class="scores">FE 7.104 · BE 7.926 · $10.85 total · 57:58 total</p>
@@ -742,7 +808,7 @@
   <div class="model m-sol" id="m-sol">
     <h3><span class="swatch"></span>GPT-5.6 Sol — strong operability with explicit backend limitations</h3>
     <p class="scores">FE 5.765 · BE 7.310 · $15.13 total · 59:48 total</p>
-    <p>Sol implements 132 backend operations, marks the remaining 71 with explicit <code>501</code> responses, and provides strong operational scaffolding. These decisions earn it sixth place on BE. Its frontend leaves twelve controls marked as prototypes and provides no complete create, edit, comment, or delete workflow.</p>
+    <p>Sol implements 132 backend operations, marks the remaining 71 with explicit <code>501</code> responses, and provides strong operational scaffolding. These decisions earn it seventh place on BE. Its frontend leaves twelve controls marked as prototypes and provides no complete create, edit, comment, or delete workflow.</p>
 
     <h4>Where it shines</h4>
     <ul>
@@ -805,7 +871,7 @@
   <div class="model m-gpt55" id="m-gpt55">
     <h3><span class="swatch"></span>GPT-5.5 — durable backend with limited frontend behavior</h3>
     <p class="scores">FE 5.670 · BE 7.084 · $10.94 total · 44:14 total</p>
-    <p>GPT-5.5 ships a backend with durable persistence: a SQLite store whose created todos and comments survive a full restart. Complete route coverage and solid hardening basics support its 7.084 backend score. Its frontend scores 5.670, tenth overall. All nine required screens render, but no creation, editing, commenting, or movement works, and toasts confirm actions that never ran.</p>
+    <p>GPT-5.5 ships a backend with durable persistence: a SQLite store whose created todos and comments survive a full restart. Complete route coverage and solid hardening basics support its 7.084 backend score. Its frontend scores 5.670, eleventh overall. All nine required screens render, but no creation, editing, commenting, or movement works, and toasts confirm actions that never ran.</p>
 
     <h4>Where it shines</h4>
     <ul>
@@ -937,7 +1003,7 @@
   <h2>Commentary</h2>
   <p>Software teams rarely expect a model to produce finished production software from one prompt and a specification. They work iteratively, review the output, run tests, identify gaps, and ask the model to refine what it built. Basecamp Bench removes that correction loop for the initial build, revealing the decisions and failure modes each model introduces before an engineer intervenes.</p>
   <p>Fable 5.1 and Astra now lead different tracks. Fable's frontend advantage is 0.576, supported by deeper product coverage and a substantial executable workflow suite. Astra's backend advantage is 0.340, supported by tighter contracts, deterministic seed data, atomic persistence, and candid unsupported-operation handling. Astra costs about a quarter as much as Fable 5.1 across both tracks.</p>
-  <p>Every model leaves different work for the engineer. Opus 5 produces a broad combined starting point, with unusually broad connected product behavior and a complete backend surface, yet still exposes private attachments, permits unsafe webhook updates, trusts malformed persisted state, and drifts from response schemas. Fable builds equally deep workflows with stronger frontend persistence and backend hardening, while still shipping unsafe stored content, schema errors, and exposed credentials. Sonnet builds many working workflows but misses critical authorization, reset, and state-integrity safeguards. Opus 4.8 builds a broad, visually strong frontend and a genuinely stateful backend, but exposes owner credentials and fails core membership and cross-project invariants. Grok moves quickly and covers substantial ground while cutting depth in validation, mobile behavior, and lifecycle handling. Sol clearly marks unsupported backend operations, but leaves 71 of them unfinished and produces a shallow frontend. GPT-5.5 builds a durable backend, yet its frontend leaves core controls inert and its API drifts from the contract.</p>
+  <p>Every model leaves different work for the engineer. Opus 5 produces a broad combined starting point, with unusually broad connected product behavior and a complete backend surface, yet still exposes private attachments, permits unsafe webhook updates, trusts malformed persisted state, and drifts from response schemas. Fable builds equally deep workflows with stronger frontend persistence and backend hardening, while still shipping unsafe stored content, schema errors, and exposed credentials. Sonnet builds many working workflows but misses critical authorization, reset, and state-integrity safeguards. Sonnet 5.5 closes those backend gaps and leaves smaller input-checking work on both tracks. Opus 4.8 builds a broad, visually strong frontend and a genuinely stateful backend, but exposes owner credentials and fails core membership and cross-project invariants. Grok moves quickly and covers substantial ground while cutting depth in validation, mobile behavior, and lifecycle handling. Sol clearly marks unsupported backend operations, but leaves 71 of them unfinished and produces a shallow frontend. GPT-5.5 builds a durable backend, yet its frontend leaves core controls inert and its API drifts from the contract.</p>
   <p>The earlier entries illustrate the same value question. Opus 5 and Fable 5 are effectively tied on quality: Opus leads FE by 0.005, Fable leads BE by 0.002, and Opus costs about 91% as much while taking roughly twenty minutes longer across both evaluated tracks. Grok 4.5 reaches roughly 84–87% of either model's score for about 11–12% of their total cost and finishes in 37 minutes instead of more than two hours. Opus 4.8 costs more than three times as much as Grok while scoring only slightly higher on frontend and materially lower on backend, making its stronger visual and product-model work expensive relative to its trust-boundary defects. Teams must decide whether higher initial quality justifies the higher cost, or whether a cheaper model plus deliberate engineering iteration produces better overall value.</p>
   <p>The results suggest that a skilled prompter and experienced engineer can use any of these agent combinations to reach a strong result through iteration. Model choice primarily changes the starting point, working style, and review burden. Preference for output style and the time available for review may matter more than the final attainable outcome.</p>
 </section>
@@ -967,12 +1033,14 @@
   <p>The judge scores each dimension 0 to 10 from direct evidence, and the benchmark runner computes the weighted overall. The rubric requires the judge to distinguish absent, visually present, stubbed, working, and persistent functionality, and forbids crediting the same capability twice.</p>
 
   <h4>Evaluator</h4>
-  <p>GPT-5.6 Sol, at high reasoning effort, judges every submission and produces one review each. The evaluator bases its scores on repository diffs, executed code, schema validation, and cited file evidence. It diffs the full seed-to-submission delta, enumerates every route against the OpenAPI document, and executes each submission's actual code, using in-process request handlers for backends and DOM and localStorage harnesses for frontends. Where applicable it sweeps all 203 operations, validates responses against their schemas, and probes malformed input, authorization boundaries, lifecycle cascades, and reload persistence. The evaluation sandbox denies socket binding and browser startup, so the judge exercises servers through their real handlers in process and withholds pixel-level claims rather than assuming them. Every score cites file and line evidence.</p>
+  <p>GPT-5.6 Sol, at high reasoning effort, judges every submission except Sonnet 5.5's and produces one review each. The evaluator bases its scores on repository diffs, executed code, schema validation, and cited file evidence. It diffs the full seed-to-submission delta, enumerates every route against the OpenAPI document, and executes each submission's actual code, using in-process request handlers for backends and DOM and localStorage harnesses for frontends. Where applicable it sweeps all 203 operations, validates responses against their schemas, and probes malformed input, authorization boundaries, lifecycle cascades, and reload persistence. The evaluation sandbox denies socket binding and browser startup, so the judge exercises servers through their real handlers in process and withholds pixel-level claims rather than assuming them. Every score cites file and line evidence.</p>
 
   <p>The September update adds Fable 5.1 (September 2), Grok 4.6 (August 12), and GPT-6 Astra (September 5) under contract 2026-07-11.2. Each runs at high reasoning effort in its configured harness. Astra's implementation threads use Sol and Terra helper agents. The new frontend evaluations use source inspection and controlled rendering or DOM probes. They do not supply pixel-level browser captures.</p>
 
+  <p>The September 29 update adds Sonnet 5.5 (<code>claude-sonnet-5-5</code>) at high reasoning effort in the Claude Code harness. GPT-6 Sol at high reasoning effort judges both of its submissions. The backend runs under contract 2026-07-11.2. The frontend runs under contract 2026-09-05.1, which lets the evaluator open the prototype in Chrome and keeps the same weights and scoring anchors. Chrome refused the local <code>file:</code> URL, so the frontend review relies on source inspection, the submitted Node DOM test, and independent DOM scenarios. The judge differs from every other row, so small gaps between Sonnet 5.5 and its neighbors are less certain than the table suggests.</p>
+
   <h4>Cost</h4>
-  <p>Evaluation is a separate spend from implementation. Judging the twenty submissions in this report with Sol 5.6 at high reasoning effort cost $59.86 in 3:35:35 of evaluator time, averaging $2.99 per review, against $334.91 of implementation spend.</p>
+  <p>Evaluation is a separate spend from implementation. Judging the first twenty submissions in this report with Sol 5.6 at high reasoning effort cost $59.86 in 3:35:35 of evaluator time, averaging $2.99 per review, against $334.91 of implementation spend. GPT-6 Sol judged Sonnet 5.5's two submissions for $2.75 in 18:08, against $49.55 of implementation spend.</p>
   <table>
     <thead>
       <tr><th>Benchmarked model</th><th class="num">FE review cost</th><th class="num">FE review time</th><th class="num">BE review cost</th><th class="num">BE review time</th><th class="num">Combined</th></tr>
@@ -983,19 +1051,20 @@
       <tr><td>Grok 4.6</td><td class="num">$2.94</td><td class="num">8:21</td><td class="num">$4.70</td><td class="num">13:18</td><td class="num">$7.64 · 21:39</td></tr>
       <tr><td>Opus 5</td><td class="num">$5.29</td><td class="num">12:46</td><td class="num">$3.22</td><td class="num">14:46</td><td class="num">$8.51 · 27:32</td></tr>
       <tr><td>Fable 5</td><td class="num">$3.01</td><td class="num">8:26</td><td class="num">$2.16</td><td class="num">8:08</td><td class="num">$5.17 · 16:33</td></tr>
+      <tr><td>Sonnet 5.5 (GPT-6 Sol)</td><td class="num">$1.40</td><td class="num">7:26</td><td class="num">$1.34</td><td class="num">10:42</td><td class="num">$2.75 · 18:08</td></tr>
       <tr><td>Sonnet 5</td><td class="num">$3.58</td><td class="num">11:17</td><td class="num">$2.45</td><td class="num">8:05</td><td class="num">$6.03 · 19:22</td></tr>
       <tr><td>Opus 4.8</td><td class="num">$2.60</td><td class="num">8:07</td><td class="num">$2.15</td><td class="num">8:04</td><td class="num">$4.75 · 16:11</td></tr>
       <tr><td>Grok 4.5</td><td class="num">$2.85</td><td class="num">8:15</td><td class="num">$3.23</td><td class="num">12:31</td><td class="num">$6.08 · 20:46</td></tr>
       <tr><td>GPT-5.6 Sol</td><td class="num">$3.41</td><td class="num">9:15</td><td class="num">$1.37</td><td class="num">8:32</td><td class="num">$4.77 · 17:47</td></tr>
       <tr><td>GPT-5.5</td><td class="num">$2.36</td><td class="num">6:56</td><td class="num">$2.48</td><td class="num">7:53</td><td class="num">$4.84 · 14:49</td></tr>
-      <tr><td>All</td><td class="num">$32.37</td><td class="num">1:44:33</td><td class="num">$27.49</td><td class="num">1:51:02</td><td class="num">$59.86 · 3:35:35</td></tr>
+      <tr><td>All Sol 5.6 reviews</td><td class="num">$32.37</td><td class="num">1:44:33</td><td class="num">$27.49</td><td class="num">1:51:02</td><td class="num">$59.86 · 3:35:35</td></tr>
     </tbody>
   </table>
 
   <p>Track costs and times include implementation and evaluation. Combined time sums both tracks. Astra pricing was added after its run. Its implementation cost is calculated from captured usage at $10 per million input tokens, $1 per million cached input tokens, and $50 per million output tokens. The original immutable run retains its missing-price flag. The <a href="reports/september-2026-comparison.json">comparison data</a> records the calculation and source runs.</p>
 
   <h4>Bias</h4>
-  <p>The exploratory baseline records one attempt per model, so sampling variance can materially affect close scores, costs, and completion times. Testing one well-known application may reward prior familiarity with Basecamp, while the prescribed Recording model and single-file constraint favor specification adherence, long-context synthesis, and monolithic implementation over repository-scale engineering. Harness-specific tools and stopping behavior also contribute to each result. Evaluation-adjacent terms such as “scope honesty” and “stubbed vs working” may cue rewarded behavior. Because the evaluator selects its own test strategy for each implementation, test coverage can vary across submissions, although the completed reviews show no evidence that this affected the rankings. Evaluator trials with Fable, Grok, and Sol produced the same rankings and directionally similar findings. Sol was selected for greater attention to detail and showed no self-preference when judging its own work, which ranks sixth on backend and ninth on frontend. Readers should treat small score differences as provisional, compare FE and BE separately, and interpret quality, cost, and time as outcomes for these exact model-harness configurations and inputs.</p>
+  <p>The exploratory baseline records one attempt per model, so sampling variance can materially affect close scores, costs, and completion times. Testing one well-known application may reward prior familiarity with Basecamp, while the prescribed Recording model and single-file constraint favor specification adherence, long-context synthesis, and monolithic implementation over repository-scale engineering. Harness-specific tools and stopping behavior also contribute to each result. Evaluation-adjacent terms such as “scope honesty” and “stubbed vs working” may cue rewarded behavior. Because the evaluator selects its own test strategy for each implementation, test coverage can vary across submissions, although the completed reviews show no evidence that this affected the rankings. Evaluator trials with Fable, Grok, and Sol produced the same rankings and directionally similar findings. Sol was selected for greater attention to detail and showed no self-preference when judging its own work, which ranks seventh on backend and tenth on frontend. Readers should treat small score differences as provisional, compare FE and BE separately, and interpret quality, cost, and time as outcomes for these exact model-harness configurations and inputs.</p>
 
   <h4>Code</h4>
   <p>The complete benchmark is open source at <a class="repo-chip" href="https://github.com/0xSMW/basecamp-bench"><svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>0xSMW/basecamp-bench</a> under Apache-2.0.</p>
@@ -1007,17 +1076,17 @@ baseline/         verified runs behind this report</pre>
 </section>
 
 <div class="foot">
-  <a href="https://smw.ai/blog/basecamp-bench">smw.ai</a> · <a href="https://github.com/0xSMW/basecamp-bench">basecamp-bench report updated September 5, 2026</a>
+  <a href="https://smw.ai/blog/basecamp-bench">smw.ai</a> · <a href="https://github.com/0xSMW/basecamp-bench">basecamp-bench report updated September 29, 2026</a>
 </div>
 
 </div>
 
 <script>
-const MODELS = ["Fable 5.1", "GPT-6 Astra", "Opus 5", "Fable 5", "Grok 4.6", "Sonnet 5", "Opus 4.8", "Grok 4.5", "GPT-5.6 Sol", "GPT-5.5"];
-const COLORS = ["#b54e28", "#4160c5", "#3b6ea5", "#d97757", "#967014", "#8a63d2", "#c05a9d", "#2f3640", "#10a37f", "#74c6ad"];
+const MODELS = ["Fable 5.1", "GPT-6 Astra", "Opus 5", "Fable 5", "Sonnet 5.5", "Grok 4.6", "Sonnet 5", "Opus 4.8", "Grok 4.5", "GPT-5.6 Sol", "GPT-5.5"];
+const COLORS = ["#b54e28", "#4160c5", "#3b6ea5", "#d97757", "#5b3fa0", "#967014", "#8a63d2", "#c05a9d", "#2f3640", "#10a37f", "#74c6ad"];
 
-const FE = { score: [8.183, 7.607, 7.583, 7.578, 7.104, 6.982, 6.587, 6.384, 5.765, 5.67], cost: [44.60472690000001, 13.1639664, 42.01, 32.4, 3.888259, 14.22, 11.58, 3.95, 7.96, 4.73] };
-const BE = { score: [8.965, 9.305, 8.39, 8.392, 7.926, 7.243, 6.59, 7.278, 7.31, 7.084], cost: [48.352876049999985, 12.402838000000001, 36.11, 53.47, 6.958041, 22.01, 18.26, 5.35, 7.17, 6.21] };
+const FE = { score: [8.183, 7.607, 7.583, 7.578, 7.575, 7.104, 6.982, 6.587, 6.384, 5.765, 5.67], cost: [44.60472690000001, 13.1639664, 42.01, 32.4, 37.7660924, 3.888259, 14.22, 11.58, 3.95, 7.96, 4.73] };
+const BE = { score: [8.965, 9.305, 8.39, 8.392, 9.011, 7.926, 7.243, 6.59, 7.278, 7.31, 7.084], cost: [48.352876049999985, 12.402838000000001, 36.11, 53.47, 14.5358626, 6.958041, 22.01, 18.26, 5.35, 7.17, 6.21] };
 
 
 
@@ -1251,6 +1320,7 @@ const FE_PROFILE = [
   [8.5, 8.6, 7.7, 7.0, 7.3, 8.4, 7.0, 7.0, 7.7, 7.0, 7.0],
   [9.2, 9.1, 8.3, 8.0, 7.4, 7.8, 6.0, 6.5, 7.0, 6.2, 6.5],
   [9.2, 9.0, 8.1, 8.0, 7.5, 8.1, 6.2, 6.5, 7.2, 6.8, 5.0],
+  [8.5, 9.0, 7.5, 7.5, 7.0, 8.5, 6.0, 7.0, 7.0, 7.0, 7.0],
   [9.0, 8.6, 8.1, 8.2, 6.4, 7.2, 4.2, 6.4, 6.3, 6.1, 5.0],
   [8.8, 8.2, 7.5, 7.8, 6.5, 7.1, 6.5, 5.9, 6.0, 5.8, 5.2],
   [8.5, 8.0, 7.5, 7.5, 6.5, 6.0, 5.3, 5.0, 5.8, 6.5, 4.0],
@@ -1264,6 +1334,7 @@ const BE_PROFILE = [
   [10.0, 10.0, 8.8, 9.3, 8.9, 8.3, 9.5, 9.0, 10.0],
   [10.0, 9.1, 8.8, 8.3, 8.6, 8.0, 7.4, 6.5, 9.2],
   [10.0, 8.8, 8.4, 7.4, 8.6, 7.9, 8.2, 7.3, 7.9],
+  [9.8, 9.6, 9.1, 8.8, 8.8, 8.1, 9.0, 8.4, 9.2],
   [10.0, 9.2, 8.7, 7.2, 8.6, 7.0, 7.3, 4.6, 8.0],
   [10.0, 7.5, 8.0, 7.5, 7.5, 6.5, 6.8, 4.5, 5.0],
   [10.0, 7.0, 7.0, 6.0, 6.5, 6.5, 6.5, 3.0, 5.5],
