@@ -38,6 +38,40 @@ enabled = true
 # cache_read = 1.0
 # cache_write = 12.5
 
+# Optional GPT-6 Sol and GPT-6 Luna implementation harnesses using the
+# authenticated Codex CLI. Select with --harness sol6 or --harness luna6 after
+# uncommenting these blocks. Rates are standard short-context rates per 1M
+# tokens; inputs above 272K use the long-context tier.
+# [harnesses.sol6]
+# adapter = "codex"
+# model = "gpt-6-sol"
+# effort = "high"
+# provider_family = "openai"
+# display_name = "GPT-6 Sol (High)"
+# enabled = true
+#
+# Source: https://developers.openai.com/api/docs/pricing
+# [pricing."gpt-6-sol"]
+# input = 2.0
+# output = 10.0
+# cache_read = 0.2
+# cache_write = 2.5
+#
+# [harnesses.luna6]
+# adapter = "codex"
+# model = "gpt-6-luna"
+# effort = "max"
+# provider_family = "openai"
+# display_name = "GPT-6 Luna (Max)"
+# enabled = true
+#
+# Source: https://developers.openai.com/api/docs/pricing
+# [pricing."gpt-6-luna"]
+# input = 0.1
+# output = 0.5
+# cache_read = 0.01
+# cache_write = 0.125
+
 [harnesses.claude]
 adapter = "claude"
 model = "claude-fable-5"
@@ -62,6 +96,22 @@ enabled = true
 # cache_read = 0.2
 # cache_write = 5.0
 
+# Optional Claude Sonnet 5.5 implementation harness.
+# Select with --harness claude-sonnet-55 after enabling this block.
+# [harnesses.claude-sonnet-55]
+# adapter = "claude"
+# model = "claude-sonnet-5-5"
+# effort = "high"
+# provider_family = "anthropic"
+# display_name = "Claude Sonnet 5.5 (High)"
+# enabled = true
+#
+# [pricing."claude-sonnet-5-5"]
+# input = 2.0
+# output = 10.0
+# cache_read = 0.2
+# cache_write = 2.5
+
 [harnesses.grok]
 adapter = "grok"
 model = "grok-4.5"
@@ -70,6 +120,16 @@ provider_family = "xai"
 display_name = "Grok 4.5"
 enabled = true
 # binary = "/absolute/path/to/the/intended/grok"
+
+# Optional Grok 4.7 implementation harness. Select with --harness grok47 after
+# uncommenting this block. The Grok CLI reports session cost directly.
+# [harnesses.grok47]
+# adapter = "grok"
+# model = "grok-4.7"
+# effort = "high"
+# provider_family = "xai"
+# display_name = "Grok 4.7 (High)"
+# enabled = true
 
 # Optional OpenCode harness for the Ox Alpha preview model. The benchmark alias
 # `0x-alpha` maps to OpenCode's native `opencode/x-preview-f-free` ID, and this
@@ -128,6 +188,18 @@ model = "gpt-5.6-sol"
 effort = "high"
 provider_family = "openai"
 enabled = true
+
+# The September 23 to 29 runs used GPT-6 Sol at high effort as the evaluator.
+# To reproduce them, uncomment the sol6 harness above and replace the
+# evaluator block with this one.
+#
+# [[evaluators]]
+# id = "eval-sol6-high"
+# harness = "sol6"
+# model = "gpt-6-sol"
+# effort = "high"
+# provider_family = "openai"
+# enabled = true
 
 # Publication mode requires at least two valid evaluator model IDs and three
 # implementation repetitions. Configure the second
