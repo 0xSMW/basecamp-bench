@@ -48,6 +48,7 @@ on backend than frontend.
 | Opus 5.5 | 6.625 | 8.683 | 1:59:02 | $32.30 |
 | Grok 4.5 | 6.384 | 7.278 | 36:48 | $9.30 |
 | GPT-6 Sol | 6.212 | 6.155 | 1:33:42 | $6.73 |
+| GPT-6.1 Sol | 6.195 | 8.775 | 1:52:05 | $4.92 |
 | GPT-5.6 Sol | 5.765 | 7.310 | 59:48 | $15.13 |
 | Muse Spark 1.3 | 5.745 | 6.711 | 42:24 | $4.63 |
 | Gemini 3.8 Flash High | 5.700 | 6.483 | 38:17 | $6.07 |
@@ -56,10 +57,11 @@ on backend than frontend.
 | GPT-6 Luna* | 5.434 | 6.695 | ~5:17:32 | ≥$3.30 |
 
 Total time and cost include implementation and evaluation across both tracks.
-GPT-6 Sol judged the five models added on September 29, and GPT-5.6 Sol judged
-the rest. \* GPT-6 Sol finished part of the Grok 4.7 and GPT-6 Luna work after
-their own attempts failed or stalled. Their costs are lower bounds because some
-failed attempts left no usage record.
+GPT-6.1 Sol judged the model added on September 30, GPT-6 Sol judged the five
+models added on September 29, and GPT-5.6 Sol judged the rest. \* GPT-6 Sol
+finished part of the Grok 4.7 and GPT-6 Luna work after their own attempts
+failed or stalled. Their costs are lower bounds because some failed attempts
+left no usage record.
 
 Original baseline evidence is available in [baseline/](baseline/). Read the
 [full report](https://basecamp-bench-report.smw-ai.chatgpt.site).
@@ -254,7 +256,10 @@ malformed evidence, failed evaluator processes, and any evidence mutation. It
 then takes the median evaluator score per dimension and computes the weighted
 overall score.
 
-Sol 5.6 is the default evaluator model. Comparative evaluator trials with
+Runs from September 30 onward use GPT-6.1 Sol at high effort as the evaluator.
+GPT-6 Sol judged the September 23 to 29 runs, and Sol 5.6 judged the earlier
+ones. `bench.example.toml` still defaults to Sol 5.6 and has commented
+GPT-6.1 Sol blocks for matching current runs. Comparative evaluator trials with
 Fable 5, Grok 4.5, and Sol 5.6 produced similarly fair judgments; Sol was the
 most detailed and thorough. Changing the evaluator is therefore a methodology
 and cost-routing choice that may affect the level of detail more than the
