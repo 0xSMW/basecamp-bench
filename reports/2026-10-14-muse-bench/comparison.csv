@@ -1,0 +1,15 @@
+model,frontend_score,backend_score,mean_score,total_seconds,total_cost_usd,cost_lower_bound,assisted,cost_known,new
+Claude Fable 5.1,8.183,8.965,8.574,11046.303647001274,92.95760295,False,False,True,False
+GPT-6 Astra,7.607,9.305,8.456,5791.427614790853,25.566804400000002,False,False,True,False
+Claude Sonnet 5.5 (High),7.575,9.011,8.293,8300.396687583998,52.301955000000014,False,False,True,False
+Claude Opus 5,7.583,8.39,7.9865,8791.364941624925,78.11205100000001,False,False,True,False
+Claude Fable 5,7.578,8.392,7.984999999999999,7600.725922416001,85.86698125000001,False,False,True,False
+Claude Opus 5.5 (High),6.625,8.683,7.654,7141.971727122553,32.299327000000005,False,False,True,False
+Grok 4.6,7.104,7.926,7.515000000000001,3477.946902248892,10.8463,False,False,True,False
+GPT-6.1 Sol (High),6.195,8.775,7.485,6725.246141667478,4.9158488,False,False,True,False
+Grok 4.7 High,6.65,7.605,7.1275,15606,10.464,True,True,True,False
+Claude Sonnet 5,6.982,7.243,7.112500000000001,5229.048086877003,36.225517849999996,False,False,True,False
+Muse Wonder Full 1.0 (High),5.36,6.635,5.9975000000000005,11907.518614957993,,False,False,False,True
+Muse Spark 1.3 (High),5.127,5.57,5.3485,12525.625274834005,7.28921545,False,False,True,True
+Muse Wonder 1.0 (High),4.98,5.47,5.225,5434.865944707999,7.711105999999999,False,False,True,True
+Muse Spark 1.2 (High),4.07,4.745,4.407500000000001,3248.579036209001,3.2313506500000004,False,False,True,True
