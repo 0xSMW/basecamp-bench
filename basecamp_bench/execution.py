@@ -261,6 +261,11 @@ def _resolve_cost(
 ) -> float | None:
     if reported is not None and _nonnegative(reported):
         return float(reported)
+    # Haiku 5.5 prices each request by its prompt length (100K boundary),
+    # including cached tokens. Session aggregates cannot recover those tiers
+    # or distinguish 5-minute from 1-hour cache writes. Require vendor cost.
+    if model_id == "claude-haiku-5-5":
+        return None
     if usage is None:
         return None
     lookup = find_exact_rates(model_id, pricing_data, overrides, retrieved_at=retrieved_at)
