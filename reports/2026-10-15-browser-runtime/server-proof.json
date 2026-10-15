@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "url": "http://127.0.0.1:57808/a-2Scm2qXK-8NGflaCoUmwVyCEUGodT_/index.html",
+  "http_ready": true,
+  "chrome_loaded": true,
+  "requests": [
+    {
+      "at": "2026-10-14T17:13:49.983453+00:00",
+      "method": "GET",
+      "path": "index.html",
+      "user_agent": "basecamp-bench-preflight",
+      "fetch_destination": ""
+    },
+    {
+      "at": "2026-10-14T17:13:59.956859+00:00",
+      "method": "GET",
+      "path": "index.html",
+      "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+      "fetch_destination": "document"
+    },
+    {
+      "at": "2026-10-14T17:14:49.840266+00:00",
+      "method": "GET",
+      "path": "index.html",
+      "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+      "fetch_destination": "document"
+    }
+  ],
+  "snapshot_unchanged": true
+}
