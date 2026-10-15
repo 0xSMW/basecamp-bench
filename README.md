@@ -308,6 +308,18 @@ an adapter implementing command construction, environment allowlisting, working
 directory, stdin, and output/usage parsing. Adapter tests must cover redaction,
 malformed output, permissions, timeouts, and vendor output drift.
 
+The optional `claude-haiku-55` configuration runs `claude-haiku-5-5` through
+Claude Code at high effort. Enable its block in `bench.example.toml`, then run
+`basecamp-bench run --harness claude-haiku-55 --track fe --track be`.
+Claude Code can use its existing subscription login or an exported
+`ANTHROPIC_API_KEY`. Haiku 5.5 costs $0.10/$0.50 per million input/output tokens
+for prompts up to 100,000 tokens, and $0.50/$2.50 above that boundary; cache
+rates also depend on prompt length and cache lifetime. The runner uses Claude
+Code's reported session cost to preserve these request-level charges. If that
+cost is absent, Haiku's cost remains unknown rather than using aggregate token
+counts with the short-prompt rates. Rates are documented in the example config
+and [Anthropic's pricing](https://platform.claude.com/docs/en/about-claude/pricing).
+
 The `muse` adapter supports `muse-wonder-1.0`, `muse-wonder-full-1.0`,
 `muse-spark-1.3`, and `muse-spark-1.2` through Muse Code 1.4.7 or later.
 Use the existing Muse subscription login or `META_API_KEY`. Enable the example
