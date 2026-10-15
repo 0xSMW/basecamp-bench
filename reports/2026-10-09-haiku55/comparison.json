@@ -1,0 +1,3003 @@
+{
+  "model_count": 24,
+  "ranked_model_count": 23,
+  "selection_policy": "September29 established comparison; preserve latest-r5 GPT5.6 Sol rather than best repetition; add Sep30Bangkok GPT6.1 Sol r1.",
+  "duration_semantics": "Sum implementation/evaluation stage durations, not parallel wall clock.",
+  "models": [
+    {
+      "model_id": "claude-fable-5-1",
+      "name": "Claude Fable 5.1",
+      "tracks": {
+        "be": {
+          "score": 8.965,
+          "duration_s": 4865.346834875178,
+          "implementation_cost_usd": 45.95112324999999,
+          "evaluation_cost_usd": 2.4017527999999997,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260902t103232z-36233c",
+          "submission_id": "id-a9441d0c",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-02T10-32-32Z--fe-be--anthropic-claude-fable-5-1--20260902t103232z-36233c/attempts/be-claude-fable-51-anthropic-claude-fable-5-1-r1--a9441d0c.json",
+          "manifest_source": "runs/2026-09-02T10-32-32Z--fe-be--anthropic-claude-fable-5-1--20260902t103232z-36233c/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-02T10-32-32Z--fe-be--anthropic-claude-fable-5-1--20260902t103232z-36233c/evaluations/be-claude-fable-51-anthropic-claude-fable-5-1-r1--a9441d0c/judge-codex-openai-gpt-5-6-sol--c2730fc8/output/result.json"
+          ],
+          "implementation_duration_s": 3854.501517708879,
+          "evaluation_duration_s": 1010.8453171662986,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "13e2b843178eced9476a42dc585bde4fba831e31b605470c858b68fef0db39cd",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 4865.346834875178,
+            "implementation_cost_usd": 45.95112324999999,
+            "evaluation_cost_usd": 2.4017527999999997
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 8.183,
+          "duration_s": 6180.956812126096,
+          "implementation_cost_usd": 41.80463250000001,
+          "evaluation_cost_usd": 2.8000944000000003,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260902t103232z-36233c",
+          "submission_id": "id-57f66d96",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-02T10-32-32Z--fe-be--anthropic-claude-fable-5-1--20260902t103232z-36233c/attempts/fe-claude-fable-51-anthropic-claude-fable-5-1-r1--57f66d96.json",
+          "manifest_source": "runs/2026-09-02T10-32-32Z--fe-be--anthropic-claude-fable-5-1--20260902t103232z-36233c/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-02T10-32-32Z--fe-be--anthropic-claude-fable-5-1--20260902t103232z-36233c/evaluations/fe-claude-fable-51-anthropic-claude-fable-5-1-r1--57f66d96/judge-codex-openai-gpt-5-6-sol--deeaa9ac/output/result.json"
+          ],
+          "implementation_duration_s": 5061.103861584328,
+          "evaluation_duration_s": 1119.8529505417682,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "13e2b843178eced9476a42dc585bde4fba831e31b605470c858b68fef0db39cd",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 6180.956812126096,
+            "implementation_cost_usd": 41.80463250000001,
+            "evaluation_cost_usd": 2.8000944000000003
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 17.148,
+      "total_known_cost_usd": 92.95760295,
+      "total_duration_s": 11046.303647001274
+    },
+    {
+      "model_id": "gpt-6-astra",
+      "name": "GPT-6 Astra",
+      "tracks": {
+        "be": {
+          "score": 9.305,
+          "duration_s": 2772.4739854168147,
+          "implementation_cost_usd": 9.070942,
+          "evaluation_cost_usd": 3.331896,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260905t013627z-0c621d",
+          "submission_id": "id-355060ff",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-05T01-36-27Z--fe-be--openai-gpt-6-astra--20260905t013627z-0c621d/attempts/be-codex-astra-openai-gpt-6-astra-r1--355060ff.json",
+          "manifest_source": "runs/2026-09-05T01-36-27Z--fe-be--openai-gpt-6-astra--20260905t013627z-0c621d/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-05T01-36-27Z--fe-be--openai-gpt-6-astra--20260905t013627z-0c621d/evaluations/be-codex-astra-openai-gpt-6-astra-r1--355060ff/judge-codex-openai-gpt-5-6-sol--25334d46/output/result.json"
+          ],
+          "implementation_duration_s": 1997.3145406669937,
+          "evaluation_duration_s": 775.159444749821,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "13e2b843178eced9476a42dc585bde4fba831e31b605470c858b68fef0db39cd",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 2772.4739854168147,
+            "implementation_cost_usd": null,
+            "evaluation_cost_usd": 3.331896
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 7.607,
+          "duration_s": 3018.9536293740384,
+          "implementation_cost_usd": 9.627944,
+          "evaluation_cost_usd": 3.5360224,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260905t013627z-0c621d",
+          "submission_id": "id-d2fb9a89",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-05T01-36-27Z--fe-be--openai-gpt-6-astra--20260905t013627z-0c621d/attempts/fe-codex-astra-openai-gpt-6-astra-r1--d2fb9a89.json",
+          "manifest_source": "runs/2026-09-05T01-36-27Z--fe-be--openai-gpt-6-astra--20260905t013627z-0c621d/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-05T01-36-27Z--fe-be--openai-gpt-6-astra--20260905t013627z-0c621d/evaluations/fe-codex-astra-openai-gpt-6-astra-r1--d2fb9a89/judge-codex-openai-gpt-5-6-sol--b36130c6/output/result.json"
+          ],
+          "implementation_duration_s": 2269.331405666191,
+          "evaluation_duration_s": 749.6222237078473,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "13e2b843178eced9476a42dc585bde4fba831e31b605470c858b68fef0db39cd",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 3018.9536293740384,
+            "implementation_cost_usd": null,
+            "evaluation_cost_usd": 3.5360224
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 16.912,
+      "total_known_cost_usd": 25.566804400000002,
+      "total_duration_s": 5791.427614790853
+    },
+    {
+      "model_id": "claude-sonnet-5-5",
+      "name": "Claude Sonnet 5.5 (High)",
+      "tracks": {
+        "fe": {
+          "score": 7.575,
+          "duration_s": 5146.844146043062,
+          "implementation_cost_usd": 36.36139320000001,
+          "evaluation_cost_usd": 1.4046992000000003,
+          "contract_version": "2026-09-05.1",
+          "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "run_id": "20260929t112104z-4341d4",
+          "submission_id": "id-c0bd0c29",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-29T11-21-04Z--fe-be--anthropic-claude-sonnet-5-5--20260929t112104z-4341d4/attempts/fe-claude-sonnet-55-anthropic-claude-sonnet-5-5-r1--c0bd0c29.json",
+          "manifest_source": "runs/2026-09-29T11-21-04Z--fe-be--anthropic-claude-sonnet-5-5--20260929t112104z-4341d4/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-29T11-21-04Z--fe-be--anthropic-claude-sonnet-5-5--20260929t112104z-4341d4/evaluations/fe-claude-sonnet-55-anthropic-claude-sonnet-5-5-r1--c0bd0c29/judge-sol6-openai-gpt-6-sol--c1b6048f/output/result.json"
+          ],
+          "implementation_duration_s": 4700.764576333575,
+          "evaluation_duration_s": 446.07956970948726,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "ba86a26e26b8cabb7aa056b74a83bffb60c703863cdedca0c99ac04131961ba1",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "be": {
+          "score": 9.011,
+          "duration_s": 3153.5525415409356,
+          "implementation_cost_usd": 13.193126600000001,
+          "evaluation_cost_usd": 1.342736,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "run_id": "20260929t112104z-4341d4",
+          "submission_id": "id-02457076",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-29T11-21-04Z--fe-be--anthropic-claude-sonnet-5-5--20260929t112104z-4341d4/attempts/be-claude-sonnet-55-anthropic-claude-sonnet-5-5-r1--02457076.json",
+          "manifest_source": "runs/2026-09-29T11-21-04Z--fe-be--anthropic-claude-sonnet-5-5--20260929t112104z-4341d4/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-29T11-21-04Z--fe-be--anthropic-claude-sonnet-5-5--20260929t112104z-4341d4/evaluations/be-claude-sonnet-55-anthropic-claude-sonnet-5-5-r1--02457076/judge-sol6-openai-gpt-6-sol--fb3e8546/output/result.json"
+          ],
+          "implementation_duration_s": 2511.2770419577137,
+          "evaluation_duration_s": 642.275499583222,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "ba86a26e26b8cabb7aa056b74a83bffb60c703863cdedca0c99ac04131961ba1",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 16.586,
+      "total_known_cost_usd": 52.301955000000014,
+      "total_duration_s": 8300.396687583998
+    },
+    {
+      "model_id": "claude-opus-5",
+      "name": "Claude Opus 5",
+      "tracks": {
+        "be": {
+          "score": 8.39,
+          "duration_s": 4134.89645650005,
+          "implementation_cost_usd": 32.88657649999999,
+          "evaluation_cost_usd": 3.218612,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260726t035102z-e86366",
+          "submission_id": "id-c9cf6383",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-26T03-51-02Z--fe-be--anthropic-claude-opus-5--20260726t035102z-e86366/attempts/be-claude-opus-anthropic-claude-opus-5-r1--c9cf6383.json",
+          "manifest_source": "runs/2026-07-26T03-51-02Z--fe-be--anthropic-claude-opus-5--20260726t035102z-e86366/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-26T03-51-02Z--fe-be--anthropic-claude-opus-5--20260726t035102z-e86366/evaluations/be-claude-opus-anthropic-claude-opus-5-r1--c9cf6383/judge-codex-openai-gpt-5-6-sol--f8a6e9b9/output/result.json"
+          ],
+          "implementation_duration_s": 3249.1171669999603,
+          "evaluation_duration_s": 885.7792895000894,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 4134.89645650005,
+            "implementation_cost_usd": 32.88657649999999,
+            "evaluation_cost_usd": 3.218612
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 7.583,
+          "duration_s": 4656.468485124875,
+          "implementation_cost_usd": 36.71319350000001,
+          "evaluation_cost_usd": 5.293669,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260726t035102z-e86366",
+          "submission_id": "id-b95535bf",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-26T03-51-02Z--fe-be--anthropic-claude-opus-5--20260726t035102z-e86366/attempts/fe-claude-opus-anthropic-claude-opus-5-r1--b95535bf.json",
+          "manifest_source": "runs/2026-07-26T03-51-02Z--fe-be--anthropic-claude-opus-5--20260726t035102z-e86366/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-26T03-51-02Z--fe-be--anthropic-claude-opus-5--20260726t035102z-e86366/evaluations/fe-claude-opus-anthropic-claude-opus-5-r1--b95535bf/judge-codex-openai-gpt-5-6-sol--00258aec/output/result.json"
+          ],
+          "implementation_duration_s": 3890.6324748329353,
+          "evaluation_duration_s": 765.8360102919396,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 4656.468485124875,
+            "implementation_cost_usd": 36.71319350000001,
+            "evaluation_cost_usd": 5.293669
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 15.973,
+      "total_known_cost_usd": 78.11205100000001,
+      "total_duration_s": 8791.364941624925
+    },
+    {
+      "model_id": "claude-fable-5",
+      "name": "Claude Fable 5",
+      "tracks": {
+        "be": {
+          "score": 8.392,
+          "duration_s": 3866.4684293750033,
+          "implementation_cost_usd": 51.30838425,
+          "evaluation_cost_usd": 2.162177,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t161255z-843ef2",
+          "submission_id": "id-066754ef",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/attempts/be-claude-anthropic-claude-fable-5-r1--066754ef.json",
+          "manifest_source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/evaluations/be-claude-anthropic-claude-fable-5-r1--066754ef/judge-codex-openai-gpt-5-6-sol--a4caab04/output/result.json"
+          ],
+          "implementation_duration_s": 3378.885978459002,
+          "evaluation_duration_s": 487.5824509160011,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 3866.4684293750033,
+            "implementation_cost_usd": 51.30838425,
+            "evaluation_cost_usd": 2.162177
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 7.578,
+          "duration_s": 3734.2574930409974,
+          "implementation_cost_usd": 29.387052,
+          "evaluation_cost_usd": 3.009368,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t161255z-843ef2",
+          "submission_id": "id-0b1ef122",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/attempts/fe-claude-anthropic-claude-fable-5-r1--0b1ef122.json",
+          "manifest_source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/evaluations/fe-claude-anthropic-claude-fable-5-r1--0b1ef122/judge-codex-openai-gpt-5-6-sol--7886ff58/output/result.json"
+          ],
+          "implementation_duration_s": 3228.710708999999,
+          "evaluation_duration_s": 505.5467840409983,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 3734.2574930409974,
+            "implementation_cost_usd": 29.387052,
+            "evaluation_cost_usd": 3.009368
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 15.969999999999999,
+      "total_known_cost_usd": 85.86698125000001,
+      "total_duration_s": 7600.725922416001
+    },
+    {
+      "model_id": "claude-opus-5-5",
+      "name": "Claude Opus 5.5 (High)",
+      "tracks": {
+        "fe": {
+          "score": 6.625,
+          "duration_s": 3891.9916436243802,
+          "implementation_cost_usd": 16.987212600000007,
+          "evaluation_cost_usd": 0.957212,
+          "contract_version": "2026-09-05.1",
+          "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "run_id": "20260924t020633z-c6d2b9",
+          "submission_id": "id-7acacd47",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-24T02-06-33Z--fe-be--anthropic-claude-opus-5-5--20260924t020633z-c6d2b9/attempts/fe-claude-opus-55-anthropic-claude-opus-5-5-r1--7acacd47.json",
+          "manifest_source": "runs/2026-09-24T02-06-33Z--fe-be--anthropic-claude-opus-5-5--20260924t020633z-c6d2b9/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-24T02-06-33Z--fe-be--anthropic-claude-opus-5-5--20260924t020633z-c6d2b9/evaluations/fe-claude-opus-55-anthropic-claude-opus-5-5-r1--7acacd47/judge-sol6-openai-gpt-6-sol--852ccbca/output/result.json"
+          ],
+          "implementation_duration_s": 3423.6280995002016,
+          "evaluation_duration_s": 468.3635441241786,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "064821c626cb28231c31ddd00e2b3cb73fe24791d03b90d8407cf1f64ad5773e",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "be": {
+          "score": 8.683,
+          "duration_s": 3249.9800834981725,
+          "implementation_cost_usd": 13.423223999999998,
+          "evaluation_cost_usd": 0.9316784,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "run_id": "20260924t020633z-c6d2b9",
+          "submission_id": "id-4a4bc92d",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-24T02-06-33Z--fe-be--anthropic-claude-opus-5-5--20260924t020633z-c6d2b9/attempts/be-claude-opus-55-anthropic-claude-opus-5-5-r1--4a4bc92d.json",
+          "manifest_source": "runs/2026-09-24T02-06-33Z--fe-be--anthropic-claude-opus-5-5--20260924t020633z-c6d2b9/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-24T02-06-33Z--fe-be--anthropic-claude-opus-5-5--20260924t020633z-c6d2b9/evaluations/be-claude-opus-55-anthropic-claude-opus-5-5-r1--4a4bc92d/judge-sol6-openai-gpt-6-sol--74990054/output/result.json"
+          ],
+          "implementation_duration_s": 2766.0741362906992,
+          "evaluation_duration_s": 483.9059472074732,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "064821c626cb28231c31ddd00e2b3cb73fe24791d03b90d8407cf1f64ad5773e",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 15.308,
+      "total_known_cost_usd": 32.299327000000005,
+      "total_duration_s": 7141.971727122553
+    },
+    {
+      "model_id": "grok-4.6",
+      "name": "Grok 4.6",
+      "tracks": {
+        "be": {
+          "score": 7.926,
+          "duration_s": 1946.3978619159898,
+          "implementation_cost_usd": 2.260536,
+          "evaluation_cost_usd": 4.697505,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260812t163058z-d4b5fe",
+          "submission_id": "id-d34116cd",
+          "repetition": 1,
+          "attempt_source": "runs/2026-08-12T16-30-58Z--fe-be--xai-grok-4-6--20260812t163058z-d4b5fe/attempts/be-grok-xai-grok-4-6-r1--d34116cd.json",
+          "manifest_source": "runs/2026-08-12T16-30-58Z--fe-be--xai-grok-4-6--20260812t163058z-d4b5fe/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-08-12T16-30-58Z--fe-be--xai-grok-4-6--20260812t163058z-d4b5fe/evaluations/be-grok-xai-grok-4-6-r1--d34116cd/judge-codex-openai-gpt-5-6-sol--8934d8ae/output/result.json"
+          ],
+          "implementation_duration_s": 1148.5776933750603,
+          "evaluation_duration_s": 797.8201685409294,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "69b022e7d96849a5634097c6f9eb08165a3340a26b7668c832465d422c6c96be",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1946.3978619159898,
+            "implementation_cost_usd": 2.260536,
+            "evaluation_cost_usd": 4.697505
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 7.104,
+          "duration_s": 1531.5490403329022,
+          "implementation_cost_usd": 0.948818,
+          "evaluation_cost_usd": 2.939441,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260812t163058z-d4b5fe",
+          "submission_id": "id-e2ddfedf",
+          "repetition": 1,
+          "attempt_source": "runs/2026-08-12T16-30-58Z--fe-be--xai-grok-4-6--20260812t163058z-d4b5fe/attempts/fe-grok-xai-grok-4-6-r1--e2ddfedf.json",
+          "manifest_source": "runs/2026-08-12T16-30-58Z--fe-be--xai-grok-4-6--20260812t163058z-d4b5fe/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-08-12T16-30-58Z--fe-be--xai-grok-4-6--20260812t163058z-d4b5fe/evaluations/fe-grok-xai-grok-4-6-r1--e2ddfedf/judge-codex-openai-gpt-5-6-sol--e986648a/output/result.json"
+          ],
+          "implementation_duration_s": 1030.3963825419778,
+          "evaluation_duration_s": 501.1526577909244,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "69b022e7d96849a5634097c6f9eb08165a3340a26b7668c832465d422c6c96be",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1531.5490403329022,
+            "implementation_cost_usd": 0.948818,
+            "evaluation_cost_usd": 2.939441
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 15.030000000000001,
+      "total_known_cost_usd": 10.8463,
+      "total_duration_s": 3477.946902248892
+    },
+    {
+      "model_id": "gpt-6.1-sol",
+      "name": "GPT-6.1 Sol (High)",
+      "tracks": {
+        "fe": {
+          "score": 6.195,
+          "duration_s": 3625.653090500273,
+          "implementation_cost_usd": 1.7277912000000002,
+          "evaluation_cost_usd": 0.9268432,
+          "contract_version": "2026-09-05.1",
+          "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+          "evaluator_ids": [
+            "gpt-6.1-sol"
+          ],
+          "run_id": "20260929t183129z-1bbda2",
+          "submission_id": "id-dafd70d4",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-29T18-31-29Z--fe-be--openai-gpt-6-1-sol--20260929t183129z-1bbda2/attempts/fe-sol61-openai-gpt-6-1-sol-r1--dafd70d4.json",
+          "manifest_source": "runs/2026-09-29T18-31-29Z--fe-be--openai-gpt-6-1-sol--20260929t183129z-1bbda2/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-29T18-31-29Z--fe-be--openai-gpt-6-1-sol--20260929t183129z-1bbda2/evaluations/fe-sol61-openai-gpt-6-1-sol-r1--dafd70d4/judge-sol61-openai-gpt-6-1-sol--82b658db/output/result.json"
+          ],
+          "implementation_duration_s": 2854.3369184173644,
+          "evaluation_duration_s": 771.3161720829085,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "ba86a26e26b8cabb7aa056b74a83bffb60c703863cdedca0c99ac04131961ba1",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "evaluator_ids": [
+              "gpt-6.1-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": true
+        },
+        "be": {
+          "score": 8.775,
+          "duration_s": 3099.593051167205,
+          "implementation_cost_usd": 1.284288,
+          "evaluation_cost_usd": 0.9769264,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-6.1-sol"
+          ],
+          "run_id": "20260929t183129z-1bbda2",
+          "submission_id": "id-00eeb1f0",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-29T18-31-29Z--fe-be--openai-gpt-6-1-sol--20260929t183129z-1bbda2/attempts/be-sol61-openai-gpt-6-1-sol-r1--00eeb1f0.json",
+          "manifest_source": "runs/2026-09-29T18-31-29Z--fe-be--openai-gpt-6-1-sol--20260929t183129z-1bbda2/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-29T18-31-29Z--fe-be--openai-gpt-6-1-sol--20260929t183129z-1bbda2/evaluations/be-sol61-openai-gpt-6-1-sol-r1--00eeb1f0/judge-sol61-openai-gpt-6-1-sol--7f7fe85c/output/result.json"
+          ],
+          "implementation_duration_s": 2052.732456916943,
+          "evaluation_duration_s": 1046.8605942502618,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "ba86a26e26b8cabb7aa056b74a83bffb60c703863cdedca0c99ac04131961ba1",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-6.1-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": true
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 14.97,
+      "total_known_cost_usd": 4.9158488,
+      "total_duration_s": 6725.246141667478
+    },
+    {
+      "model_id": "grok-4.7",
+      "name": "Grok 4.7 High",
+      "tracks": {
+        "fe": {
+          "score": 6.65,
+          "duration_s": 612.7053769584745,
+          "implementation_cost_usd": 0.6686888000000001,
+          "evaluation_cost_usd": 0.7492156000000001,
+          "contract_version": "2026-09-05.1",
+          "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "run_id": "20260923t113519z-ed9bae",
+          "submission_id": "id-f6503f4b",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-23T11-35-19Z--fe--openai-gpt-6-sol--20260923t113519z-ed9bae/attempts/fe-sol-light-grok47-fe-openai-gpt-6-sol-r1--f6503f4b.json",
+          "manifest_source": "runs/2026-09-23T11-35-19Z--fe--openai-gpt-6-sol--20260923t113519z-ed9bae/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-23T11-35-19Z--fe--openai-gpt-6-sol--20260923t113519z-ed9bae/evaluations/fe-sol-light-grok47-fe-openai-gpt-6-sol-r1--f6503f4b/judge-sol6-openai-gpt-6-sol--407c90ad/output/result.json"
+          ],
+          "implementation_duration_s": 212.18835958372802,
+          "evaluation_duration_s": 400.5170173747465,
+          "input_hashes": {
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "064821c626cb28231c31ddd00e2b3cb73fe24791d03b90d8407cf1f64ad5773e",
+            "prompt:fe": "9225ecf1c604335c6f95375b44438a6691193030c88c63c360cf1190ca12a08e",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "4366e7a0ced556b3485a8345a64f2b6902dfa2586ae4f22835c0d8795926110e"
+          },
+          "assisted": true,
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false,
+          "original_model": "grok-4.7",
+          "assisting_model": "gpt-6-sol",
+          "assisting_effort": "low"
+        },
+        "be": {
+          "score": 7.605,
+          "duration_s": 1555.2836015410721,
+          "implementation_cost_usd": 2.4626608,
+          "evaluation_cost_usd": 0.9725044,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "run_id": "20260923t104344z-6182ed",
+          "submission_id": "id-944a969a",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-23T10-43-44Z--be--xai-grok-4-7--20260923t104344z-6182ed/attempts/be-grok47-carry-xai-grok-4-7-r1--944a969a.json",
+          "manifest_source": "runs/2026-09-23T10-43-44Z--be--xai-grok-4-7--20260923t104344z-6182ed/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-23T10-43-44Z--be--xai-grok-4-7--20260923t104344z-6182ed/evaluations/be-grok47-carry-xai-grok-4-7-r1--944a969a/judge-sol6-openai-gpt-6-sol--1e55f057/output/result.json"
+          ],
+          "implementation_duration_s": 1063.359886707738,
+          "evaluation_duration_s": 491.9237148333341,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "pricing_snapshot": "064821c626cb28231c31ddd00e2b3cb73fe24791d03b90d8407cf1f64ad5773e",
+            "prompt:be": "3b542abcb41f34739598c727bb6f0b3069d6c648a91d7241d160cbec5a6778ab",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "fccc5b0f4fe1dd2d2d963f651bc37585f7b3d7257fa9ba92eb848c2cbb123dce"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": true,
+      "cost_lower_bound": true,
+      "time_approximate": false,
+      "total_known_cost_usd": 10.464,
+      "total_duration_s": 15606,
+      "totals_source": "reports/2026-09-23-sol6-luna6-grok47/comparison.md",
+      "totals_precision": "Published rounded USD0.001/integer seconds; full lineage includes failed attempts/retries/continuations",
+      "correction_sources": [],
+      "ranked": true,
+      "combined_score": 14.255
+    },
+    {
+      "model_id": "claude-sonnet-5",
+      "name": "Claude Sonnet 5",
+      "tracks": {
+        "be": {
+          "score": 7.243,
+          "duration_s": 2571.7845924180074,
+          "implementation_cost_usd": 19.562980749999994,
+          "evaluation_cost_usd": 2.446213,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t190035z-d06816",
+          "submission_id": "id-e747ba1f",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/attempts/be-sonnet5-anthropic-claude-sonnet-5-r1--e747ba1f.json",
+          "manifest_source": "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/evaluations/be-sonnet5-anthropic-claude-sonnet-5-r1--e747ba1f/judge-codex-openai-gpt-5-6-sol--1f074660/output/result.json"
+          ],
+          "implementation_duration_s": 2086.8600772090067,
+          "evaluation_duration_s": 484.9245152090007,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 2571.7845924180074,
+            "implementation_cost_usd": 19.562980749999994,
+            "evaluation_cost_usd": 2.446213
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 6.982,
+          "duration_s": 2657.2634944589954,
+          "implementation_cost_usd": 10.636490100000001,
+          "evaluation_cost_usd": 3.579834,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t190035z-d06816",
+          "submission_id": "id-fa3f19b4",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/attempts/fe-sonnet5-anthropic-claude-sonnet-5-r1--fa3f19b4.json",
+          "manifest_source": "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/evaluations/fe-sonnet5-anthropic-claude-sonnet-5-r1--fa3f19b4/judge-codex-openai-gpt-5-6-sol--289d5f94/output/result.json"
+          ],
+          "implementation_duration_s": 1980.1420445420008,
+          "evaluation_duration_s": 677.1214499169946,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 2657.2634944589954,
+            "implementation_cost_usd": 10.636490100000001,
+            "evaluation_cost_usd": 3.579834
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 14.225000000000001,
+      "total_known_cost_usd": 36.225517849999996,
+      "total_duration_s": 5229.048086877003
+    },
+    {
+      "model_id": "grok-4.5",
+      "name": "Grok 4.5",
+      "tracks": {
+        "be": {
+          "score": 7.278,
+          "duration_s": 1285.7250700410004,
+          "implementation_cost_usd": 2.11509,
+          "evaluation_cost_usd": 3.23478,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t170807z-db8473",
+          "submission_id": "id-8cb2e796",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T17-08-07Z--fe-be--xai-grok-4-5--20260711t170807z-db8473/attempts/be-grok-xai-grok-4-5-r1--8cb2e796.json",
+          "manifest_source": "runs/2026-07-11T17-08-07Z--fe-be--xai-grok-4-5--20260711t170807z-db8473/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T17-08-07Z--fe-be--xai-grok-4-5--20260711t170807z-db8473/evaluations/be-grok-xai-grok-4-5-r1--8cb2e796/judge-codex-openai-gpt-5-6-sol--589aab95/output/result.json"
+          ],
+          "implementation_duration_s": 534.7380889580018,
+          "evaluation_duration_s": 750.9869810829987,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1285.7250700410004,
+            "implementation_cost_usd": 2.11509,
+            "evaluation_cost_usd": 3.23478
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 6.384,
+          "duration_s": 922.2971673749998,
+          "implementation_cost_usd": 1.103158,
+          "evaluation_cost_usd": 2.848819,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t170807z-db8473",
+          "submission_id": "id-5bc128c8",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T17-08-07Z--fe-be--xai-grok-4-5--20260711t170807z-db8473/attempts/fe-grok-xai-grok-4-5-r1--5bc128c8.json",
+          "manifest_source": "runs/2026-07-11T17-08-07Z--fe-be--xai-grok-4-5--20260711t170807z-db8473/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T17-08-07Z--fe-be--xai-grok-4-5--20260711t170807z-db8473/evaluations/fe-grok-xai-grok-4-5-r1--5bc128c8/judge-codex-openai-gpt-5-6-sol--d7969ce9/output/result.json"
+          ],
+          "implementation_duration_s": 427.1316058750017,
+          "evaluation_duration_s": 495.16556149999815,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 922.2971673749998,
+            "implementation_cost_usd": 1.103158,
+            "evaluation_cost_usd": 2.848819
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 13.661999999999999,
+      "total_known_cost_usd": 9.301847,
+      "total_duration_s": 2208.0222374160003
+    },
+    {
+      "model_id": "opus",
+      "name": "Claude Opus 4.8",
+      "tracks": {
+        "be": {
+          "score": 6.59,
+          "duration_s": 2872.62194570899,
+          "implementation_cost_usd": 16.102826249999996,
+          "evaluation_cost_usd": 2.154043,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260712t112956z-05f1ac",
+          "submission_id": "id-c5f47601",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-12T11-29-56Z--fe-be--anthropic-opus--20260712t112956z-05f1ac/attempts/be-claude-opus-anthropic-opus-r1--c5f47601.json",
+          "manifest_source": "runs/2026-07-12T11-29-56Z--fe-be--anthropic-opus--20260712t112956z-05f1ac/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-12T11-29-56Z--fe-be--anthropic-opus--20260712t112956z-05f1ac/evaluations/be-claude-opus-anthropic-opus-r1--c5f47601/judge-codex-openai-gpt-5-6-sol--fabccce9/output/result.json"
+          ],
+          "implementation_duration_s": 2388.711730166993,
+          "evaluation_duration_s": 483.9102155419969,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 2872.62194570899,
+            "implementation_cost_usd": 16.102826249999996,
+            "evaluation_cost_usd": 2.154043
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 6.587,
+          "duration_s": 2608.1537250830006,
+          "implementation_cost_usd": 8.977933250000003,
+          "evaluation_cost_usd": 2.599315,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260712t112956z-05f1ac",
+          "submission_id": "id-1d7a5d1e",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-12T11-29-56Z--fe-be--anthropic-opus--20260712t112956z-05f1ac/attempts/fe-claude-opus-anthropic-opus-r1--1d7a5d1e.json",
+          "manifest_source": "runs/2026-07-12T11-29-56Z--fe-be--anthropic-opus--20260712t112956z-05f1ac/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-12T11-29-56Z--fe-be--anthropic-opus--20260712t112956z-05f1ac/evaluations/fe-claude-opus-anthropic-opus-r1--1d7a5d1e/judge-codex-openai-gpt-5-6-sol--38285fdb/output/result.json"
+          ],
+          "implementation_duration_s": 2120.7408252500027,
+          "evaluation_duration_s": 487.41289983299794,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 2608.1537250830006,
+            "implementation_cost_usd": 8.977933250000003,
+            "evaluation_cost_usd": 2.599315
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 13.177,
+      "total_known_cost_usd": 29.8341175,
+      "total_duration_s": 5480.775670791991
+    },
+    {
+      "model_id": "gpt-5.5",
+      "name": "GPT-5.5",
+      "tracks": {
+        "be": {
+          "score": 7.084,
+          "duration_s": 1553.1496575839992,
+          "implementation_cost_usd": 3.727977,
+          "evaluation_cost_usd": 2.479987,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t190035z-d06816",
+          "submission_id": "id-fcb47662",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/attempts/be-gpt55-openai-gpt-5-5-r1--fcb47662.json",
+          "manifest_source": "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/evaluations/be-gpt55-openai-gpt-5-5-r1--fcb47662/judge-codex-openai-gpt-5-6-sol--048e3c2a/output/result.json"
+          ],
+          "implementation_duration_s": 1080.3426694590016,
+          "evaluation_duration_s": 472.8069881249976,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1553.1496575839992,
+            "implementation_cost_usd": 3.727977,
+            "evaluation_cost_usd": 2.479987
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 5.67,
+          "duration_s": 1101.3840947080025,
+          "implementation_cost_usd": 2.371877,
+          "evaluation_cost_usd": 2.35606,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t190035z-d06816",
+          "submission_id": "id-68357f11",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/attempts/fe-gpt55-openai-gpt-5-5-r1--68357f11.json",
+          "manifest_source": "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T19-00-35Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-5--20260711t190035z-d06816/evaluations/fe-gpt55-openai-gpt-5-5-r1--68357f11/judge-codex-openai-gpt-5-6-sol--f4d5fe9d/output/result.json"
+          ],
+          "implementation_duration_s": 685.4763140830037,
+          "evaluation_duration_s": 415.90778062499885,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1101.3840947080025,
+            "implementation_cost_usd": 2.371877,
+            "evaluation_cost_usd": 2.35606
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 12.754,
+      "total_known_cost_usd": 10.935901000000001,
+      "total_duration_s": 2654.5337522920017
+    },
+    {
+      "model_id": "gpt-5.6-sol",
+      "name": "GPT-5.6 Sol High (latest r5)",
+      "tracks": {
+        "fe": {
+          "score": 5.78,
+          "duration_s": 1150.453734833005,
+          "implementation_cost_usd": 1.951576,
+          "evaluation_cost_usd": 3.222783,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260712t125653z-ebee13",
+          "submission_id": "id-dfc58145",
+          "repetition": 5,
+          "attempt_source": "runs/2026-07-12T12-56-53Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-6-sol--20260712t125653z-ebee13/attempts/fe-codex-openai-gpt-5-6-sol-r5--dfc58145.json",
+          "manifest_source": "runs/2026-07-12T12-56-53Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-6-sol--20260712t125653z-ebee13/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-12T12-56-53Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-6-sol--20260712t125653z-ebee13/evaluations/fe-codex-openai-gpt-5-6-sol-r5--dfc58145/judge-codex-openai-gpt-5-6-sol--83b2029a/output/result.json"
+          ],
+          "implementation_duration_s": 545.7488097909954,
+          "evaluation_duration_s": 604.7049250420096,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "be": {
+          "score": 6.93,
+          "duration_s": 1930.3672118339891,
+          "implementation_cost_usd": 6.808112,
+          "evaluation_cost_usd": 1.952966,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260712t125653z-ebee13",
+          "submission_id": "id-43852910",
+          "repetition": 5,
+          "attempt_source": "runs/2026-07-12T12-56-53Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-6-sol--20260712t125653z-ebee13/attempts/be-codex-openai-gpt-5-6-sol-r5--43852910.json",
+          "manifest_source": "runs/2026-07-12T12-56-53Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-6-sol--20260712t125653z-ebee13/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-12T12-56-53Z--fe-be--anthropic-claude-sonnet-5_openai-gpt-5-6-sol--20260712t125653z-ebee13/evaluations/be-codex-openai-gpt-5-6-sol-r5--43852910/judge-codex-openai-gpt-5-6-sol--18553a69/output/result.json"
+          ],
+          "implementation_duration_s": 1468.837547541989,
+          "evaluation_duration_s": 461.52966429200023,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 12.71,
+      "total_known_cost_usd": 13.935437,
+      "total_duration_s": 3080.820946666994
+    },
+    {
+      "model_id": "muse-spark-1.3",
+      "name": "Muse Spark 1.3",
+      "tracks": {
+        "be": {
+          "score": 6.711,
+          "duration_s": 1312.276577501092,
+          "implementation_cost_usd": 0.0,
+          "evaluation_cost_usd": 2.3134968,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260903t035433z-6bfd20",
+          "submission_id": "id-0974f4a0",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-03T03-54-33Z--fe-be--meta-muse-spark-1-3--20260903t035433z-6bfd20/attempts/be-opencode-muse-meta-muse-spark-1-3-r1--0974f4a0.json",
+          "manifest_source": "runs/2026-09-03T03-54-33Z--fe-be--meta-muse-spark-1-3--20260903t035433z-6bfd20/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-03T03-54-33Z--fe-be--meta-muse-spark-1-3--20260903t035433z-6bfd20/evaluations/be-opencode-muse-meta-muse-spark-1-3-r1--0974f4a0/judge-codex-openai-gpt-5-6-sol--4b66497f/output/result.json"
+          ],
+          "implementation_duration_s": 647.6944642919116,
+          "evaluation_duration_s": 664.5821132091805,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "13e2b843178eced9476a42dc585bde4fba831e31b605470c858b68fef0db39cd",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1312.276577501092,
+            "implementation_cost_usd": 0.0,
+            "evaluation_cost_usd": 2.3134968
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 5.745,
+          "duration_s": 1231.7045197905973,
+          "implementation_cost_usd": 0.0,
+          "evaluation_cost_usd": 2.2639712000000003,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260903t035433z-6bfd20",
+          "submission_id": "id-59525b3a",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-03T03-54-33Z--fe-be--meta-muse-spark-1-3--20260903t035433z-6bfd20/attempts/fe-opencode-muse-meta-muse-spark-1-3-r1--59525b3a.json",
+          "manifest_source": "runs/2026-09-03T03-54-33Z--fe-be--meta-muse-spark-1-3--20260903t035433z-6bfd20/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-03T03-54-33Z--fe-be--meta-muse-spark-1-3--20260903t035433z-6bfd20/evaluations/fe-opencode-muse-meta-muse-spark-1-3-r1--59525b3a/judge-codex-openai-gpt-5-6-sol--7d938379/output/result.json"
+          ],
+          "implementation_duration_s": 699.2650832496583,
+          "evaluation_duration_s": 532.4394365409389,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "13e2b843178eced9476a42dc585bde4fba831e31b605470c858b68fef0db39cd",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1231.7045197905973,
+            "implementation_cost_usd": 0.0,
+            "evaluation_cost_usd": 2.2639712000000003
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 12.456,
+      "total_known_cost_usd": 4.577468,
+      "total_duration_s": 2543.9810972916894
+    },
+    {
+      "model_id": "gpt-6-sol",
+      "name": "GPT-6 Sol High",
+      "tracks": {
+        "fe": {
+          "score": 6.212,
+          "duration_s": 2865.34989179112,
+          "implementation_cost_usd": 2.1919388,
+          "evaluation_cost_usd": 0.941456,
+          "contract_version": "2026-09-05.1",
+          "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "run_id": "20260923t090331z-18a02e",
+          "submission_id": "id-8462c674",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/attempts/fe-sol6-openai-gpt-6-sol-r1--8462c674.json",
+          "manifest_source": "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/evaluations/fe-sol6-openai-gpt-6-sol-r1--8462c674/judge-sol6-openai-gpt-6-sol--d0a34b4d/output/result.json"
+          ],
+          "implementation_duration_s": 2104.2479177080095,
+          "evaluation_duration_s": 761.1019740831107,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "064821c626cb28231c31ddd00e2b3cb73fe24791d03b90d8407cf1f64ad5773e",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "be": {
+          "score": 6.155,
+          "duration_s": 2756.5061354571953,
+          "implementation_cost_usd": 2.6401892,
+          "evaluation_cost_usd": 0.9609956,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "run_id": "20260923t090331z-18a02e",
+          "submission_id": "id-9c5e48cd",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/attempts/be-sol6-openai-gpt-6-sol-r1--9c5e48cd.json",
+          "manifest_source": "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/evaluations/be-sol6-openai-gpt-6-sol-r1--9c5e48cd/judge-sol6-openai-gpt-6-sol--663337d2/output/result.json"
+          ],
+          "implementation_duration_s": 1794.3214719165117,
+          "evaluation_duration_s": 962.1846635406837,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "064821c626cb28231c31ddd00e2b3cb73fe24791d03b90d8407cf1f64ad5773e",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 12.367,
+      "total_known_cost_usd": 6.7345796,
+      "total_duration_s": 5621.8560272483155
+    },
+    {
+      "model_id": "gemini-3.8-flash",
+      "name": "Gemini 3.8 Flash High",
+      "tracks": {
+        "be": {
+          "score": 6.483,
+          "duration_s": 1512.2040823339485,
+          "implementation_cost_usd": 1.0048665,
+          "evaluation_cost_usd": 2.7549232000000003,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260902t162821z-ac8708",
+          "submission_id": "id-d1024af2",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-02T16-28-21Z--fe-be--google-gemini-3-8-flash--20260902t162821z-ac8708/attempts/be-agy-flash-38-google-gemini-3-8-flash-r1--d1024af2.json",
+          "manifest_source": "runs/2026-09-02T16-28-21Z--fe-be--google-gemini-3-8-flash--20260902t162821z-ac8708/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-02T16-28-21Z--fe-be--google-gemini-3-8-flash--20260902t162821z-ac8708/evaluations/be-agy-flash-38-google-gemini-3-8-flash-r1--d1024af2/judge-codex-openai-gpt-5-6-sol--e8029e66/output/result.json"
+          ],
+          "implementation_duration_s": 645.0667444169521,
+          "evaluation_duration_s": 867.1373379169963,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "13e2b843178eced9476a42dc585bde4fba831e31b605470c858b68fef0db39cd",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1512.2040823339485,
+            "implementation_cost_usd": 1.0048665,
+            "evaluation_cost_usd": 2.7549232000000003
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 5.7,
+          "duration_s": 785.1017800001428,
+          "implementation_cost_usd": 0.63564975,
+          "evaluation_cost_usd": 1.6791608,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260903t022251z-bf72e3",
+          "submission_id": "id-2ce111d1",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-03T02-22-51Z--fe--google-gemini-3-8-flash--20260903t022251z-bf72e3/attempts/fe-agy-flash-38-google-gemini-3-8-flash-r1--2ce111d1.json",
+          "manifest_source": "runs/2026-09-03T02-22-51Z--fe--google-gemini-3-8-flash--20260903t022251z-bf72e3/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-03T02-22-51Z--fe--google-gemini-3-8-flash--20260903t022251z-bf72e3/evaluations/fe-agy-flash-38-google-gemini-3-8-flash-r1--2ce111d1/judge-codex-openai-gpt-5-6-sol--cae109f2/output/result.json"
+          ],
+          "implementation_duration_s": 389.6177373328246,
+          "evaluation_duration_s": 395.48404266731814,
+          "input_hashes": {
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "13e2b843178eced9476a42dc585bde4fba831e31b605470c858b68fef0db39cd",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 785.1017800001428,
+            "implementation_cost_usd": 0.63564975,
+            "evaluation_cost_usd": 1.6791608
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 12.183,
+      "total_known_cost_usd": 6.0746002500000005,
+      "total_duration_s": 2297.305862334091
+    },
+    {
+      "model_id": "gpt-6-luna",
+      "name": "GPT-6 Luna Max",
+      "tracks": {
+        "fe": {
+          "score": 5.434,
+          "duration_s": 4730.0383786242455,
+          "implementation_cost_usd": 0.37382752,
+          "evaluation_cost_usd": 1.0619703999999999,
+          "contract_version": "2026-09-05.1",
+          "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "run_id": "20260923t101159z-a53f4e",
+          "submission_id": "id-47c46a90",
+          "repetition": 1,
+          "attempt_source": "runs/2026-09-23T10-11-59Z--fe--openai-gpt-6-luna--20260923t101159z-a53f4e/attempts/fe-luna6-retry-openai-gpt-6-luna-r1--47c46a90.json",
+          "manifest_source": "runs/2026-09-23T10-11-59Z--fe--openai-gpt-6-luna--20260923t101159z-a53f4e/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-09-23T10-11-59Z--fe--openai-gpt-6-luna--20260923t101159z-a53f4e/evaluations/fe-luna6-retry-openai-gpt-6-luna-r1--47c46a90/judge-sol6-openai-gpt-6-sol--408d49bc/output/result.json"
+          ],
+          "implementation_duration_s": 4250.704215708189,
+          "evaluation_duration_s": 479.3341629160568,
+          "input_hashes": {
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "064821c626cb28231c31ddd00e2b3cb73fe24791d03b90d8407cf1f64ad5773e",
+            "prompt:fe": "5b1368c614338b56f300c7b9dc8c7fa68165ef46c41826bd7f6f6218a441b2fb",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "be": {
+          "score": 6.695,
+          "duration_s": null,
+          "implementation_cost_usd": null,
+          "evaluation_cost_usd": null,
+          "implementation_duration_s": null,
+          "evaluation_duration_s": null,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-6-sol"
+          ],
+          "assisted": true,
+          "evaluation_sources": [
+            "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/recovery/luna-be-sol-light/assisted-evaluation/output/result.json"
+          ],
+          "provenance_source": "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/recovery/luna-be-sol-light/assisted-evaluation/provenance.json",
+          "provenance": {
+            "source_run_id": "20260923t090331z-18a02e",
+            "source_submission_id": "id-e012a51e",
+            "original_model": "gpt-6-luna",
+            "original_effort": "max",
+            "assisting_model": "gpt-6-sol",
+            "assisting_effort": "low",
+            "evaluator_model": "gpt-6-sol",
+            "evaluator_effort": "high",
+            "source_sha256": "be27bc67ddd38d93b7ac60343f22ba47f42064ef5d9ae4198a89f0aa40870270",
+            "assisted_sha256": "853a2966a6e0286bd1fbb07e757bf41a25b8d588f10f6479e0ea533363de13b5",
+            "comparable_to_pure_model_results": false
+          },
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false,
+          "note": "No finalized assisted attempt; established report weighted score retained. Per-stage rescue duration/cost unavailable in finalized record."
+        }
+      },
+      "assisted": true,
+      "cost_lower_bound": true,
+      "time_approximate": true,
+      "total_known_cost_usd": 3.301,
+      "total_duration_s": 19052,
+      "totals_source": "reports/2026-09-23-sol6-luna6-grok47/comparison.md",
+      "totals_precision": "Published rounded USD0.001/integer seconds; full lineage includes failed attempts/retries/continuations",
+      "correction_sources": [
+        "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/corrections/exclusion-id-2ed5113e.json",
+        "runs/2026-09-23T09-03-31Z--fe-be--openai-gpt-6-luna_openai-gpt-6-sol_xai-grok-4-7--20260923t090331z-18a02e/corrections/exclusion-id-e012a51e.json"
+      ],
+      "ranked": true,
+      "combined_score": 12.129000000000001
+    },
+    {
+      "model_id": "gemini-3.7-flash",
+      "name": "Gemini 3.7 Flash High",
+      "tracks": {
+        "be": {
+          "score": 5.8,
+          "duration_s": 778.396369333961,
+          "implementation_cost_usd": 0.60836625,
+          "evaluation_cost_usd": 2.911138,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260814t035649z-253ec3",
+          "submission_id": "id-fa3a32a9",
+          "repetition": 1,
+          "attempt_source": "runs/2026-08-14T03-56-49Z--fe-be--google-gemini-3-7-flash--20260814t035649z-253ec3/attempts/be-agy-flash-google-gemini-3-7-flash-r1--fa3a32a9.json",
+          "manifest_source": "runs/2026-08-14T03-56-49Z--fe-be--google-gemini-3-7-flash--20260814t035649z-253ec3/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-08-14T03-56-49Z--fe-be--google-gemini-3-7-flash--20260814t035649z-253ec3/evaluations/be-agy-flash-google-gemini-3-7-flash-r1--fa3a32a9/judge-codex-openai-gpt-5-6-sol--ac9cf95d/output/result.json"
+          ],
+          "implementation_duration_s": 258.4535842919722,
+          "evaluation_duration_s": 519.9427850419888,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "69b022e7d96849a5634097c6f9eb08165a3340a26b7668c832465d422c6c96be",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 778.396369333961,
+            "implementation_cost_usd": 0.60836625,
+            "evaluation_cost_usd": 2.911138
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 5.608,
+          "duration_s": 1080.9905912500108,
+          "implementation_cost_usd": 0.36324975,
+          "evaluation_cost_usd": 3.652266,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260814t035649z-253ec3",
+          "submission_id": "id-2640b6ba",
+          "repetition": 1,
+          "attempt_source": "runs/2026-08-14T03-56-49Z--fe-be--google-gemini-3-7-flash--20260814t035649z-253ec3/attempts/fe-agy-flash-google-gemini-3-7-flash-r1--2640b6ba.json",
+          "manifest_source": "runs/2026-08-14T03-56-49Z--fe-be--google-gemini-3-7-flash--20260814t035649z-253ec3/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-08-14T03-56-49Z--fe-be--google-gemini-3-7-flash--20260814t035649z-253ec3/evaluations/fe-agy-flash-google-gemini-3-7-flash-r1--2640b6ba/judge-codex-openai-gpt-5-6-sol--faada541/output/result.json"
+          ],
+          "implementation_duration_s": 191.8540121249389,
+          "evaluation_duration_s": 889.1365791250719,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "69b022e7d96849a5634097c6f9eb08165a3340a26b7668c832465d422c6c96be",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1080.9905912500108,
+            "implementation_cost_usd": 0.36324975,
+            "evaluation_cost_usd": 3.652266
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 11.408,
+      "total_known_cost_usd": 7.535019999999999,
+      "total_duration_s": 1859.3869605839718
+    },
+    {
+      "model_id": "gemini-3.1-pro",
+      "name": "Gemini 3.1 Pro High",
+      "tracks": {
+        "be": {
+          "score": 3.872,
+          "duration_s": 651.7668701670045,
+          "implementation_cost_usd": 0.468424,
+          "evaluation_cost_usd": 1.468826,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260712t113705z-0e7ec8",
+          "submission_id": "id-775ed920",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-12T11-37-05Z--fe-be--google-gemini-3-1-pro--20260712t113705z-0e7ec8/attempts/be-agy-pro-google-gemini-3-1-pro-r1--775ed920.json",
+          "manifest_source": "runs/2026-07-12T11-37-05Z--fe-be--google-gemini-3-1-pro--20260712t113705z-0e7ec8/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-12T11-37-05Z--fe-be--google-gemini-3-1-pro--20260712t113705z-0e7ec8/evaluations/be-agy-pro-google-gemini-3-1-pro-r1--775ed920/judge-codex-openai-gpt-5-6-sol--7f21ad01/output/result.json"
+          ],
+          "implementation_duration_s": 172.60455795899907,
+          "evaluation_duration_s": 479.16231220800546,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 651.7668701670045,
+            "implementation_cost_usd": 0.468424,
+            "evaluation_cost_usd": 1.468826
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 3.19,
+          "duration_s": 675.6460891669994,
+          "implementation_cost_usd": 0.50708,
+          "evaluation_cost_usd": 2.120787,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260712t113705z-0e7ec8",
+          "submission_id": "id-034dcf4e",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-12T11-37-05Z--fe-be--google-gemini-3-1-pro--20260712t113705z-0e7ec8/attempts/fe-agy-pro-google-gemini-3-1-pro-r1--034dcf4e.json",
+          "manifest_source": "runs/2026-07-12T11-37-05Z--fe-be--google-gemini-3-1-pro--20260712t113705z-0e7ec8/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-12T11-37-05Z--fe-be--google-gemini-3-1-pro--20260712t113705z-0e7ec8/evaluations/fe-agy-pro-google-gemini-3-1-pro-r1--034dcf4e/judge-codex-openai-gpt-5-6-sol--4db8701c/output/result.json"
+          ],
+          "implementation_duration_s": 190.20792324999638,
+          "evaluation_duration_s": 485.43816591700306,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 675.6460891669994,
+            "implementation_cost_usd": 0.50708,
+            "evaluation_cost_usd": 2.120787
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 7.061999999999999,
+      "total_known_cost_usd": 4.565117,
+      "total_duration_s": 1327.412959334004
+    },
+    {
+      "model_id": "gemini-3.5-flash",
+      "name": "Gemini 3.5 Flash High",
+      "tracks": {
+        "be": {
+          "score": 0.1,
+          "duration_s": 487.30609566599014,
+          "implementation_cost_usd": 1.593852,
+          "evaluation_cost_usd": 0.728786,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260712t112004z-dc641b",
+          "submission_id": "id-4e73d05f",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-12T11-20-04Z--fe-be--google-gemini-3-5-flash--20260712t112004z-dc641b/attempts/be-agy-flash-google-gemini-3-5-flash-r1--4e73d05f.json",
+          "manifest_source": "runs/2026-07-12T11-20-04Z--fe-be--google-gemini-3-5-flash--20260712t112004z-dc641b/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-12T11-20-04Z--fe-be--google-gemini-3-5-flash--20260712t112004z-dc641b/evaluations/be-agy-flash-google-gemini-3-5-flash-r1--4e73d05f/judge-codex-openai-gpt-5-6-sol--f9e0278f/output/result.json"
+          ],
+          "implementation_duration_s": 310.57632499998726,
+          "evaluation_duration_s": 176.72977066600288,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 487.30609566599014,
+            "implementation_cost_usd": 1.593852,
+            "evaluation_cost_usd": 0.728786
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 0.0,
+          "duration_s": 280.1659476259956,
+          "implementation_cost_usd": 0.37515,
+          "evaluation_cost_usd": 0.778547,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260712t112004z-dc641b",
+          "submission_id": "id-65d441a3",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-12T11-20-04Z--fe-be--google-gemini-3-5-flash--20260712t112004z-dc641b/attempts/fe-agy-flash-google-gemini-3-5-flash-r1--65d441a3.json",
+          "manifest_source": "runs/2026-07-12T11-20-04Z--fe-be--google-gemini-3-5-flash--20260712t112004z-dc641b/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-12T11-20-04Z--fe-be--google-gemini-3-5-flash--20260712t112004z-dc641b/evaluations/fe-agy-flash-google-gemini-3-5-flash-r1--65d441a3/judge-codex-openai-gpt-5-6-sol--2a8d5679/output/result.json"
+          ],
+          "implementation_duration_s": 73.53549666699837,
+          "evaluation_duration_s": 206.63045095899724,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 280.1659476259956,
+            "implementation_cost_usd": 0.37515,
+            "evaluation_cost_usd": 0.778547
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 0.1,
+      "total_known_cost_usd": 3.4763349999999997,
+      "total_duration_s": 767.4720432919858
+    },
+    {
+      "model_id": "glm-5.2",
+      "name": "GLM 5.2",
+      "tracks": {
+        "be": {
+          "score": 0.05,
+          "duration_s": 1098.852072416994,
+          "implementation_cost_usd": 0.060375132,
+          "evaluation_cost_usd": 0.72822,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t161255z-843ef2",
+          "submission_id": "id-2513aff2",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/attempts/be-pi-glm-zai-glm-5-2-r1--2513aff2.json",
+          "manifest_source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/evaluations/be-pi-glm-zai-glm-5-2-r1--2513aff2/judge-codex-openai-gpt-5-6-sol--b24541f7/output/result.json"
+          ],
+          "implementation_duration_s": 816.5725002089966,
+          "evaluation_duration_s": 282.27957220799726,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1098.852072416994,
+            "implementation_cost_usd": 0.060375132,
+            "evaluation_cost_usd": 0.72822
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        },
+        "fe": {
+          "score": 0.0,
+          "duration_s": 1206.595132292001,
+          "implementation_cost_usd": 0.029714124,
+          "evaluation_cost_usd": 0.727136,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "20260711t161255z-843ef2",
+          "submission_id": "id-ce950a6a",
+          "repetition": 1,
+          "attempt_source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/attempts/fe-pi-glm-zai-glm-5-2-r1--ce950a6a.json",
+          "manifest_source": "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/run-manifest.json",
+          "evaluation_sources": [
+            "runs/2026-07-11T16-12-55Z--fe-be--anthropic-claude-fable-5_openai-gpt-5-6-sol_xai-grok-4-5_zai-glm-5-2--20260711t161255z-843ef2/evaluations/fe-pi-glm-zai-glm-5-2-r1--ce950a6a/judge-codex-openai-gpt-5-6-sol--eba70878/output/result.json"
+          ],
+          "implementation_duration_s": 954.3414930829967,
+          "evaluation_duration_s": 252.25363920900418,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "pricing_snapshot": "e958f0a6a802d7ba7756147592b4db576a4ce4adc2819cfbcd5de535e59288c7",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "f9988b8fabfb110822de5908c3dd8f06931c9c460e85dc230cdefacf16d662ac",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 1206.595132292001,
+            "implementation_cost_usd": 0.029714124,
+            "evaluation_cost_usd": 0.727136
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": true,
+      "combined_score": 0.05,
+      "total_known_cost_usd": 1.5454452559999998,
+      "total_duration_s": 2305.447204708995
+    },
+    {
+      "model_id": "0x-alpha",
+      "name": "0x Alpha Max",
+      "tracks": {
+        "be": {
+          "score": 7.956,
+          "duration_s": 3797.491141250022,
+          "implementation_cost_usd": 0.0,
+          "evaluation_cost_usd": 3.5649727999999996,
+          "contract_version": "2026-07-11.2",
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "evaluator_ids": [
+            "gpt-5.6-sol"
+          ],
+          "run_id": "forced-eval-be-20260825t1816",
+          "submission_id": "id-2a53572e",
+          "repetition": 1,
+          "attempt_source": "runs/run--be--opencode-0x-alpha--forced-eval-be-20260825t1816/attempts/be-opencode-alpha-opencode-0x-alpha-r1--2a53572e.json",
+          "manifest_source": "runs/run--be--opencode-0x-alpha--forced-eval-be-20260825t1816/run-manifest.json",
+          "evaluation_sources": [
+            "runs/run--be--opencode-0x-alpha--forced-eval-be-20260825t1816/evaluations/be-opencode-alpha-opencode-0x-alpha-r1--2a53572e/judge-codex-openai-gpt-5-6-sol--f5a3b08e/output/result.json"
+          ],
+          "implementation_duration_s": 2754.86,
+          "evaluation_duration_s": 1042.6311412500218,
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "pricing_snapshot": "12bdf560a50bf945545700859e6085dff34d5c7110e8f68581982994f0bda2c6",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "owning_attempt_values": {
+            "duration_s": 3797.491141250022,
+            "implementation_cost_usd": 0.0,
+            "evaluation_cost_usd": 3.5649727999999996
+          },
+          "selection_source": "reports/september-2026-comparison.json",
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-5.6-sol"
+            ],
+            "evaluator_effort": "high"
+          },
+          "can_share_haiku_frontier": false
+        }
+      },
+      "assisted": false,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "ranked": false,
+      "combined_score": null,
+      "total_known_cost_usd": 3.5649727999999996,
+      "total_duration_s": 3797.491141250022
+    },
+    {
+      "model_id": "claude-haiku-5-5",
+      "name": "Claude Haiku 5.5 High",
+      "tracks": {
+        "fe": {
+          "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+          "contract_version": "2026-09-05.1",
+          "dimensions": {
+            "accessibility": 4.5,
+            "code_architecture": 6.5,
+            "functional_depth": 6.2,
+            "interaction_quality": 5.0,
+            "product_model": 7.5,
+            "reference_fidelity": 5.0,
+            "reliability": 5.5,
+            "responsive_adaptation": 4.5,
+            "state_persistence": 6.0,
+            "surface_coverage": 6.8,
+            "visual_craft": 6.0
+          },
+          "display_name": "Claude Haiku 5.5 (High)",
+          "duration_s": 1836.1399476239458,
+          "evaluation_cost_usd": 0.7995124,
+          "evaluation_success": true,
+          "evaluator_ids": [
+            "gpt-6.1-sol"
+          ],
+          "harness": "claude-haiku-55",
+          "implementation_cost_usd": 1.683261259999999,
+          "implementation_success": true,
+          "ineligible_reasons": [],
+          "judge_spread": 0.0,
+          "model_id": "claude-haiku-5-5",
+          "repetition": 1,
+          "run_id": "20261009t063457z-ac508c",
+          "score": 5.794,
+          "submission_id": "id-619c55c8",
+          "tokens": 21755693,
+          "track": "fe",
+          "implementation_duration_s": 1121.4684842079878,
+          "evaluation_duration_s": 714.671463415958,
+          "implementation_job": {
+            "command_preview": "claude -p --model claude-haiku-5-5 --effort high --output-format json --no-session-persistence --settings '{\"permissions\":{\"deny\":[]},\"sandbox\":{\"allowUnsandboxedCommands\":false,\"autoAllowBashIfSandboxed\":true,\"enabled\":true,\"excludedCommands\":[],\"failIfUnavailable\":true,\"filesystem\":{\"allowRead\":[\"<root>\",\"/System\",\"/Library\",\"/bin\",\"/sbin\",\"/usr/bin\",\"/usr/sbin\",\"/usr/lib\",\"/etc\",\"/dev\",\"<home>/.local/bin\",\"/opt/homebrew/bin\",\"/opt/homebrew/sbin\",\"/usr/local/bin\",\"/System/Cryptexes/App/usr/bin\",\"//Applications/Topaz Gigapixel AI.app/Contents/Resources/bin\",\"//Applications/Topaz Photo AI.app/Contents/Resources/bin\",\"/Library/Apple/usr/bin\",\"/Library/TeX/texbin\",\"/usr/local/share/dotnet\",\"/opt/podman/bin\",\"/Applications/ChatGPT.app/Contents/Resources/codex-cli/codex-path\",\"<home>/.codex/tmp/arg0/codex-arg0hvB2zO\",\"<home>/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override\",\"<home>/Library/pnpm/bin\",\"<home>/.resend/bin\",\"<home>/.antigravity-ide/antigravity-ide/bin\",\"<home>/.grok/bin\",\"<home>/.opencode/bin\",\"<home>/.antigravity/antigravity/bin\",\"<home>/anaconda3/bin\",\"<home>/anaconda3/condabin\",\"<home>/.codeium/windsurf/bin\",\"<home>/Code/projects/acrm/bin\",\"/opt/homebrew/opt/postgresql@15/bin\",\"<home>/.volta/bin\",\"<home>/Library/pnpm\",\"<home>/.cache/lm-studio/bin\",\"<home>/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback\",\"/Applications/ChatGPT.app/Contents/Resources\",\"/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS\"],\"allowWrite\":[\"<root>\"],\"denyRead\":[\"/**\"],\"denyWrite\":[]},\"network\":{\"allowAllUnixSockets\":true,\"allowLocalBinding\":true,\"allowedDomains\":[\"*\"]}}}' --permission-mode dontAsk --allowedTools Bash,Edit,Glob,Grep,Read,Write",
+            "cost_usd": 1.683261259999999,
+            "duration_s": 1121.4684842079878,
+            "error": null,
+            "harness": "claude-haiku-55",
+            "id": "implement-id-619c55c8",
+            "interrupted": false,
+            "kind": "implement",
+            "repetition": 1,
+            "reported_cost_usd": 1.683261259999999,
+            "returncode": 0,
+            "submission_id": "id-619c55c8",
+            "timed_out": false,
+            "track": "fe",
+            "usage": {
+              "cache_write_tokens": 337959,
+              "cached_input_tokens": 18277776,
+              "input_tokens": 138,
+              "output_tokens": 249979
+            }
+          },
+          "evaluation_jobs": [
+            {
+              "command_preview": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high -C '<root>' -s workspace-write --skip-git-repo-check --json -o '<root>/20261009t063457z-ac508c/evaluations/id-619c55c8/id-2bf63ad8/last.md' --add-dir '<root>/20261009t063457z-ac508c/evaluations/id-619c55c8/id-2bf63ad8/seed' --add-dir '<root>/20261009t063457z-ac508c/evaluations/id-619c55c8/id-2bf63ad8/submission' -",
+              "cost_usd": 0.7995124,
+              "duration_s": 714.671463415958,
+              "error": null,
+              "eval_attempt_id": "id-2bf63ad8",
+              "evaluator_id": "eval-sol61-high",
+              "harness": "sol61",
+              "id": "evaluate-id-2bf63ad8",
+              "interrupted": false,
+              "invalid_reasons": [],
+              "kind": "evaluate",
+              "repetition": 1,
+              "reported_cost_usd": null,
+              "returncode": 0,
+              "submission_id": "id-619c55c8",
+              "timed_out": false,
+              "track": "fe",
+              "usage": {
+                "cache_write_tokens": 0,
+                "cached_input_tokens": 2705664,
+                "input_tokens": 164103,
+                "output_tokens": 20074
+              },
+              "valid": true
+            }
+          ],
+          "attempt_source": "runs/2026-10-09T06-34-57Z--fe-be--anthropic-claude-haiku-5-5--20261009t063457z-ac508c/attempts/fe-claude-haiku-55-anthropic-claude-haiku-5-5-r1--619c55c8.json",
+          "manifest_source": "runs/2026-10-09T06-34-57Z--fe-be--anthropic-claude-haiku-5-5--20261009t063457z-ac508c/run-manifest.json",
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "ea9e18546ed1215409a2c6a5c584d431c310d1491e34d7c745698cfd81d30f1c",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "fe",
+            "contract_sha256": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "evaluator_ids": [
+              "gpt-6.1-sol"
+            ],
+            "evaluator_effort": "high"
+          }
+        },
+        "be": {
+          "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+          "contract_version": "2026-07-11.2",
+          "dimensions": {
+            "architecture_domain": 8.0,
+            "behavioral_depth": 6.2,
+            "code_quality": 8.0,
+            "endpoint_coverage": 9.8,
+            "http_contract": 7.0,
+            "operability": 8.2,
+            "request_hardening": 5.8,
+            "scope_honesty": 7.0,
+            "seed_fidelity": 8.0
+          },
+          "display_name": "Claude Haiku 5.5 (High)",
+          "duration_s": 2294.5970423324034,
+          "evaluation_cost_usd": 0.9050632,
+          "evaluation_success": true,
+          "evaluator_ids": [
+            "gpt-6.1-sol"
+          ],
+          "harness": "claude-haiku-55",
+          "implementation_cost_usd": 1.4971722499999995,
+          "implementation_success": true,
+          "ineligible_reasons": [],
+          "judge_spread": 0.0,
+          "model_id": "claude-haiku-5-5",
+          "repetition": 1,
+          "run_id": "20261009t063457z-ac508c",
+          "score": 7.506,
+          "submission_id": "id-ede4674f",
+          "tokens": 16376227,
+          "track": "be",
+          "implementation_duration_s": 1118.6110917497426,
+          "evaluation_duration_s": 1175.9859505826607,
+          "implementation_job": {
+            "command_preview": "claude -p --model claude-haiku-5-5 --effort high --output-format json --no-session-persistence --settings '{\"permissions\":{\"deny\":[]},\"sandbox\":{\"allowUnsandboxedCommands\":false,\"autoAllowBashIfSandboxed\":true,\"enabled\":true,\"excludedCommands\":[],\"failIfUnavailable\":true,\"filesystem\":{\"allowRead\":[\"<root>\",\"/System\",\"/Library\",\"/bin\",\"/sbin\",\"/usr/bin\",\"/usr/sbin\",\"/usr/lib\",\"/etc\",\"/dev\",\"<home>/.local/bin\",\"/opt/homebrew/bin\",\"/opt/homebrew/sbin\",\"/usr/local/bin\",\"/System/Cryptexes/App/usr/bin\",\"//Applications/Topaz Gigapixel AI.app/Contents/Resources/bin\",\"//Applications/Topaz Photo AI.app/Contents/Resources/bin\",\"/Library/Apple/usr/bin\",\"/Library/TeX/texbin\",\"/usr/local/share/dotnet\",\"/opt/podman/bin\",\"/Applications/ChatGPT.app/Contents/Resources/codex-cli/codex-path\",\"<home>/.codex/tmp/arg0/codex-arg0hvB2zO\",\"<home>/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override\",\"<home>/Library/pnpm/bin\",\"<home>/.resend/bin\",\"<home>/.antigravity-ide/antigravity-ide/bin\",\"<home>/.grok/bin\",\"<home>/.opencode/bin\",\"<home>/.antigravity/antigravity/bin\",\"<home>/anaconda3/bin\",\"<home>/anaconda3/condabin\",\"<home>/.codeium/windsurf/bin\",\"<home>/Code/projects/acrm/bin\",\"/opt/homebrew/opt/postgresql@15/bin\",\"<home>/.volta/bin\",\"<home>/Library/pnpm\",\"<home>/.cache/lm-studio/bin\",\"<home>/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback\",\"/Applications/ChatGPT.app/Contents/Resources\",\"/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS\"],\"allowWrite\":[\"<root>\"],\"denyRead\":[\"/**\"],\"denyWrite\":[]},\"network\":{\"allowAllUnixSockets\":true,\"allowLocalBinding\":true,\"allowedDomains\":[\"*\"]}}}' --permission-mode dontAsk --allowedTools Bash,Edit,Glob,Grep,Read,Write",
+            "cost_usd": 1.4971722499999995,
+            "duration_s": 1118.6110917497426,
+            "error": null,
+            "harness": "claude-haiku-55",
+            "id": "implement-id-ede4674f",
+            "interrupted": false,
+            "kind": "implement",
+            "repetition": 1,
+            "reported_cost_usd": 1.4971722499999995,
+            "returncode": 0,
+            "submission_id": "id-ede4674f",
+            "timed_out": false,
+            "track": "be",
+            "usage": {
+              "cache_write_tokens": 365561,
+              "cached_input_tokens": 12937939,
+              "input_tokens": 126,
+              "output_tokens": 255083
+            }
+          },
+          "evaluation_jobs": [
+            {
+              "command_preview": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high -C '<root>' -s workspace-write --skip-git-repo-check --json -o '<root>/20261009t063457z-ac508c/evaluations/id-ede4674f/id-592ee2c1/last.md' --add-dir '<root>/20261009t063457z-ac508c/evaluations/id-ede4674f/id-592ee2c1/seed' --add-dir '<root>/20261009t063457z-ac508c/evaluations/id-ede4674f/id-592ee2c1/submission' -",
+              "cost_usd": 0.9050632,
+              "duration_s": 1175.9859505826607,
+              "error": null,
+              "eval_attempt_id": "id-592ee2c1",
+              "evaluator_id": "eval-sol61-high",
+              "harness": "sol61",
+              "id": "evaluate-id-592ee2c1",
+              "interrupted": false,
+              "invalid_reasons": [],
+              "kind": "evaluate",
+              "repetition": 1,
+              "reported_cost_usd": null,
+              "returncode": 0,
+              "submission_id": "id-ede4674f",
+              "timed_out": false,
+              "track": "be",
+              "usage": {
+                "cache_write_tokens": 0,
+                "cached_input_tokens": 2634752,
+                "input_tokens": 148259,
+                "output_tokens": 34507
+              },
+              "valid": true
+            }
+          ],
+          "attempt_source": "runs/2026-10-09T06-34-57Z--fe-be--anthropic-claude-haiku-5-5--20261009t063457z-ac508c/attempts/be-claude-haiku-55-anthropic-claude-haiku-5-5-r1--ede4674f.json",
+          "manifest_source": "runs/2026-10-09T06-34-57Z--fe-be--anthropic-claude-haiku-5-5--20261009t063457z-ac508c/run-manifest.json",
+          "input_hashes": {
+            "contract:be": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "contract:fe": "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+            "pricing_snapshot": "ea9e18546ed1215409a2c6a5c584d431c310d1491e34d7c745698cfd81d30f1c",
+            "prompt:be": "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+            "prompt:fe": "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+            "reference_manifest": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.manifest_sha256": "2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53",
+            "reference_pack.tree_sha256": "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e",
+            "reference_root": "ae5ca2c68ab7bb8b78d139dead8df7e2c27dff662eed879e95ee566548f7f662",
+            "rubric:be": "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+            "rubric:fe": "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+            "schema:evaluation-contract.schema.json": "987817dc8e6bb844d0d4f052b87e155b12b242102195b69116c7e8a4033b4160",
+            "schema:judge-result.schema.json": "238cbea49ad12dac6c6f614d24f70d0f36227ad42ad3bc0b6a37eec4e200fc84",
+            "schema:leaderboard.schema.json": "db8e205dfd727af04e86a9bc460982ec30a211d8438d83dd5abc932d21ee9f72",
+            "schema:reference-pack.schema.json": "4fb6ad7913b71e3826e68feb24b871af1bc51a3c2cd0303fd3397a081c0e25a9",
+            "schema:run-manifest.schema.json": "592bd9d7c90f074aef491144b979001ad5745d7b8ac7eee3744932ecf9174205",
+            "seed_root": "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878"
+          },
+          "assisted": false,
+          "chart_group": {
+            "track": "be",
+            "contract_sha256": "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+            "evaluator_ids": [
+              "gpt-6.1-sol"
+            ],
+            "evaluator_effort": "high"
+          }
+        }
+      },
+      "assisted": false,
+      "ranked": true,
+      "cost_lower_bound": false,
+      "time_approximate": false,
+      "combined_score": 13.3,
+      "total_duration_s": 4130.736989956349,
+      "total_known_cost_usd": 4.885009109999999
+    }
+  ],
+  "selection_discrepancies": [
+    {
+      "model_id": "gpt-5.6-sol",
+      "selected": "latest r5 FE5.780 BE6.930",
+      "september_json": "FE r3 6.489 / BE r4 7.313",
+      "README": "older FE r1 5.765 / BE r1 7.310; 59:48/$15.13"
+    },
+    {
+      "model_id": "muse-spark-1.3",
+      "selected_cost_usd": 4.577468,
+      "README_cost_usd": 4.63
+    }
+  ],
+  "limitations": [
+    "Only GPT6.1 Sol prior rows match Haiku contract hash and judge-model/effort grouping; others need separate frontiers.",
+    "Even matching hash/judge rows may differ prompt/seed/reference snapshots; input_hashes exposed.",
+    "Historical FE contract2026-07-11.2 differs recent FE2026-09-05.1; BE remains2026-07-11.2.",
+    "Luna BE and Grok FE are Sol Light assisted and not pure-model results; costs are lower bounds with unknown failed-attempt usage.",
+    "0x Alpha is BE-only and unranked;22pairedmodels plus Alpha equals23entries.",
+    "Saved historical report recosts retained alongside owning-attempt values.",
+    "Small README time rounding discrepancies retained as full precision stage durations."
+  ],
+  "current_model": "claude-haiku-5-5",
+  "run_directory": "/Users/stephenwalker/Code/projects/basecamp-bench/runs/2026-10-09T06-34-57Z--fe-be--anthropic-claude-haiku-5-5--20261009t063457z-ac508c",
+  "run_wall_time_s": 2295.0
+}
