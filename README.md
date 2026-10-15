@@ -256,6 +256,21 @@ malformed evidence, failed evaluator processes, and any evidence mutation. It
 then takes the median evaluator score per dimension and computes the weighted
 overall score.
 
+Future FE evaluations use a runner-owned static server over the immutable
+submission copy. The server binds only to loopback on an OS-assigned port,
+accepts GET/HEAD, checks HTTP readiness before launching the evaluator, and
+closes after evaluation, including failures. It serves `index.html` or a single
+root HTML entry point, consistent with the single-file frontend task.
+
+The evaluator receives the exact HTTP URL and must use Chrome through computer
+use, capture desktop/mobile screenshots, and record click/type/reload outcomes
+in `browser-evidence.json`. The runner requires both a recorded Chrome load and
+complete browser evidence before accepting scores; source-only visual scoring
+cannot pass. Submission bugs are scored from observed browser behavior, while
+environmental browser failures leave the evaluation incomplete. Request audits
+and browser evidence are hashed run artifacts. This changes the FE methodology
+to contract `2026-10-15.1`; historical runs retain their recorded versions.
+
 Runs from September 30 onward use GPT-6.1 Sol at high effort as the evaluator.
 GPT-6 Sol judged the September 23 to 29 runs, and Sol 5.6 judged the earlier
 ones. `bench.example.toml` still defaults to Sol 5.6 and has commented
@@ -292,6 +307,35 @@ A new model on an existing CLI is configuration only: update the corresponding
 an adapter implementing command construction, environment allowlisting, working
 directory, stdin, and output/usage parsing. Adapter tests must cover redaction,
 malformed output, permissions, timeouts, and vendor output drift.
+
+The `muse` adapter supports `muse-wonder-1.0`, `muse-wonder-full-1.0`,
+`muse-spark-1.3`, and `muse-spark-1.2` through Muse Code 1.4.7 or later.
+Use the existing Muse subscription login or `META_API_KEY`. Enable the example
+blocks, then select one or all four:
+
+```sh
+basecamp-bench run --harness muse-wonder --harness muse-wonder-full --harness muse-spark-13 --harness muse-spark-12 --track fe --track be
+```
+
+Each job pins Standard mode with `--contributor-mode off`, preserves the native
+workspace sandbox, disables reminder agents and foreign personal context, and
+limits execution capacity to one. Prompts use `--prompt-file`; completed JSONL
+terminal events supply the final answer. Since 1.4.7's headless stream omits
+usage, the adapter exports the exact session offline into the job's log folder
+and sums its model-completion usage records. Missing usage, incomplete runs,
+model mismatches, and export failures fail the implementation before evaluation.
+
+Built-in [Meta Standard rates](https://dev.meta.ai/docs/pricing-rate-limits)
+(verified October 14, 2026) are $4.00/$0.20/$20.00 per million fresh input,
+cached input, and output tokens for Wonder, and $1.25/$0.15/$4.25 for both
+Spark versions. Explicit pricing overrides take precedence. These are API token
+cost estimates when using a subscription, not an allocation of the monthly fee.
+Web-search charges are excluded. [Wonder Full](https://dev.meta.ai/docs/models)
+requires a Power Usage or Maximum Usage subscription and has no published token
+price: its cost stays unknown, and the run records missing pricing rather than
+inventing a zero cost. Remove any old free OpenCode pricing override for a Muse
+model before using the paid Muse harness; OpenCode's reported free cost remains
+separate from Muse's estimated token cost.
 
 The optional `pi` adapter exposes the safe benchmark model ID `glm-5.2` and
 routes it to OpenRouter's `z-ai/glm-5.2`; set `OPENROUTER_API_KEY` and use the
