@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest import mock
+from urllib.request import Request, urlopen
 
 from basecamp_bench import adapters as adapters_mod
 from basecamp_bench.adapters import (
@@ -206,8 +207,12 @@ class Fixture(unittest.TestCase):
         self.eval_fail = False
         self.raise_impl = False
         self.raise_eval = False
+        self.interrupt_eval = False
         self.interrupt_impl = False
         self.eval_score = 8.0
+        self.no_html = False
+        self.browser_mode = "complete"
+        self.browser_observations: list[tuple[str, int, bytes]] = []
         self.version_probe_count = 0
         self.version_output = "fake-agent 1.2.3\n"
         self.version_failure = False
@@ -317,6 +322,11 @@ class Fixture(unittest.TestCase):
                 return _proc(returncode=1)
             assert workdir is not None
             (workdir / "app.py").write_text("print('hi')\n", encoding="utf-8")
+            if not self.no_html:
+                (workdir / "index.html").write_text(
+                    "<!doctype html><title>fake frontend</title><main>fixture app</main>\n",
+                    encoding="utf-8",
+                )
             stdout_path.write_text(
                 json.dumps(
                     {
@@ -333,8 +343,6 @@ class Fixture(unittest.TestCase):
                 encoding="utf-8",
             )
             return _proc()
-        if self.raise_eval:
-            raise RuntimeError("evaluator exploded at " + str(self.root))
         prompt_path = Path(command[command.index("--prompt-file") + 1])
         text = prompt_path.read_text(encoding="utf-8")
         report_m = re.search(r"Markdown report path: (.+)", text)
@@ -349,6 +357,57 @@ class Fixture(unittest.TestCase):
         sub_dir = Path(sub_m.group(1).strip()) if sub_m else None
         sid = sid_m.group(1) if sid_m else "unknown"
         judge = judge_m.group(1) if judge_m else "eval-a"
+        browser_url_m = re.search(r"^Runner-served browser URL: (.+)$", text, re.MULTILINE)
+        browser_evidence_m = re.search(r"^Browser evidence JSON path: (.+)$", text, re.MULTILINE)
+        browser_url = browser_url_m.group(1).strip() if browser_url_m else None
+        browser_evidence = Path(browser_evidence_m.group(1).strip()) if browser_evidence_m else None
+        if (browser_url is None) != (browser_evidence is None):
+            raise ValueError("browser URL and evidence path must be supplied together")
+        if browser_url is not None:
+            request = Request(browser_url, headers={"User-Agent": "Chrome/test"})
+            with urlopen(request, timeout=3) as response:
+                browser_status = response.status
+                browser_body = response.read()
+            self.browser_observations.append((browser_url, browser_status, browser_body))
+            self.assertEqual(browser_status, 200)
+            self.assertIn(b"fake frontend", browser_body)
+            if self.browser_mode != "missing":
+                assert browser_evidence is not None
+                if self.browser_mode == "blocked":
+                    evidence = {
+                        "schema_version": "1.0",
+                        "url": browser_url,
+                        "rendered": False,
+                        "status": "blocked",
+                        "blocker": "fixture renderer blocked",
+                    }
+                else:
+                    passed = self.browser_mode != "failed-interaction"
+                    evidence = {
+                        "schema_version": "1.0",
+                        "url": browser_url,
+                        "rendered": True,
+                        "status": "complete",
+                        "screenshots": [
+                            {"viewport": "desktop", "evidence": "fixture desktop view"},
+                            {"viewport": "mobile", "evidence": "fixture mobile view"},
+                        ],
+                        "interactions": [
+                            {
+                                "action": action,
+                                "observed": f"fixture observed {action}",
+                                "passed": passed if action == "click" else True,
+                            }
+                            for action in ("click", "type", "reload")
+                        ],
+                    }
+                browser_evidence.write_text(
+                    json.dumps(evidence, sort_keys=True) + "\n", encoding="utf-8"
+                )
+        if self.raise_eval:
+            raise RuntimeError("evaluator exploded at " + str(self.root))
+        if self.interrupt_eval:
+            raise KeyboardInterrupt("evaluator interrupted at " + str(self.root))
         self.assertIsNotNone(workdir)
         self.assertIsNotNone(report)
         self.assertEqual(report.parent, workdir)
@@ -401,6 +460,11 @@ class Fixture(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        if browser_url is not None:
+            # Keep the runner-owned listener available until the evaluator exits.
+            request = Request(browser_url, headers={"User-Agent": "Chrome/test"})
+            with urlopen(request, timeout=3) as response:
+                self.browser_observations.append((browser_url, response.status, response.read()))
         return _proc(returncode=1 if self.eval_fail else 0)
 
     def run_bench(
@@ -438,6 +502,25 @@ class Fixture(unittest.TestCase):
 
     def read_run_manifest(self, run_dir: Path) -> dict:
         return json.loads((run_dir / "run-manifest.json").read_text(encoding="utf-8"))
+
+    def assert_browser_proof_artifacts(self, run_dir: Path, manifest: Mapping[str, Any]) -> None:
+        proof_files: dict[str, Path] = {}
+        for name in ("browser-runtime.json", "browser-evidence.json"):
+            files = list((run_dir / "evaluations").rglob(name))
+            self.assertEqual(len(files), 2, name)
+            proof_files.update({path.relative_to(run_dir).as_posix(): path for path in files})
+        declared_proof = {
+            path: digest
+            for path, digest in manifest["artifacts"].items()
+            if path.endswith(("/browser-runtime.json", "/browser-evidence.json"))
+        }
+        self.assertEqual(set(declared_proof), set(proof_files))
+        for relative_path, proof_file in proof_files.items():
+            self.assertEqual(
+                declared_proof[relative_path],
+                _sha(proof_file.read_bytes()),
+                relative_path,
+            )
 
 
 class NewRunIdTests(unittest.TestCase):
@@ -915,7 +998,32 @@ class PipelineTests(Fixture):
             if key.startswith("snapshots/")
         }
         self.assertTrue(snapshot_artifacts)
+        self.assert_browser_proof_artifacts(run_dir, manifest)
         self.assertEqual(verify_run(run_dir), [])
+        self.assertTrue(self.browser_observations)
+        for url in {item[0] for item in self.browser_observations}:
+            with self.subTest(url=url), self.assertRaises(OSError):
+                urlopen(Request(url), timeout=1)
+
+    def test_evaluator_keyboard_interrupt_checkpoints_browser_proof_and_closes_listener(
+        self,
+    ) -> None:
+        self.interrupt_eval = True
+        with self.assertRaisesRegex(KeyboardInterrupt, "evaluator interrupted"):
+            self.run_bench(id_factory=_Ids("eval-interrupt"))
+        run_dir = self.run_root / "eval-interrupt001"
+        manifest = self.read_run_manifest(run_dir)
+        self.assertEqual(manifest["status"], "failed")
+        eval_jobs = [job for job in manifest["jobs"] if job["kind"] == "evaluate"]
+        self.assertEqual(len(eval_jobs), 2)
+        self.assertTrue(all(not job["valid"] for job in eval_jobs))
+        self.assertTrue(all(job["interrupted"] for job in eval_jobs))
+        self.assert_browser_proof_artifacts(run_dir, manifest)
+        self.assertEqual(verify_run(run_dir), [])
+        self.assertTrue(self.browser_observations)
+        for url in {item[0] for item in self.browser_observations}:
+            with self.subTest(url=url), self.assertRaises(OSError):
+                urlopen(Request(url), timeout=1)
 
     def test_evaluator_exception_checkpoints_concurrent_sibling_outcome(self) -> None:
         original = self.side_effect
@@ -1183,6 +1291,127 @@ class ConcurrencyTests(Fixture):
 
 
 class EvalIntegrityTests(Fixture):
+    def test_frontend_evaluator_uses_exact_live_server_url_and_closes_listener(self) -> None:
+        run_dir = self.run_bench(id_factory=_Ids("browser-live"))
+        attempt = self.attempt_json(run_dir)
+        self.assertTrue(attempt["evaluation_success"])
+        eval_dirs = [path.parent for path in (run_dir / "evaluations").rglob("prompt.md")]
+        self.assertEqual(len(eval_dirs), 2)
+        urls = []
+        for eval_dir in eval_dirs:
+            prompt = (eval_dir / "prompt.md").read_text(encoding="utf-8")
+            match = re.search(r"^Runner-served browser URL: (.+)$", prompt, re.MULTILINE)
+            self.assertIsNotNone(match)
+            assert match is not None
+            url = match.group(1).strip()
+            evidence_match = re.search(r"^Browser evidence JSON path: (.+)$", prompt, re.MULTILINE)
+            self.assertIsNotNone(evidence_match)
+            assert evidence_match is not None
+            prompt_evidence_path = Path(evidence_match.group(1).strip())
+            self.assertEqual(prompt_evidence_path.parent.name, "output")
+            self.assertEqual(prompt_evidence_path.name, "browser-evidence.json")
+            self.assertTrue((eval_dir / "output" / "browser-evidence.json").is_file())
+            urls.append(url)
+            runtime = json.loads((eval_dir / "browser-runtime.json").read_text(encoding="utf-8"))
+            evidence = json.loads(
+                (eval_dir / "output" / "browser-evidence.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(runtime["chrome_loaded"], True)
+            self.assertEqual(evidence["url"], url)
+            self.assertTrue(evidence["rendered"])
+            chrome_gets = [
+                item
+                for item in runtime["requests"]
+                if item["method"] == "GET" and "Chrome/" in item["user_agent"]
+            ]
+            self.assertGreaterEqual(len(chrome_gets), 2)
+            self.assertTrue(all(item["path"] == "index.html" for item in chrome_gets))
+        self.assertEqual(len(set(urls)), 2)
+        for url in urls:
+            observed = [item for item in self.browser_observations if item[0] == url]
+            self.assertEqual(len(observed), 2)
+            self.assertTrue(
+                all(status == 200 and b"fake frontend" in body for _, status, body in observed)
+            )
+            with self.subTest(url=url), self.assertRaises(OSError):
+                urlopen(Request(url), timeout=1)
+
+    def test_missing_browser_proof_rejects_numerical_scores(self) -> None:
+        self.browser_mode = "missing"
+        run_dir = self.run_bench(id_factory=_Ids("browser-missing"))
+        attempt = self.attempt_json(run_dir)
+        self.assertFalse(attempt["evaluation_success"])
+        self.assertIsNone(attempt["score"])
+        jobs = [job for job in self.read_run_manifest(run_dir)["jobs"] if job["kind"] == "evaluate"]
+        self.assertEqual(len(jobs), 2)
+        self.assertTrue(all("missing_browser_evidence" in job["invalid_reasons"] for job in jobs))
+        results = list((run_dir / "evaluations").glob("*/**/output/result.json"))
+        self.assertEqual(len(results), 2)
+        self.assertTrue(
+            all(
+                json.loads(path.read_text(encoding="utf-8"))["dimensions"]["craft"]["score"] == 8.0
+                for path in results
+            )
+        )
+
+    def test_blocked_browser_proof_rejects_numerical_scores(self) -> None:
+        self.browser_mode = "blocked"
+        run_dir = self.run_bench(id_factory=_Ids("browser-blocked"))
+        attempt = self.attempt_json(run_dir)
+        self.assertFalse(attempt["evaluation_success"])
+        self.assertIsNone(attempt["score"])
+        jobs = [job for job in self.read_run_manifest(run_dir)["jobs"] if job["kind"] == "evaluate"]
+        self.assertEqual(len(jobs), 2)
+        self.assertTrue(
+            all("incomplete_browser_evidence" in job["invalid_reasons"] for job in jobs)
+        )
+        results = list((run_dir / "evaluations").glob("*/**/output/result.json"))
+        self.assertEqual(len(results), 2)
+        self.assertTrue(
+            all(
+                json.loads(path.read_text(encoding="utf-8"))["dimensions"]["craft"]["score"] == 8.0
+                for path in results
+            )
+        )
+
+    def test_failed_product_interaction_is_valid_browser_evidence(self) -> None:
+        self.browser_mode = "failed-interaction"
+        run_dir = self.run_bench(id_factory=_Ids("browser-product-failure"))
+        attempt = self.attempt_json(run_dir)
+        self.assertTrue(attempt["evaluation_success"])
+        jobs = [job for job in self.read_run_manifest(run_dir)["jobs"] if job["kind"] == "evaluate"]
+        self.assertEqual(len(jobs), 2)
+        self.assertTrue(all(job["valid"] for job in jobs))
+        evidence_paths = list((run_dir / "evaluations").rglob("browser-evidence.json"))
+        self.assertEqual(len(evidence_paths), 2)
+        for path in evidence_paths:
+            evidence = json.loads(path.read_text(encoding="utf-8"))
+            interactions = {item["action"]: item for item in evidence["interactions"]}
+            self.assertFalse(interactions["click"]["passed"])
+            self.assertTrue(interactions["click"]["observed"])
+            self.assertTrue(interactions["type"]["passed"])
+            self.assertTrue(interactions["reload"]["passed"])
+
+    def test_frontend_setup_failure_skips_evaluator_execution(self) -> None:
+        from basecamp_bench import runner as runner_module
+
+        self.no_html = True
+        real_execute_agent = runner_module.execute_agent
+        with mock.patch(
+            "basecamp_bench.runner.execute_agent", wraps=real_execute_agent
+        ) as execute_agent_spy:
+            run_dir = self.run_bench(id_factory=_Ids("browser-no-html"))
+        self.assertEqual(
+            [call.args[1].kind for call in execute_agent_spy.call_args_list], ["implement"]
+        )
+        attempt = self.attempt_json(run_dir)
+        self.assertTrue(attempt["implementation_success"])
+        self.assertFalse(attempt["evaluation_success"])
+        jobs = [job for job in self.read_run_manifest(run_dir)["jobs"] if job["kind"] == "evaluate"]
+        self.assertEqual(len(jobs), 2)
+        self.assertTrue(all("browser_runtime_failed" in job["invalid_reasons"] for job in jobs))
+        self.assertEqual(self.browser_observations, [])
+
     def test_failed_evaluator_process_cannot_count_valid_artifacts(self) -> None:
         self.eval_fail = True
         run_dir = self.run_bench(id_factory=_Ids("e"))
