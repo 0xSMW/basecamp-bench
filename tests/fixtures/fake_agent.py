@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -56,6 +57,10 @@ def _implement(args: argparse.Namespace) -> int:
         encoding="utf-8",
     )
     artifact.chmod(0o755)
+    (args.workdir / "index.html").write_text(
+        "<!doctype html><title>fake artifact</title><main>fake artifact works</main>\n",
+        encoding="utf-8",
+    )
     args.last_message.parent.mkdir(parents=True, exist_ok=True)
     args.last_message.write_text("implemented\n", encoding="utf-8")
     if args.model == "fake-partial":
@@ -104,6 +109,12 @@ def _evaluate(args: argparse.Namespace) -> int:
     contract_match = re.search(r'"contract_sha256"\s*:\s*"([a-f0-9]{64})"', prompt)
     if contract_match is None:
         raise ValueError("missing contract_sha256")
+    browser_url_match = re.search(r"^Runner-served browser URL:\s*(.+)$", prompt, re.MULTILINE)
+    browser_path_match = re.search(r"^Browser evidence JSON path:\s*(.+)$", prompt, re.MULTILINE)
+    browser_url = browser_url_match.group(1).strip() if browser_url_match else None
+    browser_evidence = Path(browser_path_match.group(1).strip()) if browser_path_match else None
+    if (browser_url is None) != (browser_evidence is None):
+        raise ValueError("browser URL and evidence path must be supplied together")
     if (seed / "artifact.py").exists() or not (submission / "artifact.py").is_file():
         raise ValueError("submission delta is not isolated")
     executed = subprocess.run(
@@ -115,6 +126,37 @@ def _evaluate(args: argparse.Namespace) -> int:
     )
     if executed.stdout.strip() != "fake artifact works":
         raise ValueError("artifact output mismatch")
+    if browser_url is not None:
+        request = Request(browser_url, headers={"User-Agent": "Chrome/test"})
+        with urlopen(request, timeout=5) as response:
+            if response.status != 200 or b"fake artifact" not in response.read():
+                raise ValueError("runner-served frontend did not load")
+        assert browser_evidence is not None
+        browser_evidence.write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "url": browser_url,
+                    "rendered": True,
+                    "status": "complete",
+                    "screenshots": [
+                        {"viewport": "desktop", "evidence": "fixture desktop page loaded"},
+                        {"viewport": "mobile", "evidence": "fixture mobile page loaded"},
+                    ],
+                    "interactions": [
+                        {
+                            "action": action,
+                            "observed": f"fixture observed {action}",
+                            "passed": True,
+                        }
+                        for action in ("click", "type", "reload")
+                    ],
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
     if args.model == "fake-judge-mutate-seed":
         (seed / "mutation.txt").write_text("mutated\n", encoding="utf-8")
     if args.model == "fake-judge-mutate-submission":
