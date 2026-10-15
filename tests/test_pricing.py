@@ -274,6 +274,123 @@ class FindExactRatesTests(unittest.TestCase):
         self.assertEqual(result.rates.model_id, "gemini-2.5-pro")
 
 
+class MusePricingTests(unittest.TestCase):
+    STANDARD_RATES = {
+        "muse-wonder-1.0": (4.0, 20.0, 0.20),
+        "muse-spark-1.3": (1.25, 4.25, 0.15),
+        "muse-spark-1.2": (1.25, 4.25, 0.15),
+    }
+
+    def test_official_rates_without_usable_snapshot(self) -> None:
+        for model_id, expected in self.STANDARD_RATES.items():
+            for data in (None, {}, {"meta": {"models": "invalid"}}, ["invalid"]):
+                with self.subTest(model_id=model_id, data=data):
+                    result = find_exact_rates(
+                        model_id.upper(),
+                        data,
+                        None,
+                        retrieved_at="old-snapshot",  # type: ignore[arg-type]
+                    )
+                    self.assertIsNone(result.error)
+                    self.assertFalse(result.stale)
+                    assert result.rates is not None
+                    rates = result.rates
+                    self.assertEqual(
+                        (rates.input_usd_per_m, rates.output_usd_per_m, rates.cache_read_usd_per_m),
+                        expected,
+                    )
+                    self.assertEqual(rates.cache_write_usd_per_m, expected[0])
+                    self.assertEqual(rates.source, "https://dev.meta.ai/docs/pricing-rate-limits")
+                    self.assertEqual(rates.retrieved_at, "2026-10-14")
+                    self.assertEqual(rates.provider, "meta")
+                    self.assertEqual(rates.model_id, model_id)
+                    self.assertEqual(rates.match_kind, "exact")
+                    self.assertEqual(rates.currency, "USD")
+
+    def test_official_rates_win_over_stale_or_invalid_snapshot_rates(self) -> None:
+        for model_id, expected in self.STANDARD_RATES.items():
+            for cost in ({"input": 0.0, "output": 0.0}, {"input": "bad"}):
+                with self.subTest(model_id=model_id, cost=cost):
+                    data = _models_dev(("meta", model_id, cost))
+                    result = find_exact_rates(model_id, data, {})
+                    assert result.rates is not None
+                    self.assertEqual(result.rates.input_usd_per_m, expected[0])
+                    self.assertEqual(result.rates.output_usd_per_m, expected[1])
+
+    def test_explicit_overrides_win_for_all_four_models(self) -> None:
+        for model_id in (*self.STANDARD_RATES, "muse-wonder-full-1.0"):
+            with self.subTest(model_id=model_id):
+                result = find_exact_rates(
+                    model_id,
+                    None,
+                    {model_id.upper(): {"input": 7.0, "output": 13.0, "cache_read": 0.5}},
+                    retrieved_at="override-date",
+                )
+                assert result.rates is not None
+                self.assertEqual(result.rates.input_usd_per_m, 7.0)
+                self.assertEqual(result.rates.output_usd_per_m, 13.0)
+                self.assertEqual(result.rates.cache_read_usd_per_m, 0.5)
+                self.assertEqual(result.rates.source, "override")
+                self.assertEqual(result.rates.retrieved_at, "override-date")
+
+    def test_malformed_overrides_fail_without_falling_back(self) -> None:
+        for model_id in (*self.STANDARD_RATES, "muse-wonder-full-1.0"):
+            with self.subTest(model_id=model_id):
+                result = find_exact_rates(model_id, {}, {model_id: {"input": -1, "output": 1}})
+                self.assertIsNone(result.rates)
+                self.assertIn("override", result.error or "")
+
+    def test_full_has_no_token_rates_even_if_snapshot_invents_them(self) -> None:
+        model_id = "muse-wonder-full-1.0"
+        for data in (
+            None,
+            {},
+            _models_dev(("meta", model_id, {"input": 4.0, "output": 20.0})),
+            _models_dev(("meta", model_id, {"input": 0.0, "output": 0.0})),
+        ):
+            with self.subTest(data=data):
+                result = find_exact_rates(model_id, data, {})
+                self.assertIsNone(result.rates)
+                self.assertIn("no token pricing", result.error or "")
+                self.assertIn("subscription", result.error or "")
+
+    def test_cache_cost_uses_disjoint_token_buckets(self) -> None:
+        usage = _Usage(
+            input_tokens=1_000_000,
+            cached_input_tokens=2_000_000,
+            cache_write_tokens=500_000,
+            output_tokens=100_000,
+        )
+        for model_id, expected_cost in (
+            ("muse-wonder-1.0", 8.4),
+            ("muse-spark-1.3", 2.6),
+            ("muse-spark-1.2", 2.6),
+        ):
+            with self.subTest(model_id=model_id):
+                result = find_exact_rates(model_id, None, {})
+                assert result.rates is not None
+                self.assertAlmostEqual(compute_cost(usage, result.rates), expected_cost)
+
+    def test_builtin_lookup_does_not_strip_provider_or_version_suffix(self) -> None:
+        for model_id in (
+            "meta/muse-wonder-1.0",
+            "muse-spark-1.3-contributor",
+            "muse-spark-1.3-preview",
+            "muse-wonder",
+        ):
+            with self.subTest(model_id=model_id):
+                result = find_exact_rates(model_id, None, {})
+                self.assertIsNone(result.rates)
+                self.assertIn("no exact pricing", result.error or "")
+
+        # A provider-qualified ID remains a literal exact model ID in data.
+        data = _models_dev(("reseller", "meta/muse-wonder-1.0", {"input": 9, "output": 18}))
+        result = find_exact_rates("meta/muse-wonder-1.0", data, {})
+        assert result.rates is not None
+        self.assertEqual(result.rates.input_usd_per_m, 9)
+        self.assertEqual(result.rates.source, "https://models.dev/api.json")
+
+
 class ComputeCostTests(unittest.TestCase):
     def test_basic_arithmetic(self) -> None:
         rates = _rates(
