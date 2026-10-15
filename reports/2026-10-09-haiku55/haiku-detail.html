@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Basecamp Bench Report</title>
+<style>
+
+:root {
+  color-scheme: light;
+  --ink: #1a1a1a; --muted: #6b6b6b; --faint: #9a9a9a; --line: #e4e0da;
+  --bg: #faf9f7; --card: #ffffff; --accent: #c15f3c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg);
+  line-height: 1.55; font-size: 15.5px; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 940px; margin: 0 auto; padding: 40px 28px 96px; }
+.toc { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px;
+  margin-bottom: 28px; }
+.toc a { color: var(--muted); text-decoration: none; }
+.toc a:hover { color: var(--ink); text-decoration: underline; }
+header { border-bottom: 1px solid var(--line); padding-bottom: 20px;
+  margin-bottom: 36px; }
+.masthead { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; }
+.masthead .date { color: var(--muted); font-size: 14.5px; white-space: nowrap;
+  font-variant-numeric: tabular-nums; }
+h1 { font-size: 28px; letter-spacing: -0.4px; line-height: 1.2; }
+.sub { color: var(--muted); margin-top: 8px; font-size: 14.5px; }
+h2 { font-size: 20px; margin: 52px 0 14px; letter-spacing: -0.2px;
+  border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+h3 { font-size: 16px; margin: 26px 0 8px; }
+h4 { font-size: 13px; margin: 18px 0 6px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+p { margin: 0 0 14px; }
+ul { margin: 0 0 16px 20px; }
+li { margin-bottom: 8px; }
+li b { display: block; font-weight: 600; margin-bottom: 2px; }
+.muted { color: var(--muted); }
+.verdict { text-wrap: pretty; }
+.verdict-track { font-weight: 600; color: var(--muted); font-size: 13px;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px; }
+.hl-name { color: currentColor; font-weight: 600;
+  border-bottom: 2px solid currentColor; padding-bottom: 1px; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; margin: 18px 0 8px;
+  font-size: 14px; }
+th { text-align: left; font-weight: 600; border-bottom: 2px solid var(--ink);
+  padding: 8px 10px; white-space: nowrap; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+td { border-bottom: 1px solid var(--line); padding: 8px 10px;
+  white-space: nowrap; }
+td.winner { font-weight: 600; }
+table caption { caption-side: bottom; text-align: left; color: var(--muted);
+  font-size: 13px; padding-top: 8px; }
+.caption { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px;
+  background: currentColor; margin-right: 8px; vertical-align: baseline; flex: none; }
+.score-badge { display: inline-block; padding: 1px 7px;
+  border: 1px solid transparent; border-radius: 999px; font-weight: 600;
+  line-height: 1.35; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.score-strong { color: #175c38; background: #e1f2e8; border-color: #b8ddc7; }
+.score-good { color: #52611e; background: #eef2dc; border-color: #d4dda9; }
+.score-mixed { color: #785400; background: #fff0c7; border-color: #efd58b; }
+.score-weak { color: #864100; background: #fde3c8; border-color: #edbd8b; }
+.score-poor { color: #882626; background: #f8dddd; border-color: #e9b7b7; }
+.score-legend { display: flex; flex-wrap: wrap; gap: 7px 12px;
+  align-items: center; margin: 8px 0 22px; color: var(--muted); font-size: 12px; }
+.score-legend .score-badge { font-size: 11px; }
+.chart-card { background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 24px; margin: 22px 0 30px; }
+.chart-card h3 { margin-top: 0; }
+.chart { width: 100%; height: auto; margin-top: 12px; }
+.chart .muted { fill: var(--muted); }
+.axis { stroke: var(--ink); stroke-width: 1.2; }
+.axis-label { fill: var(--ink); font-size: 12.5px; }
+.axis-note { fill: var(--muted); font-size: 11.5px; }
+.grid { stroke: var(--line); stroke-width: 1; }
+.tick-label { fill: var(--muted); font-size: 11px; }
+.frontier-line { stroke: var(--accent); stroke-width: 1.5;
+  stroke-dasharray: 4 3; opacity: 0.85; }
+.mark { stroke: var(--card); stroke-width: 1.5; }
+.point-label { font-size: 12px; font-weight: 600; fill: var(--ink); }
+.bar-head { font-size: 12.5px; font-weight: 600; fill: var(--ink); }
+.bar-weight { fill: var(--muted); font-weight: 400; font-size: 11px; }
+.bar-value { font-size: 11px; fill: var(--ink);
+  font-variant-numeric: tabular-nums; }
+.bar-name { fill: var(--muted); }
+.model { background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 24px; margin: 24px 0; }
+.model h3 { margin-top: 0; display: flex; align-items: center; gap: 9px; }
+.model p:last-child { margin-bottom: 0; }
+.model .scores { color: var(--muted); font-size: 13.5px; margin-bottom: 14px;
+  font-variant-numeric: tabular-nums; }
+.dims { margin-top: 16px; }
+.dims summary, .table-view summary { cursor: pointer; font-size: 13px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+  font-weight: 600; }
+.table-view { margin-top: 10px; }
+.dims-track { font-size: 11px; letter-spacing: 0.08em; color: var(--faint);
+  font-weight: 600; margin: 14px 0 6px; }
+.dims-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.tile { display: flex; flex-direction: column; align-items: center; gap: 1px;
+  position: relative; width: 64px; padding: 8px 4px 7px; border-radius: 8px;
+  border: 0; }
+.tile-box { font-weight: 600; font-size: 14px;
+  font-variant-numeric: tabular-nums; }
+.tile-label { font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: 0.04em; opacity: 0.75; max-width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.tile:hover::after, .tile:focus-visible::after { content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 7px); left: 50%;
+  transform: translateX(-50%); background: var(--ink); color: var(--bg);
+  padding: 5px 9px; border-radius: 6px; font-size: 12px; line-height: 1.3;
+  white-space: nowrap; z-index: 10; pointer-events: none; }
+.dim-weight { display: block; font-weight: 400; font-size: 10px;
+  letter-spacing: 0; text-transform: none; color: var(--muted); }
+.foot { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--line);
+  color: var(--faint); font-size: 13px; text-align: center; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em; }
+
+.mc-98373e90 { color: #5b8c5a; }
+</style>
+</head>
+<body>
+<div class="wrap"><nav class="toc" aria-label="Sections"><a href="#results">Results</a><a href="#charts">Charts</a><a href="#models">Models</a><a href="#methodology">Methodology</a></nav><header><div class="masthead"><h1>Basecamp Bench</h1><span class="date">eval 2026-07-11.2 · 2026-09-05.1 · 2026-10-09T07:13:12Z</span></div><p class="sub">Which agent builds it best, at what cost.</p></header><section id="results"><h2>Results</h2><p class="verdict"><span class="verdict-track">FE</span> <span class="hl-name mc-98373e90">Claude Haiku 5.5 (High)</span> leads at 5.79 for $1.68 per valid result.</p><p class="verdict"><span class="verdict-track">BE</span> <span class="hl-name mc-98373e90">Claude Haiku 5.5 (High)</span> leads at 7.51 for $1.50 per valid result.</p><div class="table-scroll"><table class="raw-table" id="results-table"><caption>Scores, agent wall-clock time, and cost per track. Cost includes evaluator overhead. Best value per column in bold.</caption><thead><tr><th scope="col">Model</th><th scope="col" class="num">FE score</th><th scope="col" class="num">FE time</th><th scope="col" class="num">FE cost</th><th scope="col" class="num">BE score</th><th scope="col" class="num">BE time</th><th scope="col" class="num">BE cost</th><th scope="col" class="num">Total cost</th></tr></thead><tbody><tr><td><span class="swatch mc-98373e90"></span>Claude Haiku 5.5 (High)</td><td class="num winner">5.79</td><td class="num winner">30:36</td><td class="num winner">$2.48</td><td class="num winner">7.51</td><td class="num winner">38:15</td><td class="num winner">$2.40</td><td class="num winner">$4.89</td></tr></tbody></table></div></section><section id="charts"><h2>Charts</h2><div class="chart-card"><h3>Quality versus cost</h3><p class="caption">Each model appears once per track: circle = FE, triangle = BE. Cheaper to the right.</p><svg class="chart" role="img" width="880" height="460" viewBox="0 0 880 460" aria-label="Scatter chart of expected implementation cost versus score across tracks (circle = FE, triangle = BE). Expected implementation cost on the horizontal axis, decreasing from more expensive on the left to cheaper on the right. Score on the vertical axis. Frontier polylines mark the best quality per dollar.">
+<title>Quality versus cost</title>
+<desc>Scatter chart of expected implementation cost versus score across tracks (circle = FE, triangle = BE). Expected implementation cost on the horizontal axis, decreasing from more expensive on the left to cheaper on the right. Score on the vertical axis. Frontier polylines mark the best quality per dollar.</desc>
+<line class="grid" x1="848.09" y1="20" x2="848.09" y2="396"/>
+<text class="tick-label" x="848.09" y="412" text-anchor="middle">$1.45</text>
+<line class="grid" x1="708.28" y1="20" x2="708.28" y2="396"/>
+<text class="tick-label" x="708.28" y="412" text-anchor="middle">$1.5</text>
+<line class="grid" x1="568.46" y1="20" x2="568.46" y2="396"/>
+<text class="tick-label" x="568.46" y="412" text-anchor="middle">$1.55</text>
+<line class="grid" x1="428.64" y1="20" x2="428.64" y2="396"/>
+<text class="tick-label" x="428.64" y="412" text-anchor="middle">$1.6</text>
+<line class="grid" x1="288.83" y1="20" x2="288.83" y2="396"/>
+<text class="tick-label" x="288.83" y="412" text-anchor="middle">$1.65</text>
+<line class="grid" x1="149.01" y1="20" x2="149.01" y2="396"/>
+<text class="tick-label" x="149.01" y="412" text-anchor="middle">$1.7</text>
+<line class="grid" x1="56" y1="326.96" x2="856" y2="326.96"/>
+<text class="tick-label" x="48" y="330.96" text-anchor="end">6</text>
+<line class="grid" x1="56" y1="235.45" x2="856" y2="235.45"/>
+<text class="tick-label" x="48" y="239.45" text-anchor="end">6.5</text>
+<line class="grid" x1="56" y1="143.94" x2="856" y2="143.94"/>
+<text class="tick-label" x="48" y="147.94" text-anchor="end">7</text>
+<line class="grid" x1="56" y1="52.43" x2="856" y2="52.43"/>
+<text class="tick-label" x="48" y="56.43" text-anchor="end">7.5</text>
+<line x1="56" y1="20" x2="56" y2="396" class="axis"/>
+<line x1="56" y1="396" x2="856" y2="396" class="axis"/>
+<text x="456.0" y="450" text-anchor="middle" class="axis-label">Expected implementation cost</text>
+<text x="56" y="430" text-anchor="start" class="axis-note">More expensive</text>
+<text x="856" y="430" text-anchor="end" class="axis-note">Cheaper</text>
+<circle cx="195.82" cy="364.67" r="7" class="mark mc-98373e90" fill="currentColor"><title>Claude Haiku 5.5 (High) (FE): score=5.794, expected_cost=1.683</title></circle>
+<text class="point-label" x="206.82" y="368.67" text-anchor="start">Claude Haiku 5.5 (High)</text>
+<polygon points="716.18,44.33 709.88,56.23 722.48,56.23" class="mark mc-98373e90" fill="currentColor"><title>Claude Haiku 5.5 (High) (BE): score=7.506, expected_cost=1.497</title></polygon>
+<text class="point-label" x="705.18" y="55.33" text-anchor="end">Claude Haiku 5.5 (High)</text>
+</svg></div><div class="chart-card"><h3>FE dimensions</h3><p class="caption">Scores span 4.5 (Accessibility) to 7.5 (Product-model and content fidelity), 0–10 scale, heaviest weights first.</p><svg class="chart" role="img" width="880" height="619" viewBox="0 0 880 619" aria-label="Grouped bar chart of FE dimension scores, 0 to 10, one group per weighted dimension with one bar per model.">
+<title>FE dimensions</title>
+<desc>Grouped bar chart of FE dimension scores, 0 to 10, one group per weighted dimension with one bar per model.</desc>
+<text class="bar-head" x="8" y="19.00">Reference fidelity<tspan class="bar-weight"> · weight 14%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="26.00" width="414.00" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 5</title></rect>
+<text class="bar-value" x="428.00" y="37.00">5<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="74.00">Functional depth<tspan class="bar-weight"> · weight 12%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="81.00" width="513.36" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 6.2</title></rect>
+<text class="bar-value" x="527.36" y="92.00">6.2<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="129.00">State and persistence<tspan class="bar-weight"> · weight 10%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="136.00" width="496.80" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 6</title></rect>
+<text class="bar-value" x="510.80" y="147.00">6<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="184.00">Surface coverage<tspan class="bar-weight"> · weight 10%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="191.00" width="563.04" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 6.8</title></rect>
+<text class="bar-value" x="577.04" y="202.00">6.8<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="239.00">Visual craft and design-system coherence<tspan class="bar-weight"> · weight 10%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="246.00" width="496.80" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 6</title></rect>
+<text class="bar-value" x="510.80" y="257.00">6<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="294.00">Product-model and content fidelity<tspan class="bar-weight"> · weight 9%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="301.00" width="621.00" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 7.5</title></rect>
+<text class="bar-value" x="635.00" y="312.00">7.5<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="349.00">Interaction quality<tspan class="bar-weight"> · weight 8%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="356.00" width="414.00" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 5</title></rect>
+<text class="bar-value" x="428.00" y="367.00">5<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="404.00">Responsive adaptation<tspan class="bar-weight"> · weight 8%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="411.00" width="372.60" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 4.5</title></rect>
+<text class="bar-value" x="386.60" y="422.00">4.5<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="459.00">Accessibility<tspan class="bar-weight"> · weight 7%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="466.00" width="372.60" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 4.5</title></rect>
+<text class="bar-value" x="386.60" y="477.00">4.5<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="514.00">Code architecture and maintainability<tspan class="bar-weight"> · weight 6%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="521.00" width="538.20" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 6.5</title></rect>
+<text class="bar-value" x="552.20" y="532.00">6.5<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="569.00">Reliability, safety, and performance<tspan class="bar-weight"> · weight 6%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="576.00" width="455.40" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 5.5</title></rect>
+<text class="bar-value" x="469.40" y="587.00">5.5<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+</svg><details class="table-view"><summary>FE dimension table (tabular fallback)</summary><div class="table-scroll"><table class="dim-table"><caption>FE dimension scores by model and weights</caption><thead><tr><th scope="col">Dimension (weight)</th><th scope="col" class="num">Claude Haiku 5.5 (High)</th></tr></thead><tbody><tr><th scope="row">Reference fidelity<span class="dim-weight">weight 14%</span></th><td class="num">5</td></tr><tr><th scope="row">Functional depth<span class="dim-weight">weight 12%</span></th><td class="num">6.2</td></tr><tr><th scope="row">State and persistence<span class="dim-weight">weight 10%</span></th><td class="num">6</td></tr><tr><th scope="row">Surface coverage<span class="dim-weight">weight 10%</span></th><td class="num">6.8</td></tr><tr><th scope="row">Visual craft and design-system coherence<span class="dim-weight">weight 10%</span></th><td class="num">6</td></tr><tr><th scope="row">Product-model and content fidelity<span class="dim-weight">weight 9%</span></th><td class="num">7.5</td></tr><tr><th scope="row">Interaction quality<span class="dim-weight">weight 8%</span></th><td class="num">5</td></tr><tr><th scope="row">Responsive adaptation<span class="dim-weight">weight 8%</span></th><td class="num">4.5</td></tr><tr><th scope="row">Accessibility<span class="dim-weight">weight 7%</span></th><td class="num">4.5</td></tr><tr><th scope="row">Code architecture and maintainability<span class="dim-weight">weight 6%</span></th><td class="num">6.5</td></tr><tr><th scope="row">Reliability, safety, and performance<span class="dim-weight">weight 6%</span></th><td class="num">5.5</td></tr></tbody></table></div></details></div><div class="chart-card"><h3>BE dimensions</h3><p class="caption">Scores span 5.8 (Validation, authorization, and request hardening) to 9.8 (Endpoint surface coverage), 0–10 scale, heaviest weights first.</p><svg class="chart" role="img" width="880" height="509" viewBox="0 0 880 509" aria-label="Grouped bar chart of BE dimension scores, 0 to 10, one group per weighted dimension with one bar per model.">
+<title>BE dimensions</title>
+<desc>Grouped bar chart of BE dimension scores, 0 to 10, one group per weighted dimension with one bar per model.</desc>
+<text class="bar-head" x="8" y="19.00">Behavioral depth and statefulness<tspan class="bar-weight"> · weight 16%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="26.00" width="513.36" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 6.2</title></rect>
+<text class="bar-value" x="527.36" y="37.00">6.2<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="74.00">HTTP and schema contract fidelity<tspan class="bar-weight"> · weight 16%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="81.00" width="579.60" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 7</title></rect>
+<text class="bar-value" x="593.60" y="92.00">7<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="129.00">Endpoint surface coverage<tspan class="bar-weight"> · weight 14%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="136.00" width="811.44" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 9.8</title></rect>
+<text class="bar-value" x="825.44" y="147.00">9.8<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="184.00">Architecture and domain modeling<tspan class="bar-weight"> · weight 12%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="191.00" width="662.40" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 8</title></rect>
+<text class="bar-value" x="676.40" y="202.00">8<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="239.00">Validation, authorization, and request hardening<tspan class="bar-weight"> · weight 12%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="246.00" width="480.24" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 5.8</title></rect>
+<text class="bar-value" x="494.24" y="257.00">5.8<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="294.00">Seed data fidelity<tspan class="bar-weight"> · weight 10%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="301.00" width="662.40" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 8</title></rect>
+<text class="bar-value" x="676.40" y="312.00">8<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="349.00">Operability, testability, and packaging<tspan class="bar-weight"> · weight 8%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="356.00" width="678.96" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 8.2</title></rect>
+<text class="bar-value" x="692.96" y="367.00">8.2<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="404.00">Code quality and maintainability<tspan class="bar-weight"> · weight 7%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="411.00" width="662.40" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 8</title></rect>
+<text class="bar-value" x="676.40" y="422.00">8<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+<text class="bar-head" x="8" y="459.00">Scope honesty<tspan class="bar-weight"> · weight 5%</tspan></text>
+<rect class="bar mc-98373e90" x="8" y="466.00" width="579.60" height="14" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): 7</title></rect>
+<text class="bar-value" x="593.60" y="477.00">7<tspan class="bar-name"> Claude Haiku 5.5 (High)</tspan></text>
+</svg><details class="table-view"><summary>BE dimension table (tabular fallback)</summary><div class="table-scroll"><table class="dim-table"><caption>BE dimension scores by model and weights</caption><thead><tr><th scope="col">Dimension (weight)</th><th scope="col" class="num">Claude Haiku 5.5 (High)</th></tr></thead><tbody><tr><th scope="row">Behavioral depth and statefulness<span class="dim-weight">weight 16%</span></th><td class="num">6.2</td></tr><tr><th scope="row">HTTP and schema contract fidelity<span class="dim-weight">weight 16%</span></th><td class="num">7</td></tr><tr><th scope="row">Endpoint surface coverage<span class="dim-weight">weight 14%</span></th><td class="num">9.8</td></tr><tr><th scope="row">Architecture and domain modeling<span class="dim-weight">weight 12%</span></th><td class="num">8</td></tr><tr><th scope="row">Validation, authorization, and request hardening<span class="dim-weight">weight 12%</span></th><td class="num">5.8</td></tr><tr><th scope="row">Seed data fidelity<span class="dim-weight">weight 10%</span></th><td class="num">8</td></tr><tr><th scope="row">Operability, testability, and packaging<span class="dim-weight">weight 8%</span></th><td class="num">8.2</td></tr><tr><th scope="row">Code quality and maintainability<span class="dim-weight">weight 7%</span></th><td class="num">8</td></tr><tr><th scope="row">Scope honesty<span class="dim-weight">weight 5%</span></th><td class="num">7</td></tr></tbody></table></div></details></div><div class="chart-card"><h3>FE versus BE gap</h3><p class="caption">Every model scores higher on BE, gaps +1.7 to +1.7.</p><svg class="chart" role="img" width="880" height="70" viewBox="0 0 880 70" aria-label="Bar chart of per-model score gap, BE minus FE. Bars right of the zero line mean the model scored higher on BE.">
+<title>FE versus BE gap</title>
+<desc>Bar chart of per-model score gap, BE minus FE. Bars right of the zero line mean the model scored higher on BE.</desc>
+<line class="axis" x1="475.00" y1="10" x2="475.00" y2="40"/>
+<text class="tick-label" x="475.00" y="58" text-anchor="middle">0</text>
+<text class="bar-value" x="122" y="29.00" text-anchor="end">Claude Haiku 5.5 (High)</text>
+<rect class="bar mc-98373e90" x="475.00" y="16.00" width="345.00" height="18" rx="2" fill="currentColor"><title>Claude Haiku 5.5 (High): +1.71</title></rect>
+<text class="bar-value" x="826.00" y="29.00" text-anchor="start">+1.71</text>
+</svg></div></section><section id="models"><h2>Model deep dives</h2><div class="score-legend"><span class="score-badge score-strong">8.0–10 Strong</span><span class="score-badge score-good">7.0–7.9 Good</span><span class="score-badge score-mixed">6.0–6.9 Mixed</span><span class="score-badge score-weak">5.0–5.9 Weak</span><span class="score-badge score-poor">&lt;5.0 Poor</span></div><div class="model" id="model-claude-haiku-5-5"><h3><span class="swatch mc-98373e90"></span>Claude Haiku 5.5 (High) — highest scores overall</h3><p class="scores">FE 5.79 · BE 7.51 · $4.89 total · 1:08:51 total · 38.1M tokens</p><details class="dims"><summary>Dimension scores</summary><div class="dims-track">FE</div><div class="dims-row"><span class="tile score-weak" data-tip="Reference fidelity" tabindex="0"><span class="tile-box">5</span><span class="tile-label">Reference</span></span><span class="tile score-mixed" data-tip="Functional depth" tabindex="0"><span class="tile-box">6.2</span><span class="tile-label">Functional</span></span><span class="tile score-mixed" data-tip="State and persistence" tabindex="0"><span class="tile-box">6</span><span class="tile-label">State</span></span><span class="tile score-mixed" data-tip="Surface coverage" tabindex="0"><span class="tile-box">6.8</span><span class="tile-label">Surface</span></span><span class="tile score-mixed" data-tip="Visual craft and design-system coherence" tabindex="0"><span class="tile-box">6</span><span class="tile-label">Visual</span></span><span class="tile score-good" data-tip="Product-model and content fidelity" tabindex="0"><span class="tile-box">7.5</span><span class="tile-label">Product-model</span></span><span class="tile score-weak" data-tip="Interaction quality" tabindex="0"><span class="tile-box">5</span><span class="tile-label">Interaction</span></span><span class="tile score-poor" data-tip="Responsive adaptation" tabindex="0"><span class="tile-box">4.5</span><span class="tile-label">Responsive</span></span><span class="tile score-poor" data-tip="Accessibility" tabindex="0"><span class="tile-box">4.5</span><span class="tile-label">Accessibility</span></span><span class="tile score-mixed" data-tip="Code architecture and maintainability" tabindex="0"><span class="tile-box">6.5</span><span class="tile-label">Code</span></span><span class="tile score-weak" data-tip="Reliability, safety, and performance" tabindex="0"><span class="tile-box">5.5</span><span class="tile-label">Reliability,</span></span></div><div class="dims-track">BE</div><div class="dims-row"><span class="tile score-mixed" data-tip="Behavioral depth and statefulness" tabindex="0"><span class="tile-box">6.2</span><span class="tile-label">Behavioral</span></span><span class="tile score-good" data-tip="HTTP and schema contract fidelity" tabindex="0"><span class="tile-box">7</span><span class="tile-label">HTTP</span></span><span class="tile score-strong" data-tip="Endpoint surface coverage" tabindex="0"><span class="tile-box">9.8</span><span class="tile-label">Endpoint</span></span><span class="tile score-strong" data-tip="Architecture and domain modeling" tabindex="0"><span class="tile-box">8</span><span class="tile-label">Architecture</span></span><span class="tile score-weak" data-tip="Validation, authorization, and request hardening" tabindex="0"><span class="tile-box">5.8</span><span class="tile-label">Validation,</span></span><span class="tile score-strong" data-tip="Seed data fidelity" tabindex="0"><span class="tile-box">8</span><span class="tile-label">Seed</span></span><span class="tile score-strong" data-tip="Operability, testability, and packaging" tabindex="0"><span class="tile-box">8.2</span><span class="tile-label">Operability,</span></span><span class="tile score-strong" data-tip="Code quality and maintainability" tabindex="0"><span class="tile-box">8</span><span class="tile-label">Code</span></span><span class="tile score-good" data-tip="Scope honesty" tabindex="0"><span class="tile-box">7</span><span class="tile-label">Scope</span></span></div></details></div></section><section id="methodology"><h2>Methodology</h2><h4>Definitions</h4><p>Expected implementation cost per valid result is <code>implementation_cost_per_attempt / success_rate</code>; it sets the scatter's cost axis and the Pareto frontier. Table costs include evaluator overhead, which never changes frontier membership. Duration is implementation time plus critical-path evaluator time. Scoring rules, eligibility, dominance, and claim boundaries: see the repository methodology document. Provenance hashes, classifications, source IDs, judge spread, and raw attempts are in the embedded JSON payload.</p></section><div class="foot">basecamp-bench run of 2026-10-09T07:13:12Z</div></div>
+<script type="application/json" id="report-payload">{"sections":[{"contract_sha256":"21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71","contract_version":"2026-07-11.2","dimension_profile":[{"id":"architecture_domain","label":"Architecture and domain modeling","weight":0.12},{"id":"behavioral_depth","label":"Behavioral depth and statefulness","weight":0.16},{"id":"code_quality","label":"Code quality and maintainability","weight":0.07},{"id":"endpoint_coverage","label":"Endpoint surface coverage","weight":0.14},{"id":"http_contract","label":"HTTP and schema contract fidelity","weight":0.16},{"id":"operability","label":"Operability, testability, and packaging","weight":0.08},{"id":"request_hardening","label":"Validation, authorization, and request hardening","weight":0.12},{"id":"scope_honesty","label":"Scope honesty","weight":0.05},{"id":"seed_fidelity","label":"Seed data fidelity","weight":0.1}],"frontier":[],"generated_at":"2026-10-09T07:13:12Z","generated_at_values":["2026-10-09T07:13:12Z"],"mode":"local","models":[{"classification":"ineligible","cost_max":1.4971722499999995,"cost_mean":1.4971722499999995,"cost_min":1.4971722499999995,"cost_per_attempt":1.4971722499999995,"cost_range":0.0,"cost_stdev":0.0,"dimensions":{"architecture_domain":8.0,"behavioral_depth":6.2,"code_quality":8.0,"endpoint_coverage":9.8,"http_contract":7.0,"operability":8.2,"request_hardening":5.8,"scope_honesty":7.0,"seed_fidelity":8.0},"display_name":"Claude Haiku 5.5 (High)","dominator":null,"duration_max_s":2294.5970423324034,"duration_mean_s":2294.5970423324034,"duration_min_s":2294.5970423324034,"duration_range_s":0.0,"duration_s":2294.5970423324034,"eligible":false,"evaluation_cost_per_attempt":0.9050632,"expected_cost":1.4971722499999995,"harness":"claude-haiku-55","implementation_cost_per_attempt":1.4971722499999995,"ineligible_reasons":["local_mode"],"judge_spread":0.0,"marginal_cost_per_quality":null,"model_id":"claude-haiku-5-5","point_id":"claude-haiku-55:claude-haiku-5-5","raw_attempts":[{"contract_sha256":"21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71","contract_version":"2026-07-11.2","dimensions":{"architecture_domain":8.0,"behavioral_depth":6.2,"code_quality":8.0,"endpoint_coverage":9.8,"http_contract":7.0,"operability":8.2,"request_hardening":5.8,"scope_honesty":7.0,"seed_fidelity":8.0},"display_name":"Claude Haiku 5.5 (High)","duration_s":2294.5970423324034,"evaluation_cost_usd":0.9050632,"evaluation_success":true,"evaluator_ids":["gpt-6.1-sol"],"harness":"claude-haiku-55","implementation_cost_usd":1.4971722499999995,"implementation_success":true,"ineligible_reasons":[],"judge_spread":0.0,"model_id":"claude-haiku-5-5","repetition":1,"run_id":"20261009t063457z-ac508c","score":7.506,"submission_id":"id-ede4674f","tokens":16376227,"track":"be"}],"repetitions":1,"run_ids":["20261009t063457z-ac508c"],"score":7.506,"score_max":7.506,"score_mean":7.506,"score_min":7.506,"score_range":0.0,"score_stdev":0.0,"success_rate":1.0,"tokens":16376227,"tokens_max":16376227,"tokens_mean":16376227.0,"tokens_min":16376227,"tokens_range":0,"total_cost_per_attempt":2.4022354499999996}],"prompt_sha256":"b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7","reference_manifest_sha256":"2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53","reference_tree_sha256":"d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e","rubric_sha256":"8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40","runner_source_sha256":"8f7ac7a2cc7cf786933c247903639c4d057110b99321c092adc8da64ed098bdc","runner_source_sha256_values":["8f7ac7a2cc7cf786933c247903639c4d057110b99321c092adc8da64ed098bdc"],"schema_bundle_sha256":"9cff0b710de47bd6ed0d0724ebca43732f4b89a1bf5b62a34eb919ccc2190fb7","schema_version":"2.0","seed_tree_sha256":"b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878","source_run_ids":["20261009t063457z-ac508c"],"track":"be"},{"contract_sha256":"370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e","contract_version":"2026-09-05.1","dimension_profile":[{"id":"accessibility","label":"Accessibility","weight":0.07},{"id":"code_architecture","label":"Code architecture and maintainability","weight":0.06},{"id":"functional_depth","label":"Functional depth","weight":0.12},{"id":"interaction_quality","label":"Interaction quality","weight":0.08},{"id":"product_model","label":"Product-model and content fidelity","weight":0.09},{"id":"reference_fidelity","label":"Reference fidelity","weight":0.14},{"id":"reliability","label":"Reliability, safety, and performance","weight":0.06},{"id":"responsive_adaptation","label":"Responsive adaptation","weight":0.08},{"id":"state_persistence","label":"State and persistence","weight":0.1},{"id":"surface_coverage","label":"Surface coverage","weight":0.1},{"id":"visual_craft","label":"Visual craft and design-system coherence","weight":0.1}],"frontier":[],"generated_at":"2026-10-09T07:13:12Z","generated_at_values":["2026-10-09T07:13:12Z"],"mode":"local","models":[{"classification":"ineligible","cost_max":1.683261259999999,"cost_mean":1.683261259999999,"cost_min":1.683261259999999,"cost_per_attempt":1.683261259999999,"cost_range":0.0,"cost_stdev":0.0,"dimensions":{"accessibility":4.5,"code_architecture":6.5,"functional_depth":6.2,"interaction_quality":5.0,"product_model":7.5,"reference_fidelity":5.0,"reliability":5.5,"responsive_adaptation":4.5,"state_persistence":6.0,"surface_coverage":6.8,"visual_craft":6.0},"display_name":"Claude Haiku 5.5 (High)","dominator":null,"duration_max_s":1836.1399476239458,"duration_mean_s":1836.1399476239458,"duration_min_s":1836.1399476239458,"duration_range_s":0.0,"duration_s":1836.1399476239458,"eligible":false,"evaluation_cost_per_attempt":0.7995124,"expected_cost":1.683261259999999,"harness":"claude-haiku-55","implementation_cost_per_attempt":1.683261259999999,"ineligible_reasons":["local_mode"],"judge_spread":0.0,"marginal_cost_per_quality":null,"model_id":"claude-haiku-5-5","point_id":"claude-haiku-55:claude-haiku-5-5","raw_attempts":[{"contract_sha256":"370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e","contract_version":"2026-09-05.1","dimensions":{"accessibility":4.5,"code_architecture":6.5,"functional_depth":6.2,"interaction_quality":5.0,"product_model":7.5,"reference_fidelity":5.0,"reliability":5.5,"responsive_adaptation":4.5,"state_persistence":6.0,"surface_coverage":6.8,"visual_craft":6.0},"display_name":"Claude Haiku 5.5 (High)","duration_s":1836.1399476239458,"evaluation_cost_usd":0.7995124,"evaluation_success":true,"evaluator_ids":["gpt-6.1-sol"],"harness":"claude-haiku-55","implementation_cost_usd":1.683261259999999,"implementation_success":true,"ineligible_reasons":[],"judge_spread":0.0,"model_id":"claude-haiku-5-5","repetition":1,"run_id":"20261009t063457z-ac508c","score":5.794,"submission_id":"id-619c55c8","tokens":21755693,"track":"fe"}],"repetitions":1,"run_ids":["20261009t063457z-ac508c"],"score":5.794,"score_max":5.794,"score_mean":5.794,"score_min":5.794,"score_range":0.0,"score_stdev":0.0,"success_rate":1.0,"tokens":21755693,"tokens_max":21755693,"tokens_mean":21755693.0,"tokens_min":21755693,"tokens_range":0,"total_cost_per_attempt":2.482773659999999}],"prompt_sha256":"6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a","reference_manifest_sha256":"2a327c5d5632bae8dfa5cf2b2b48852a093bc171ef63c5b9989923df42379b53","reference_tree_sha256":"d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e","rubric_sha256":"3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38","runner_source_sha256":"8f7ac7a2cc7cf786933c247903639c4d057110b99321c092adc8da64ed098bdc","runner_source_sha256_values":["8f7ac7a2cc7cf786933c247903639c4d057110b99321c092adc8da64ed098bdc"],"schema_bundle_sha256":"9cff0b710de47bd6ed0d0724ebca43732f4b89a1bf5b62a34eb919ccc2190fb7","schema_version":"2.0","seed_tree_sha256":"b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878","source_run_ids":["20261009t063457z-ac508c"],"track":"fe"}]}</script>
+</body>
+</html>
