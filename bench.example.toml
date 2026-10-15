@@ -177,6 +177,48 @@ enabled = true
 # display_name = "Gemini 3.5 Flash (High) via Antigravity"
 # enabled = true
 
+# Optional Muse Code harnesses (muse >= 1.4.7), using the existing Muse login
+# or META_API_KEY. Standard mode is pinned per run; no account setting changes.
+# Uncomment the models you want, then select their harness IDs explicitly.
+# Official rates (USD/M, input/cache read/output), verified 2026-10-14:
+# Wonder 4.00/0.20/20.00; Spark 1.3 and 1.2 1.25/0.15/4.25.
+# https://dev.meta.ai/docs/pricing-rate-limits
+# Wonder Full requires Power/Maximum subscription, has no token price, and
+# reports unknown cost. Do not assign it a zero rate or Wonder's API rate.
+# https://dev.meta.ai/docs/models
+#
+# [harnesses.muse-wonder]
+# adapter = "muse"
+# model = "muse-wonder-1.0"
+# effort = "high"
+# provider_family = "meta"
+# display_name = "Muse Wonder 1.0 (High) via Muse"
+# enabled = true
+#
+# [harnesses.muse-wonder-full]
+# adapter = "muse"
+# model = "muse-wonder-full-1.0"
+# effort = "high"
+# provider_family = "meta"
+# display_name = "Muse Wonder Full 1.0 (High) via Muse"
+# enabled = true
+#
+# [harnesses.muse-spark-13]
+# adapter = "muse"
+# model = "muse-spark-1.3"
+# effort = "high"
+# provider_family = "meta"
+# display_name = "Muse Spark 1.3 (High) via Muse"
+# enabled = true
+#
+# [harnesses.muse-spark-12]
+# adapter = "muse"
+# model = "muse-spark-1.2"
+# effort = "high"
+# provider_family = "meta"
+# display_name = "Muse Spark 1.2 (High) via Muse"
+# enabled = true
+
 [[evaluators]]
 # Sol 5.6 is intentional. Trials with Fable 5, Grok 4.5, and Sol 5.6 produced
 # comparably fair judgments; Sol was the most detailed and thorough. Another
