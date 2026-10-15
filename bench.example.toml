@@ -71,6 +71,24 @@ enabled = true
 # output = 0.5
 # cache_read = 0.01
 # cache_write = 0.125
+#
+# GPT-6.1 Sol needs codex-cli 0.159.0 or newer; older clients return HTTP 400
+# for this model. Select with --harness sol61. It is also the evaluator for
+# runs from September 30 onward (see the evaluator blocks below).
+# [harnesses.sol61]
+# adapter = "codex"
+# model = "gpt-6.1-sol"
+# effort = "high"
+# provider_family = "openai"
+# display_name = "GPT-6.1 Sol (High)"
+# enabled = true
+#
+# Source: https://developers.openai.com/api/docs/models/gpt-6.1-sol
+# [pricing."gpt-6.1-sol"]
+# input = 2.0
+# output = 10.0
+# cache_read = 0.1
+# cache_write = 2.5
 
 [harnesses.claude]
 adapter = "claude"
@@ -111,6 +129,29 @@ enabled = true
 # output = 10.0
 # cache_read = 0.2
 # cache_write = 2.5
+
+# Optional Haiku 5.5 harness; uncomment this block to enable it.
+# Claude Haiku 5.5 via Claude Code (checked 2026-10-09).
+# Select with --harness claude-haiku-55.
+# [harnesses.claude-haiku-55]
+# adapter = "claude"
+# model = "claude-haiku-5-5"
+# effort = "high"
+# provider_family = "anthropic"
+# display_name = "Claude Haiku 5.5 (High)"
+# enabled = true
+#
+# USD / million tokens, prompts <=100K; cache_write is the 5-minute rate.
+# Above 100K: input=.50, output=2.50, cache_read=.05, cache_write=.625.
+# One-hour cache writes: .20 (<=100K), 1.00 (>100K).
+# Session cost comes from Claude Code, which accounts for request-level tiers.
+# Aggregate usage cannot reconstruct tiers; missing reported cost stays unknown.
+# Source: https://platform.claude.com/docs/en/about-claude/pricing
+# [pricing."claude-haiku-5-5"]
+# input = 0.10
+# output = 0.50
+# cache_read = 0.01
+# cache_write = 0.125
 
 [harnesses.grok]
 adapter = "grok"
@@ -239,6 +280,18 @@ enabled = true
 # id = "eval-sol6-high"
 # harness = "sol6"
 # model = "gpt-6-sol"
+# effort = "high"
+# provider_family = "openai"
+# enabled = true
+
+# Runs from September 30 onward use GPT-6.1 Sol at high effort as the
+# evaluator. To match them, uncomment the sol61 harness above and replace the
+# evaluator block with this one.
+#
+# [[evaluators]]
+# id = "eval-sol61-high"
+# harness = "sol61"
+# model = "gpt-6.1-sol"
 # effort = "high"
 # provider_family = "openai"
 # enabled = true
