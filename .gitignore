@@ -39,3 +39,12 @@ bench.toml
 
 # Early version
 /bench_early_version/
+
+# Local orchestration and recovery files from the Muse benchmark campaign
+/reports/2026-10-14-muse-bench/*
+!/reports/2026-10-14-muse-bench/comparison.md
+!/reports/2026-10-14-muse-bench/comparison.json
+!/reports/2026-10-14-muse-bench/comparison.csv
+
+# Temporary addresses of local verification servers
+/reports/**/live.json
