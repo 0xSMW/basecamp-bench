@@ -1,0 +1,34 @@
+{
+  "status": "ready",
+  "verified_date_bangkok": "2026-10-15",
+  "frontend_contract_version": "2026-10-15.1",
+  "scope": "Future evaluations; standalone fixture only; no previous benchmark rerun",
+  "checks": {
+    "chrome_document_loaded": true,
+    "http_ready": true,
+    "typed_note": true,
+    "clicked_save": true,
+    "reload_persistence": true,
+    "desktop_viewport": [
+      1440,
+      900
+    ],
+    "mobile_viewport": [
+      390,
+      844
+    ],
+    "screenshots": "Captured through CUA Chrome in the verification tool trace",
+    "snapshot_unchanged": true,
+    "listener_closed": true,
+    "previous_benchmark_hashes_verified": 188,
+    "pytest": "584 passed, 394 subtests passed",
+    "ruff_format": "passed",
+    "ruff_check": "passed",
+    "mypy": "passed",
+    "adversarial_review": "Exception/cancellation artifact finding repaired and regression-tested; no remaining findings"
+  },
+  "evidence_files": [
+    "server-proof.json",
+    "browser-evidence.json"
+  ]
+}
