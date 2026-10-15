@@ -43,6 +43,15 @@ PREFERRED_PROVIDERS: tuple[str, ...] = (
 _DEFAULT_CURRENCY = "USD"
 _SOURCE_OVERRIDE = "override"
 _SOURCE_MODELS_DEV = "https://models.dev/api.json"
+_SOURCE_META_PRICING = "https://dev.meta.ai/docs/pricing-rate-limits"
+_META_PRICING_VERIFIED_AT = "2026-10-14"
+# Standard-mode USD rates per million tokens, verified against Meta's pricing page.
+# Keys are exact model IDs; Contributor variants must not inherit these rates.
+_META_STANDARD_RATES: dict[str, tuple[float, float, float]] = {
+    "muse-wonder-1.0": (4.0, 20.0, 0.20),
+    "muse-spark-1.3": (1.25, 4.25, 0.15),
+    "muse-spark-1.2": (1.25, 4.25, 0.15),
+}
 _TOKENS_PER_MILLION = 1_000_000
 
 
@@ -94,7 +103,9 @@ def find_exact_rates(
 ) -> PricingLookup:
     """Look up per-million rates by exact normalized model ID only.
 
-    Overrides win only on an exact normalized model ID. Pricing data is
+    Overrides win only on an exact normalized model ID. Built-in official
+    Meta Standard-mode rates take precedence over models.dev for supported
+    Muse IDs; Muse Wonder Full has no published token rates. Pricing data is
     parsed as models.dev-shaped provider maps; never fuzzy-matched. When the
     same model ID appears under multiple providers, prefer
     :data:`PREFERRED_PROVIDERS` order, then lexicographic provider id for
@@ -117,6 +128,38 @@ def find_exact_rates(
         override_hit = _find_override(want, overrides, retrieved_at=retrieved_at)
         if override_hit is not None:
             return override_hit
+
+    if want == "muse-wonder-full-1.0":
+        return PricingLookup(
+            rates=None,
+            error=(
+                f"no token pricing for model_id {want!r}: Muse Wonder Full is available "
+                "only with a Muse Code subscription; provide an explicit pricing override "
+                "to estimate token cost (https://dev.meta.ai/docs/models)"
+            ),
+            stale=False,
+        )
+
+    if want in _META_STANDARD_RATES:
+        input_r, output_r, cache_read_r = _META_STANDARD_RATES[want]
+        return PricingLookup(
+            rates=PricingRates(
+                input_usd_per_m=input_r,
+                output_usd_per_m=output_r,
+                cache_read_usd_per_m=cache_read_r,
+                # Meta publishes no separate cache-write price. Use the same
+                # input-rate fallback as models.dev and explicit overrides.
+                cache_write_usd_per_m=input_r,
+                currency=_DEFAULT_CURRENCY,
+                source=_SOURCE_META_PRICING,
+                retrieved_at=_META_PRICING_VERIFIED_AT,
+                provider="meta",
+                model_id=want,
+                match_kind="exact",
+            ),
+            error=None,
+            stale=False,
+        )
 
     if pricing_data is None:
         return PricingLookup(
