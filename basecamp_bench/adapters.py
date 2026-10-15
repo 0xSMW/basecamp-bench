@@ -11,7 +11,9 @@ import json
 import os
 import shutil
 import stat
+import subprocess
 import sys
+import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import contextmanager
@@ -26,6 +28,7 @@ __all__ = [
     "AgentJob",
     "Harness",
     "CodexHarness",
+    "MuseHarness",
     "ClaudeHarness",
     "GrokHarness",
     "OpenCodeHarness",
@@ -191,6 +194,13 @@ RETAINED_ENV_NAMES: frozenset[str] = frozenset(
         "OPENCODE_API_KEY",
         # Pi / OpenRouter
         "OPENROUTER_API_KEY",
+        # Muse / Meta (including launcher credential-path overrides)
+        "META_API_KEY",
+        "MODEL_API_KEY",
+        "MUSE_API_KEY",
+        "MUSE_AUTH_PATH",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
     }
 )
 
@@ -402,6 +412,204 @@ def registered_harnesses() -> list[str]:
 # =============================================================================
 # Built-in harnesses
 # =============================================================================
+
+
+MUSE_MODELS = frozenset(
+    {"muse-wonder-1.0", "muse-wonder-full-1.0", "muse-spark-1.3", "muse-spark-1.2"}
+)
+MUSE_EFFORTS = frozenset({"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"})
+
+
+@register_harness
+class MuseHarness(Harness):
+    """Muse Code headless events plus an exact-session, offline usage export."""
+
+    name = "muse"
+    requires_usage = True
+
+    def build_command(self, job: AgentJob) -> list[str]:
+        if job.model.model not in MUSE_MODELS:
+            raise ValueError(f"Unsupported Muse model: {job.model.model!r}")
+        if job.model.effort not in MUSE_EFFORTS:
+            raise ValueError(f"Unsupported Muse effort: {job.model.effort!r}")
+        if job.sandbox_mode not in {"workspace-write", "danger-full-access"}:
+            raise ValueError(f"Unsupported Muse sandbox mode: {job.sandbox_mode!r}")
+        cmd = [
+            self.resolve_binary(),
+            "exec",
+            "--json",
+            "--model",
+            job.model.model,
+            "--reasoning-effort",
+            job.model.effort,
+            "--contributor-mode",
+            "off",
+            "--workspace",
+            str(job.workdir),
+            "--prompt-file",
+            str(job.prompt_path),
+            "--trust-workspace",
+            "--no-foreign-personal-context",
+            "--disable-reminders",
+            "--approval-mode",
+            "never",
+            "--approval-judge",
+            "off",
+            "--sandbox-network",
+            "enabled",
+            "-c",
+            "agents.execution_capacity=1",
+        ]
+        if job.sandbox_mode == "danger-full-access":
+            cmd.append("--disable-sandbox")
+        return cmd
+
+    def parse_output(self, job: AgentJob, stdout_text: str) -> ParsedOutput:
+        session_id: str | None = None
+        terminal: dict[str, Any] | None = None
+        for obj in _iter_json_objects(stdout_text):
+            stream = obj.get("stream", {})
+            if isinstance(stream, dict) and stream.get("kind") == "session":
+                sid = stream.get("id")
+                if isinstance(sid, str):
+                    try:
+                        uuid.UUID(sid)
+                    except ValueError:
+                        raise ValueError("Muse emitted an invalid session ID") from None
+                    if session_id is not None and sid != session_id:
+                        raise ValueError("Muse emitted multiple session IDs")
+                    session_id = sid
+            payload = obj.get("payload", {})
+            if not isinstance(payload, dict):
+                continue
+            if obj.get("payload_type") == "run.model.configured":
+                if payload.get("model_id") != job.model.model:
+                    raise ValueError("Muse ran a different model than requested")
+            if str(obj.get("payload_type", "")).startswith("run.terminal."):
+                terminal = payload
+        if terminal is None or terminal.get("terminal") != "completed":
+            raise ValueError("Muse did not report a completed terminal event")
+        if session_id is None:
+            raise ValueError("Muse did not report a session ID")
+        # exec JSONL in 1.4.7 omits usage. Export the exact session, never --last,
+        # so parallel benchmark jobs cannot accidentally account for each other.
+        export_path = job.log_path.with_name(job.log_path.name + ".muse-export.json")
+        result = subprocess.run(
+            [
+                self.resolve_binary(),
+                "export",
+                "--session",
+                session_id,
+                "--out",
+                str(export_path),
+                "--redacted",
+            ],
+            cwd=job.workdir,
+            env=self.prepare_env(),
+            capture_output=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            raise ValueError("Muse exact-session usage export failed")
+        document = json.loads(export_path.read_text(encoding="utf-8"))
+        usage = self._export_usage(document, session_id, job.model.model)
+        last = terminal.get("text")
+        return ParsedOutput(
+            usage=usage,
+            last_message=last if isinstance(last, str) else None,
+            session_id=session_id,
+        )
+
+    @staticmethod
+    def _export_usage(document: Any, session_id: str, model: str) -> Usage | None:
+        if not isinstance(document, dict) or document.get("export_schema_version") != 1:
+            raise ValueError("Unsupported Muse session export schema")
+        if document.get("session_terminated_abnormally"):
+            raise ValueError("Muse session terminated abnormally")
+        diagnostics = document.get("diagnostics", {})
+        if not isinstance(diagnostics, dict) or any(
+            diagnostics.get(key, 0) for key in ("unparseable_lines", "unknown_payload_kinds")
+        ):
+            raise ValueError("Muse export has undecodable records or history gaps")
+        events = document.get("events")
+        if not isinstance(events, list):
+            raise ValueError("Muse export is missing events")
+        # Tool-output deltas are intentionally live-only. The exporter labels
+        # their omission as gaps even though every durable completion is retained.
+        # Accept only explicitly marked ephemeral status omissions, never a gap
+        # in durable history or an unexplained diagnostic count.
+        gaps = [row for row in events if isinstance(row, dict) and row.get("kind") == "gap"]
+        if diagnostics.get("gaps", 0) != len(gaps) or diagnostics.get(
+            "omitted_live_only", 0
+        ) != len(gaps):
+            raise ValueError("Muse export has unexplained history gaps")
+        for gap in gaps:
+            omitted = gap.get("omitted_record", {})
+            if (
+                gap.get("marker") != "omitted_live_only"
+                or gap.get("stream") != {"kind": "session", "id": session_id}
+                or not isinstance(omitted, dict)
+                or omitted.get("durability") != "ephemeral"
+                or omitted.get("record_type") != "status"
+            ):
+                raise ValueError("Muse export is missing durable history")
+        sessions = document.get("sessions")
+        if not isinstance(sessions, list) or len(sessions) != 1:
+            raise ValueError("Muse export must contain exactly one session")
+        session = sessions[0]
+        if not isinstance(session, dict) or session.get("session_id") != session_id:
+            raise ValueError("Muse export session mismatch")
+        if session.get("accepted_spawns") or (session.get("saw_history_gap") and not gaps):
+            raise ValueError("Muse export has delegated work or incomplete history")
+        usage: Usage | None = None
+        seen: set[str] = set()
+        for row in events:
+            if not isinstance(row, dict):
+                continue
+            envelope = row.get("envelope", {})
+            if not isinstance(envelope, dict):
+                continue
+            payload = envelope.get("payload", {})
+            if not isinstance(payload, dict):
+                continue
+            event = payload.get("event", {})
+            if not isinstance(event, dict) or event.get("kind") != "model_completed":
+                continue
+            if envelope.get("stream") != {"kind": "session", "id": session_id}:
+                raise ValueError("Muse usage belongs to a different session")
+            if event.get("model") != model:
+                raise ValueError("Muse usage belongs to a different model")
+            record_id = envelope.get("id")
+            if not isinstance(record_id, str) or not record_id:
+                raise ValueError("Muse usage lacks a record ID")
+            if record_id in seen:
+                continue
+            seen.add(record_id)
+            data = event.get("usage")
+            if not isinstance(data, dict):
+                raise ValueError("Muse model completion is missing usage")
+            counts: dict[str, int] = {}
+            for key in (
+                "input_tokens",
+                "output_tokens",
+                "cached_tokens",
+                "cache_read_tokens",
+                "cache_write_tokens",
+            ):
+                value = data.get(key)
+                if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                    raise ValueError(f"Muse usage has invalid {key}")
+                counts[key] = value
+            # Meta input includes cache reads. cached_tokens and cache_read_tokens
+            # are two views of the same bucket; reasoning is already in output.
+            cached = max(counts["cached_tokens"], counts["cache_read_tokens"])
+            writes = counts["cache_write_tokens"]
+            fresh = counts["input_tokens"] - cached - writes
+            if fresh < 0:
+                raise ValueError("Muse cache usage exceeds input tokens")
+            step = Usage(fresh, cached, writes, counts["output_tokens"])
+            usage = step if usage is None else usage.add(step)
+        return usage
 
 
 @register_harness
