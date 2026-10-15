@@ -1,0 +1,118 @@
+{
+  "verified_at": "2026-10-14",
+  "muse_version": "1.4.7 (1.4.7-R6101.1)",
+  "status": "ready",
+  "effort": "high",
+  "contributor_mode": "off",
+  "smoke_tests": [
+    {
+      "model": "muse-wonder-1.0",
+      "returncode": 0,
+      "error": null,
+      "usage": {
+        "input_tokens": 30479,
+        "cached_input_tokens": 58472,
+        "cache_write_tokens": 0,
+        "output_tokens": 200
+      },
+      "cost_usd": 0.1376104,
+      "last_message": "READY",
+      "file_ok": true,
+      "duration_s": 22.241031459001533,
+      "command": "muse exec --json --model muse-wonder-1.0 --reasoning-effort high --contributor-mode off --workspace '<root>' --prompt-file '<root>/prompt.md' --trust-workspace --no-foreign-personal-context --disable-reminders --approval-mode never --approval-judge off --sandbox-network enabled -c agents.execution_capacity=1"
+    },
+    {
+      "model": "muse-wonder-full-1.0",
+      "returncode": 0,
+      "error": null,
+      "usage": {
+        "input_tokens": 30470,
+        "cached_input_tokens": 58472,
+        "cache_write_tokens": 0,
+        "output_tokens": 177
+      },
+      "cost_usd": null,
+      "last_message": "READY",
+      "file_ok": true,
+      "duration_s": 30.173014167001384,
+      "command": "muse exec --json --model muse-wonder-full-1.0 --reasoning-effort high --contributor-mode off --workspace '<root>' --prompt-file '<root>/prompt.md' --trust-workspace --no-foreign-personal-context --disable-reminders --approval-mode never --approval-judge off --sandbox-network enabled -c agents.execution_capacity=1"
+    },
+    {
+      "model": "muse-spark-1.3",
+      "returncode": 0,
+      "error": null,
+      "usage": {
+        "input_tokens": 30661,
+        "cached_input_tokens": 58722,
+        "cache_write_tokens": 0,
+        "output_tokens": 483
+      },
+      "cost_usd": 0.0491873,
+      "last_message": "READY",
+      "file_ok": true,
+      "duration_s": 21.29603320899696,
+      "command": "muse exec --json --model muse-spark-1.3 --reasoning-effort high --contributor-mode off --workspace '<root>' --prompt-file '<root>/prompt.md' --trust-workspace --no-foreign-personal-context --disable-reminders --approval-mode never --approval-judge off --sandbox-network enabled -c agents.execution_capacity=1"
+    },
+    {
+      "model": "muse-spark-1.2",
+      "returncode": 0,
+      "error": null,
+      "usage": {
+        "input_tokens": 12457,
+        "cached_input_tokens": 76755,
+        "cache_write_tokens": 0,
+        "output_tokens": 344
+      },
+      "cost_usd": 0.0285465,
+      "last_message": "READY",
+      "file_ok": true,
+      "duration_s": 21.622037124998315,
+      "command": "muse exec --json --model muse-spark-1.2 --reasoning-effort high --contributor-mode off --workspace '<root>' --prompt-file '<root>/prompt.md' --trust-workspace --no-foreign-personal-context --disable-reminders --approval-mode never --approval-judge off --sandbox-network enabled -c agents.execution_capacity=1"
+    }
+  ],
+  "checks": {
+    "pytest": "566 passed, 358 subtests passed; final export integrity guards: 9 targeted tests and 16 subtests passed",
+    "ruff_format": "passed",
+    "ruff_check": "passed",
+    "mypy": "passed",
+    "independent_review": "no actionable findings"
+  },
+  "models": [
+    {
+      "harness_id": "muse-wonder",
+      "model_id": "muse-wonder-1.0",
+      "input_usd_per_m": 4.0,
+      "cached_input_usd_per_m": 0.2,
+      "output_usd_per_m": 20.0,
+      "pricing_source": "https://dev.meta.ai/docs/pricing-rate-limits",
+      "pricing_note": null
+    },
+    {
+      "harness_id": "muse-wonder-full",
+      "model_id": "muse-wonder-full-1.0",
+      "input_usd_per_m": null,
+      "cached_input_usd_per_m": null,
+      "output_usd_per_m": null,
+      "pricing_source": "https://dev.meta.ai/docs/models",
+      "pricing_note": "no token pricing for model_id 'muse-wonder-full-1.0': Muse Wonder Full is available only with a Muse Code subscription; provide an explicit pricing override to estimate token cost (https://dev.meta.ai/docs/models)"
+    },
+    {
+      "harness_id": "muse-spark-13",
+      "model_id": "muse-spark-1.3",
+      "input_usd_per_m": 1.25,
+      "cached_input_usd_per_m": 0.15,
+      "output_usd_per_m": 4.25,
+      "pricing_source": "https://dev.meta.ai/docs/pricing-rate-limits",
+      "pricing_note": null
+    },
+    {
+      "harness_id": "muse-spark-12",
+      "model_id": "muse-spark-1.2",
+      "input_usd_per_m": 1.25,
+      "cached_input_usd_per_m": 0.15,
+      "output_usd_per_m": 4.25,
+      "pricing_source": "https://dev.meta.ai/docs/pricing-rate-limits",
+      "pricing_note": null
+    }
+  ]
+}
