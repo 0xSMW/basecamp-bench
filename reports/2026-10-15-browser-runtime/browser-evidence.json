@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "url": "http://127.0.0.1:57808/a-2Scm2qXK-8NGflaCoUmwVyCEUGodT_/index.html",
+  "rendered": true,
+  "status": "complete",
+  "screenshots": [
+    {
+      "viewport": "desktop",
+      "evidence": "CUA Chrome screenshot at 1440x900 showed saved note and count 1 after reload."
+    },
+    {
+      "viewport": "mobile",
+      "evidence": "CUA Chrome screenshot at 390x844 showed the saved note, input and button fitting the viewport."
+    }
+  ],
+  "interactions": [
+    {
+      "action": "type",
+      "observed": "Entered Chrome read-only server verified in the Test note field via CUA Chrome locator.",
+      "passed": true
+    },
+    {
+      "action": "click",
+      "observed": "Clicked Save note; rendered status changed to Saved: Chrome read-only server verified and Saved notes: 1.",
+      "passed": true
+    },
+    {
+      "action": "reload",
+      "observed": "Reloaded Chrome; count remained 1 and saved note persisted.",
+      "passed": true
+    }
+  ]
+}
