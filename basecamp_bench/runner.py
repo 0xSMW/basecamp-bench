@@ -12,6 +12,7 @@ import statistics
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,6 +20,11 @@ from typing import Any, cast
 
 from basecamp_bench import __version__
 from basecamp_bench.adapters import AgentJob, Harness, ModelSpec, Usage, get_harness
+from basecamp_bench.browser_runtime import (
+    BrowserRuntimeError,
+    FrontendServer,
+    validate_browser_evidence,
+)
 from basecamp_bench.config import BenchConfig, config_to_public_dict
 from basecamp_bench.contracts import (
     EvaluationContract,
@@ -2145,44 +2151,101 @@ def _run_evaluator(
     pre_seed = tree_manifest(seed_dir, ignore=_AMBIENT_IGNORE)
     pre_sub = tree_manifest(submission_dir, ignore=_AMBIENT_IGNORE)
     report_path, result_path = output_dir / "report.md", output_dir / "result.json"
-    prompt_text = build_evaluator_prompt(
-        track=track.id,
-        submission_id=submission_id,
-        evaluator_id=evaluator.id,
-        contract_sha256=contract_hash,
-        contract=json.loads(track.contract_file.read_text(encoding="utf-8")),
-        rubric=track.rubric_file.read_text(encoding="utf-8"),
-        seed_dir=seed_dir,
-        submission_dir=submission_dir,
-        report_path=report_path,
-        result_path=result_path,
-    )
-    prompt_path = eval_root / "prompt.md"
-    prompt_path.write_text(prompt_text, encoding="utf-8")
-    href = execution_context.config.harnesses[evaluator.harness]
-    job = AgentJob(
-        kind="evaluate",
-        harness=href.adapter,
-        model=ModelSpec(model=evaluator.model, effort=evaluator.effort),
-        workdir=output_dir,
-        prompt_path=prompt_path,
-        log_path=run_dir / "logs" / f"evaluate-{submission_id}-{eval_attempt_id}.log",
-        last_message_path=eval_root / "last.md",
-        evidence_dirs=(seed_dir, submission_dir),
-        sandbox_mode="workspace-write",
-    )
+    browser_evidence_path = output_dir / "browser-evidence.json"
+    runtime_path = eval_root / "browser-runtime.json"
+    browser_url: str | None = None
+    browser_runtime: dict[str, Any] | None = None
+    browser_setup_failed = False
+    browser_execution_raised = False
     with execution_context.agent_slots:
-        execution = execute_agent(
-            execution_context.config,
-            job,
-            pricing_data=execution_context.run.pricing_payload,
-            pricing_retrieved_at=execution_context.run.pricing_retrieved_at,
-            options=execution_context.options,
-            cancel_event=execution_context.cancel_event,
-        )
+        try:
+            runtime = FrontendServer(submission_dir) if track.id == "fe" else nullcontext(None)
+            with runtime as server:
+                browser_url = server.url if server is not None else None
+                try:
+                    prompt_text = build_evaluator_prompt(
+                        track=track.id,
+                        submission_id=submission_id,
+                        evaluator_id=evaluator.id,
+                        contract_sha256=contract_hash,
+                        contract=json.loads(track.contract_file.read_text(encoding="utf-8")),
+                        rubric=track.rubric_file.read_text(encoding="utf-8"),
+                        seed_dir=seed_dir,
+                        submission_dir=submission_dir,
+                        report_path=report_path,
+                        result_path=result_path,
+                        browser_url=browser_url,
+                        browser_evidence_path=browser_evidence_path if browser_url else None,
+                    )
+                    prompt_path = eval_root / "prompt.md"
+                    prompt_path.write_text(prompt_text, encoding="utf-8")
+                    href = execution_context.config.harnesses[evaluator.harness]
+                    job = AgentJob(
+                        kind="evaluate",
+                        harness=href.adapter,
+                        model=ModelSpec(model=evaluator.model, effort=evaluator.effort),
+                        workdir=output_dir,
+                        prompt_path=prompt_path,
+                        log_path=run_dir
+                        / "logs"
+                        / f"evaluate-{submission_id}-{eval_attempt_id}.log",
+                        last_message_path=eval_root / "last.md",
+                        evidence_dirs=(seed_dir, submission_dir),
+                        sandbox_mode="workspace-write",
+                    )
+                    execution = execute_agent(
+                        execution_context.config,
+                        job,
+                        pricing_data=execution_context.run.pricing_payload,
+                        pricing_retrieved_at=execution_context.run.pricing_retrieved_at,
+                        options=execution_context.options,
+                        cancel_event=execution_context.cancel_event,
+                    )
+                finally:
+                    if server is not None:
+                        browser_runtime = server.evidence()
+        except BrowserRuntimeError as exc:
+            browser_setup_failed = True
+            execution = AgentExecution(
+                process=ProcessResult.not_started(str(exc)),
+                usage=None,
+                cost_usd=None,
+                reported_cost_usd=None,
+                last_message=None,
+                command_preview="<browser-runtime-not-started>",
+                error=str(exc),
+            )
+            browser_runtime = {"schema_version": "1.0", "http_ready": False, "error": str(exc)}
+        except (Exception, KeyboardInterrupt):
+            browser_execution_raised = True
+            raise
+        finally:
+            if browser_runtime is not None:
+                atomic_write_json(runtime_path, browser_runtime)
+                if browser_execution_raised:
+                    # The caller records the exception; checkpoint browser
+                    # proof here before an exceptional exit skips the normal
+                    # artifact collection below.
+                    rel = f"evaluations/{submission_id}/{eval_attempt_id}"
+                    proof = {f"{rel}/browser-runtime.json": sha256_file(runtime_path)}
+                    if browser_evidence_path.is_file() and not browser_evidence_path.is_symlink():
+                        proof[f"{rel}/output/browser-evidence.json"] = sha256_file(
+                            browser_evidence_path
+                        )
+                    execution_context.checkpoint((), proof)
     artifacts: dict[str, str] = {}
     invalid: list[str] = []
     valid_result: ValidatedJudgeScores | None = None
+    if browser_setup_failed:
+        invalid.append("browser_runtime_failed")
+    elif browser_url is not None:
+        invalid.extend(
+            validate_browser_evidence(
+                browser_evidence_path,
+                url=browser_url,
+                chrome_loaded=bool(browser_runtime and browser_runtime.get("chrome_loaded")),
+            )
+        )
     if not _process_ok(execution.process) or execution.error is not None:
         invalid.append("evaluator_execution_failed")
     if verify_tree_manifest(seed_dir, pre_seed, ignore=_AMBIENT_IGNORE):
@@ -2215,6 +2278,10 @@ def _run_evaluator(
                 if not invalid:
                     valid_result = normalized
     rel = f"evaluations/{submission_id}/{eval_attempt_id}"
+    if runtime_path.is_file():
+        artifacts[f"{rel}/browser-runtime.json"] = sha256_file(runtime_path)
+    if browser_evidence_path.is_file() and not browser_evidence_path.is_symlink():
+        artifacts[f"{rel}/output/browser-evidence.json"] = sha256_file(browser_evidence_path)
     if report_path.is_file():
         artifacts[f"{rel}/output/report.md"] = sha256_file(report_path)
     if result_path.is_file():
