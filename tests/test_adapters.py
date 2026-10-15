@@ -97,7 +97,7 @@ class RegistryTests(unittest.TestCase):
     def test_builtin_registration_deterministic(self) -> None:
         names = registered_harnesses()
         self.assertEqual(names, sorted(names))
-        self.assertEqual(names, ["agy", "claude", "codex", "grok", "opencode", "pi"])
+        self.assertEqual(names, ["agy", "claude", "codex", "grok", "muse", "opencode", "pi"])
         self.assertIsInstance(get_harness("agy"), AgyHarness)
         self.assertIsInstance(get_harness("codex"), CodexHarness)
         self.assertIsInstance(get_harness("claude"), ClaudeHarness)
