@@ -1,0 +1,146 @@
+[
+  {
+    "track": "fe",
+    "group": [
+      "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+      [
+        "gpt-5.6-sol"
+      ],
+      "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878",
+      "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+      "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+      "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e"
+    ],
+    "models": [
+      "muse-spark-1.3",
+      "grok-4.6",
+      "claude-opus-5",
+      "claude-fable-5-1"
+    ]
+  },
+  {
+    "track": "fe",
+    "group": [
+      "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+      [
+        "gpt-6-sol"
+      ],
+      "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878",
+      "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+      "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+      "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e"
+    ],
+    "models": [
+      "gpt-6-sol",
+      "claude-opus-5-5",
+      "claude-sonnet-5-5"
+    ]
+  },
+  {
+    "track": "fe",
+    "group": [
+      "ba46a54cf7c63bf52be8e1f95814676c8d0c7cbb375354460bbdb1eaf24041a1",
+      [
+        "gpt-5.6-sol"
+      ],
+      "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b",
+      "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+      "9000f61906eedc4c4943cdd60e5574a257e38380e6953e3199c4d97b4bb92c79",
+      "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e"
+    ],
+    "models": [
+      "glm-5.2",
+      "gemini-3.1-pro",
+      "grok-4.5",
+      "opus",
+      "claude-sonnet-5",
+      "claude-fable-5"
+    ]
+  },
+  {
+    "track": "fe",
+    "group": [
+      "370b5fe4722e1454c805bbbac15b975fa2db1f48358fb4bce93fcec057274c4e",
+      [
+        "gpt-6.1-sol"
+      ],
+      "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878",
+      "6108214947d28d3f68ce50ac77e40f6c669f02021ceb79994b8b9fec45cd015a",
+      "3fd9719543c238c79833be673a8db9ee39fce9213162f9a57cd5c924487d3b38",
+      "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e"
+    ],
+    "models": [
+      "claude-haiku-5-5",
+      "gpt-6.1-sol"
+    ]
+  },
+  {
+    "track": "be",
+    "group": [
+      "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+      [
+        "gpt-5.6-sol"
+      ],
+      "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878",
+      "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+      "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+      "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e"
+    ],
+    "models": [
+      "0x-alpha",
+      "gpt-6-astra"
+    ]
+  },
+  {
+    "track": "be",
+    "group": [
+      "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+      [
+        "gpt-6-sol"
+      ],
+      "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878",
+      "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+      "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+      "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e"
+    ],
+    "models": [
+      "gpt-6-sol",
+      "claude-sonnet-5-5"
+    ]
+  },
+  {
+    "track": "be",
+    "group": [
+      "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+      [
+        "gpt-5.6-sol"
+      ],
+      "802188907abb6398f32dea9688c6fd2da731dfff080ece1cdd2bee3a9534597b",
+      "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+      "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+      "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e"
+    ],
+    "models": [
+      "glm-5.2",
+      "gemini-3.1-pro",
+      "grok-4.5",
+      "claude-fable-5"
+    ]
+  },
+  {
+    "track": "be",
+    "group": [
+      "21192e19c6a56d2cc2c2e3c746f210d67f800754afd70ad932c38bebb2730e71",
+      [
+        "gpt-6.1-sol"
+      ],
+      "b33880ac62eaa7466913f1a0f0735959c6c3bc03dd4e45f4777f479eee9a3878",
+      "b2a7f077941806aacf71f45e3578df025ccb0f7816993d0812d88e94add255b7",
+      "8465a8522f5674b122a8baa8395a2f774ed17e9c904e59a3b801c656aec07d40",
+      "d23ed82e3b84280543c37f04edf8b5942d2c4c5f675df0588033c5395171a81e"
+    ],
+    "models": [
+      "gpt-6.1-sol"
+    ]
+  }
+]
