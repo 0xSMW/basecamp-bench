@@ -325,22 +325,12 @@ class JudgeResultValidationTests(TempDirTestCase):
         self.assertEqual(self._validate(result), [])
 
     def test_missing_and_extra_dimensions(self) -> None:
-        result = _judge_result(
-            scores={"craft": 8.0, "invented": 9.0},
-            contract_sha256_value=self.hash,
-        )
-        errors = self._validate(result)
-        joined = "\n".join(errors)
-        self.assertIn("missing dimension 'depth'", joined)
-        self.assertIn("unknown dimension 'invented'", joined)
-
-    def test_all_dimensions_required(self) -> None:
-        result = _judge_result(
-            scores={"craft": 8.0},
-            contract_sha256_value=self.hash,
-        )
-        errors = self._validate(result)
-        self.assertTrue(any("missing dimension 'depth'" in e for e in errors))
+        for scores, extra in (({"craft": 8.0}, False), ({"craft": 8.0, "invented": 9.0}, True)):
+            with self.subTest(scores=scores):
+                result = _judge_result(scores=scores, contract_sha256_value=self.hash)
+                errors = self._validate(result)
+                self.assertIn("missing dimension 'depth'", "\n".join(errors))
+                self.assertEqual("unknown dimension 'invented'" in "\n".join(errors), extra)
 
     def test_bool_nan_infinity_and_out_of_range_scores(self) -> None:
         result = _judge_result(scores=self.base_scores, contract_sha256_value=self.hash)
@@ -481,15 +471,19 @@ class ScoringAndAggregationTests(TempDirTestCase):
         )
 
     def test_compute_weighted_score_exact_rounding(self) -> None:
-        # 8*0.6 + 7*0.4 = 4.8 + 2.8 = 7.6
-        score = compute_weighted_score({"craft": 8, "depth": 7}, self.contract)
-        self.assertEqual(score, 7.6)
-        self.assertEqual(score, round(7.6, 6))
-
-        # force six-decimal path: 8.1*0.6 + 7.2*0.4
-        expected = round(8.1 * 0.6 + 7.2 * 0.4, 6)
-        actual = compute_weighted_score({"craft": 8.1, "depth": 7.2}, self.contract)
-        self.assertEqual(actual, expected)
+        cases = (
+            ({"craft": 8, "depth": 7}, 7.6),
+            ({"craft": 8.1234567, "depth": 7.2345678}, 7.767901),
+        )
+        for scores, expected in cases:
+            with self.subTest(scores=scores):
+                self.assertEqual(compute_weighted_score(scores, self.contract), expected)
+        coarse = replace(
+            self.contract, overall_policy={**self.contract.overall_policy, "precision": 2}
+        )
+        self.assertEqual(
+            compute_weighted_score({"craft": 8.1234567, "depth": 7.2345678}, coarse), 7.77
+        )
 
     def test_compute_weighted_score_one_dimension(self) -> None:
         score = compute_weighted_score({"craft": 9.5}, self.one_dim)

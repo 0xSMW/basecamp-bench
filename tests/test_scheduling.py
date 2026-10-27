@@ -18,13 +18,33 @@ class SchedulingTests(unittest.TestCase):
 
     def test_collect_indexed_preserves_input_order(self) -> None:
         cancel = threading.Event()
+        first_started = threading.Event()
+        second_completed = threading.Event()
+        completion_order: list[int] = []
+
+        def work(value: int) -> int:
+            if value == 3:
+                first_started.set()
+                self.assertTrue(second_completed.wait(timeout=5))
+            elif value == 1:
+                self.assertTrue(first_started.wait(timeout=5))
+            completion_order.append(value)
+            return value * 2
+
+        def submit(pool, value):
+            future = pool.submit(work, value)
+            if value == 1:
+                future.add_done_callback(lambda _future: second_completed.set())
+            return future
+
         with executor_pool(workers=2, thread_name_prefix="test-order") as executor:
             results = collect_indexed(
                 [3, 1, 2],
                 executor=executor,
                 cancel_event=cancel,
-                submit=lambda pool, value: pool.submit(lambda: value * 2),
+                submit=submit,
             )
+        self.assertLess(completion_order.index(1), completion_order.index(3))
         self.assertEqual(results, [6, 2, 4])
         self.assertFalse(cancel.is_set())
 

@@ -10,10 +10,6 @@ from pathlib import Path
 from unittest import mock
 
 from basecamp_bench.adapters import (
-    AGY_MODEL_ALIASES,
-    OPENCODE_MODEL_ALIASES,
-    PI_MODEL_ALIASES,
-    RETAINED_ENV_NAMES,
     AgentJob,
     AgyHarness,
     ClaudeHarness,
@@ -26,57 +22,10 @@ from basecamp_bench.adapters import (
     PiHarness,
     Usage,
     get_harness,
-    is_retained_env_name,
     register_harness,
     registered_harnesses,
 )
-from tests._support import TempDirTestCase as _TempDirTestCase
-
-SENTINEL = "PROMPT_SENTINEL_NEVER_IN_ARGV_9f3a2c1e7b"
-
-
-class TempDirTestCase(_TempDirTestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.workdir = self.root / "workdir"
-        self.workdir.mkdir()
-        self.evidence = self.root / "evidence"
-        self.evidence.mkdir()
-        self.prompt_path = self.root / "prompt.md"
-        self.prompt_path.write_text(SENTINEL, encoding="utf-8")
-        self.log_path = self.root / "job.log"
-        self.last_message_path = self.root / "last.md"
-        self.fake_bin = self.root / "fake-agent"
-        self.fake_bin.write_text("#!/bin/sh\n", encoding="utf-8")
-        self.fake_bin.chmod(0o755)
-
-    def _job(
-        self,
-        *,
-        kind: str = "implement",
-        harness: str = "codex",
-        model: str = "test-model",
-        effort: str = "high",
-        evidence_dirs: tuple[Path, ...] | None = None,
-        sandbox_mode: str = "workspace-write",
-    ) -> AgentJob:
-        return AgentJob(
-            kind=kind,  # type: ignore[arg-type]
-            harness=harness,
-            model=ModelSpec(model=model, effort=effort),
-            workdir=self.workdir,
-            prompt_path=self.prompt_path,
-            log_path=self.log_path,
-            last_message_path=self.last_message_path,
-            evidence_dirs=() if evidence_dirs is None else evidence_dirs,
-            sandbox_mode=sandbox_mode,
-        )
-
-    def _assert_no_sentinel_in_argv(self, cmd: list[str]) -> None:
-        joined = "\x00".join(cmd)
-        self.assertNotIn(SENTINEL, joined)
-        for arg in cmd:
-            self.assertNotIn(SENTINEL, arg)
+from tests._adapter_fixtures import SENTINEL, TempDirTestCase
 
 
 class UsageTests(unittest.TestCase):
@@ -310,7 +259,7 @@ class OpenCodeCommandTests(TempDirTestCase):
             self._assert_no_sentinel_in_argv(cmd)
             self.assertEqual(cmd[0], str(self.fake_bin))
             self.assertEqual(cmd[1:3], ["run", "--model"])
-            self.assertEqual(cmd[cmd.index("--model") + 1], OPENCODE_MODEL_ALIASES["0x-alpha"])
+            self.assertEqual(cmd[cmd.index("--model") + 1], "opencode/x-preview-f-free")
             self.assertEqual(cmd[cmd.index("--variant") + 1], "max")
             self.assertEqual(cmd[cmd.index("--format") + 1], "json")
             self.assertEqual(cmd[cmd.index("--dir") + 1], str(self.workdir))
@@ -353,7 +302,7 @@ class OpenCodeCommandTests(TempDirTestCase):
                 with h.execution_context(job):
                     cmd = h.build_command(job)
                 self.assertEqual(
-                    cmd[cmd.index("--model") + 1], OPENCODE_MODEL_ALIASES["muse-spark-1.3"]
+                    cmd[cmd.index("--model") + 1], "opencode/muse-spark-1.3-contributor-free"
                 )
                 self.assertEqual(cmd[cmd.index("--variant") + 1], effort)
         with self.assertRaisesRegex(ValueError, "requires thinking effort"):
@@ -603,7 +552,7 @@ class PiCommandTests(TempDirTestCase):
             config_path = private_root / "config" / "models.json"
             model_config = json.loads(config_path.read_text(encoding="utf-8"))
             model = model_config["providers"]["openrouter"]["models"][0]
-            self.assertEqual(model["id"], PI_MODEL_ALIASES["glm-5.2"])
+            self.assertEqual(model["id"], "z-ai/glm-5.2")
             self.assertEqual(model["contextWindow"], 1_048_576)
             routing = model["compat"]["openRouterRouting"]
             self.assertFalse(routing["allow_fallbacks"])
@@ -612,7 +561,9 @@ class PiCommandTests(TempDirTestCase):
                 (private_root / "config" / "settings.json").read_text(encoding="utf-8")
             )
             self.assertEqual(settings, {"httpIdleTimeoutMs": 600_000})
-            env = h.prepare_env({"PATH": "/usr/bin"})
+            env = h.prepare_env({"PATH": "/usr/bin", "OPENROUTER_API_KEY": "secret"})
+            self.assertEqual(env["PI_TELEMETRY"], "0")
+            self.assertEqual(env["OPENROUTER_API_KEY"], "secret")
             self.assertEqual(env["PI_CODING_AGENT_DIR"], str(private_root / "config"))
             # Pi may create additional auth/cache files; the whole private root
             # must still be removed before the submission is snapshotted.
@@ -697,7 +648,7 @@ class AgyCommandTests(TempDirTestCase):
                     cmd = h.build_command(job)
                 self.assertEqual(
                     cmd[cmd.index("--model") + 1],
-                    AGY_MODEL_ALIASES["gemini-3.8-flash"][effort],
+                    f"Gemini 3.8 Flash ({effort.title()})",
                 )
 
     def test_gemini_37_flash_model_aliases(self) -> None:
@@ -709,7 +660,7 @@ class AgyCommandTests(TempDirTestCase):
                     cmd = h.build_command(job)
                 self.assertEqual(
                     cmd[cmd.index("--model") + 1],
-                    AGY_MODEL_ALIASES["gemini-3.7-flash"][effort],
+                    f"Gemini 3.7 Flash ({effort.title()})",
                 )
 
     def test_gemini_31_pro_model_aliases(self) -> None:
@@ -721,7 +672,7 @@ class AgyCommandTests(TempDirTestCase):
                     cmd = h.build_command(job)
                 self.assertEqual(
                     cmd[cmd.index("--model") + 1],
-                    AGY_MODEL_ALIASES["gemini-3.1-pro"][effort],
+                    f"Gemini 3.1 Pro ({effort.title()})",
                 )
 
     def test_sandboxed_argv_and_disposable_evidence(self) -> None:
@@ -744,7 +695,7 @@ class AgyCommandTests(TempDirTestCase):
             self.assertEqual(cmd[3], str(self.fake_bin))
             self.assertEqual(
                 cmd[cmd.index("--model") + 1],
-                AGY_MODEL_ALIASES["gemini-3.5-flash"]["high"],
+                "Gemini 3.5 Flash (High)",
             )
             self.assertEqual(cmd[cmd.index("--mode") + 1], "accept-edits")
             self.assertEqual(cmd[cmd.index("--output-format") + 1], "json")
@@ -821,6 +772,9 @@ class EnvironmentTests(TempDirTestCase):
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C",
             "LC_CTYPE": "UTF-8",
+            "LC_MESSAGES": "C",
+            "LC_CUSTOM": "custom-locale",
+            "SSL_CERT_DIR": "/etc/ssl/certs",
             "SSL_CERT_FILE": "/etc/ssl/cert.pem",
             "REQUESTS_CA_BUNDLE": "/etc/ssl/cert.pem",
             "HTTP_PROXY": "http://proxy:8080",
@@ -838,6 +792,7 @@ class EnvironmentTests(TempDirTestCase):
             "DATABASE_URL": "postgres://x",
             "SECRET_KEY": "nope",
             "UNRELATED": "drop-me",
+            "RANDOM_VAR": "drop-me-too",
         }
         env = h.prepare_env(base)
         for key in (
@@ -849,6 +804,9 @@ class EnvironmentTests(TempDirTestCase):
             "LANG",
             "LC_ALL",
             "LC_CTYPE",
+            "LC_MESSAGES",
+            "LC_CUSTOM",
+            "SSL_CERT_DIR",
             "SSL_CERT_FILE",
             "HTTP_PROXY",
             "HTTPS_PROXY",
@@ -867,35 +825,9 @@ class EnvironmentTests(TempDirTestCase):
             "DATABASE_URL",
             "SECRET_KEY",
             "UNRELATED",
+            "RANDOM_VAR",
         ):
             self.assertNotIn(key, env)
-
-    def test_retained_name_helper_is_testable(self) -> None:
-        self.assertTrue(is_retained_env_name("PATH"))
-        self.assertTrue(is_retained_env_name("OPENAI_API_KEY"))
-        self.assertTrue(is_retained_env_name("ANTHROPIC_API_KEY"))
-        self.assertTrue(is_retained_env_name("XAI_API_KEY"))
-        self.assertTrue(is_retained_env_name("OPENROUTER_API_KEY"))
-        self.assertTrue(is_retained_env_name("LC_MESSAGES"))
-        self.assertTrue(is_retained_env_name("SSL_CERT_DIR"))
-        self.assertFalse(is_retained_env_name("AWS_SECRET_ACCESS_KEY"))
-        self.assertFalse(is_retained_env_name("MY_CUSTOM_TOKEN"))
-        self.assertFalse(is_retained_env_name("RANDOM_VAR"))
-        self.assertIn("PATH", RETAINED_ENV_NAMES)
-        self.assertIn("OPENAI_API_KEY", RETAINED_ENV_NAMES)
-
-    @mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"})
-    def test_pi_env_uses_isolated_config_directory(self) -> None:
-        h = PiHarness(binary=str(self.fake_bin))
-        job = self._job(harness="pi", model="glm-5.2")
-        with h.execution_context(job):
-            env = h.prepare_env({"PATH": "/usr/bin", "OPENROUTER_API_KEY": "secret"})
-            self.assertEqual(
-                env["PI_CODING_AGENT_DIR"],
-                str(h._private_root(job) / "config"),
-            )
-            self.assertEqual(env["PI_TELEMETRY"], "0")
-            self.assertEqual(env["OPENROUTER_API_KEY"], "secret")
 
     def test_prepare_env_does_not_copy_os_environ_arbitrarily(self) -> None:
         h = ClaudeHarness(binary=str(self.fake_bin))
@@ -1492,10 +1424,10 @@ class ParseOutputTests(TempDirTestCase):
                 job = self._job(harness=harness_name)
                 noisy = 'not json\n{broken\n<<<>>>\n{"partial": true\n'
                 parsed = h.parse_output(job, noisy)
-                self.assertIsInstance(parsed, ParsedOutput)
+                self.assertEqual(parsed, ParsedOutput())
                 # Empty / garbage yields empty recovery, not an exception.
                 empty = h.parse_output(job, "")
-                self.assertIsInstance(empty, ParsedOutput)
+                self.assertEqual(empty, ParsedOutput())
 
 
 if __name__ == "__main__":

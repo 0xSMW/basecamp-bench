@@ -5,10 +5,11 @@ from __future__ import annotations
 import copy
 import json
 import subprocess
+from pathlib import Path
 from unittest import mock
 
-from basecamp_bench.adapters import MUSE_MODELS, MuseHarness, Usage
-from tests.test_adapters import TempDirTestCase
+from basecamp_bench.adapters import MuseHarness, Usage
+from tests._adapter_fixtures import TempDirTestCase
 
 SID = "01a1398c-ea8e-7721-ba20-0012b9435714"
 
@@ -70,8 +71,27 @@ class MuseTests(TempDirTestCase):
     def adapter(self):
         return MuseHarness(binary=str(self.fake_bin))
 
+    def export_session(self, document):
+        def export(argv, **kwargs):
+            Path(argv[argv.index("--out") + 1]).write_text(json.dumps(document))
+            return subprocess.CompletedProcess(argv, 0)
+
+        return export
+
+    def parse_export(self, document):
+        """Exercise the export decoder through the exact-session adapter boundary."""
+        with mock.patch(
+            "basecamp_bench.adapters.subprocess.run", side_effect=self.export_session(document)
+        ):
+            return self.adapter().parse_output(self.job(), stdout())
+
     def test_all_models_command_and_permissions(self):
-        for model in MUSE_MODELS:
+        for model in (
+            "muse-wonder-1.0",
+            "muse-wonder-full-1.0",
+            "muse-spark-1.2",
+            "muse-spark-1.3",
+        ):
             job = self._job(harness="muse", model=model)
             cmd = self.adapter().build_command(job)
             self._assert_no_sentinel_in_argv(cmd)
@@ -105,10 +125,10 @@ class MuseTests(TempDirTestCase):
 
     def test_exact_session_export_and_terminal_answer(self):
         job = self.job()
-        export = job.log_path.with_name(job.log_path.name + ".muse-export.json")
-        export.write_text(json.dumps(usage_export()))
-        with mock.patch("basecamp_bench.adapters.subprocess.run") as run:
-            run.return_value = subprocess.CompletedProcess([], 0)
+        with mock.patch(
+            "basecamp_bench.adapters.subprocess.run",
+            side_effect=self.export_session(usage_export()),
+        ) as run:
             parsed = self.adapter().parse_output(job, stdout())
         self.assertEqual(parsed.usage, Usage(700, 300, 0, 200))
         self.assertEqual(parsed.last_message, "READY")
@@ -139,14 +159,12 @@ class MuseTests(TempDirTestCase):
                 },
             ]
         )
-        self.assertEqual(
-            self.adapter()._export_usage(doc, SID, "muse-spark-1.2"), Usage(1400, 600, 0, 400)
-        )
+        self.assertEqual(self.parse_export(doc).usage, Usage(1400, 600, 0, 400))
 
     def test_usage_missing_is_unknown(self):
         doc = usage_export()
         doc["events"] = []
-        self.assertIsNone(self.adapter()._export_usage(doc, SID, "muse-spark-1.2"))
+        self.assertIsNone(self.parse_export(doc).usage)
 
     def test_intentionally_omitted_live_tool_deltas_preserve_usage(self):
         doc = usage_export()
@@ -165,12 +183,10 @@ class MuseTests(TempDirTestCase):
             },
         }
         doc["events"].append(gap)
-        self.assertEqual(
-            self.adapter()._export_usage(doc, SID, "muse-spark-1.2"), Usage(700, 300, 0, 200)
-        )
+        self.assertEqual(self.parse_export(doc).usage, Usage(700, 300, 0, 200))
         gap["omitted_record"]["durability"] = "durable"
         with self.assertRaisesRegex(ValueError, "durable history"):
-            self.adapter()._export_usage(doc, SID, "muse-spark-1.2")
+            self.parse_export(doc)
 
     def test_bad_exports_fail_closed(self):
         variants = []
@@ -211,7 +227,7 @@ class MuseTests(TempDirTestCase):
         variants.append(doc)
         for doc in variants:
             with self.subTest(doc=doc), self.assertRaises(ValueError):
-                self.adapter()._export_usage(doc, SID, "muse-spark-1.2")
+                self.parse_export(doc)
 
     def test_failed_incomplete_or_mismatched_stdout_never_exports(self):
         for text in ("noise", stdout("failed"), stdout(model="wrong")):

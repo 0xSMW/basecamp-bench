@@ -78,13 +78,13 @@ class RunCommandTests(TempDirTestCase):
         self.assertEqual((code, stderr), (0, ""))
         self.assertIsNone(run.call_args.kwargs["options"].progress)
 
-    def test_progress_printer_emits_atomic_sorted_event_line(self) -> None:
+    def test_progress_printer_emits_sorted_event_fields(self) -> None:
         stderr = io.StringIO()
         with redirect_stderr(stderr):
             cli._progress_printer()("evaluate.started", {"track": "fe", "model": "sol"})
         self.assertEqual(stderr.getvalue(), "[evaluate.started] model=sol track=fe\n")
 
-    def test_progress_printer_counts_parallel_completions(self) -> None:
+    def test_progress_printer_counts_build_and_evaluation_completions(self) -> None:
         stderr = io.StringIO()
         printer = cli._progress_printer()
         with redirect_stderr(stderr):
@@ -147,9 +147,7 @@ class ReevaluateCommandTests(TempDirTestCase):
     def test_calls_documented_runner_api(self, _load: Mock) -> None:
         prior = self.root / "prior"
         result = self.root / "new"
-        with patch(
-            "basecamp_bench.runner.reevaluate_run", create=True, return_value=result
-        ) as reevaluate:
+        with patch("basecamp_bench.runner.reevaluate_run", return_value=result) as reevaluate:
             code, stdout, stderr = self.invoke(
                 "reevaluate",
                 os.fspath(prior),
@@ -212,7 +210,9 @@ class ReportCommandTests(TempDirTestCase):
         self.assertEqual(code, 1)
         self.assertIn("not a leaderboard JSON", stderr)
 
-    def test_rename_rejects_malformed_and_unsafe_names(self) -> None:
+    @patch("basecamp_bench.cli.write_report")
+    def test_rename_rejects_malformed_and_unsafe_names(self, write: Mock) -> None:
+        leaderboard = self._leaderboard(self.root / "leaderboard_a.json")
         cases = [
             "m1=",
             "m1=   ",
@@ -227,14 +227,15 @@ class ReportCommandTests(TempDirTestCase):
             with self.subTest(rename=rename[:50]):
                 code, stdout, stderr = self.invoke(
                     "report",
-                    os.fspath(self.root),
+                    os.fspath(leaderboard),
                     "-o",
                     os.fspath(self.root / "out.html"),
                     "--rename",
                     rename,
                 )
                 self.assertEqual((code, stdout), (1, ""))
-                self.assertTrue(stderr.startswith("error:"), stderr)
+                self.assertIn("--rename display name", stderr)
+                write.assert_not_called()
 
     def test_rename_accepts_valid_unicode_display_name(self) -> None:
         with patch("basecamp_bench.cli.write_report") as write:

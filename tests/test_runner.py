@@ -804,7 +804,9 @@ class PipelineTests(Fixture):
 
         self.side_effect = with_ambient_metadata  # type: ignore[method-assign]
         run_dir = self.run_bench(id_factory=_Ids("ambient"))
-        snapshot = run_dir / "snapshots" / "ambient002"
+        snapshot = run_dir / "snapshots" / self.submission_path(self.attempt_json(run_dir))
+        self.assertTrue(snapshot.is_dir())
+        self.assertTrue((snapshot / "app.py").is_file())
         excluded_names = {".DS_Store", "__pycache__", "node-compile-cache", "node_modules"}
         self.assertFalse(any(path.name in excluded_names for path in snapshot.rglob("*")))
         manifest = self.read_run_manifest(run_dir)
@@ -1180,7 +1182,7 @@ class ConcurrencyTests(Fixture):
             )
         self.assertEqual(agent_calls, 0)
 
-    def test_progress_reports_attributable_stage_transitions(self) -> None:
+    def test_progress_reports_stage_transitions_and_build_before_evaluation(self) -> None:
         lock = threading.Lock()
         events: list[tuple[str, dict[str, object]]] = []
 
@@ -1249,7 +1251,10 @@ class ConcurrencyTests(Fixture):
                     implementation_calls += 1
                     is_slow = implementation_calls == 1
                 if is_slow:
-                    fast_eval_started.wait(timeout=2.0)
+                    self.assertTrue(
+                        fast_eval_started.wait(timeout=5.0),
+                        "ready submission was not evaluated before its slow sibling finished",
+                    )
                 return original(command, **kwargs)
             fast_eval_started.set()
             return original(command, **kwargs)

@@ -37,8 +37,6 @@ __all__ = [
     "register_harness",
     "get_harness",
     "registered_harnesses",
-    "is_retained_env_name",
-    "RETAINED_ENV_NAMES",
     "DEFAULT_GROK_BINARY",
     "DEFAULT_OPENCODE_BINARY",
     "OPENCODE_MODEL_ALIASES",
@@ -130,7 +128,7 @@ class AgentJob:
 # Environment allowlist (names only — values never logged by this module)
 # =============================================================================
 
-# Exact names retained by :meth:`Harness.prepare_env`. Exported for tests.
+# Exact names retained by :meth:`Harness.prepare_env`.
 RETAINED_ENV_NAMES: frozenset[str] = frozenset(
     {
         # Runtime / paths

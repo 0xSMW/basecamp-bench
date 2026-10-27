@@ -215,13 +215,16 @@ class StrictSchemaTests(TempRoot):
 
     def test_unsafe_ids(self) -> None:
         cases = (
-            "[harnesses.'../bad']\nadapter='codex'",
-            "[tracks.'Bad ID']\nprompt='x'",
+            "[harnesses.'../bad']\nadapter='codex'\nmodel='m'\neffort='high'\nprovider_family='p'\ndisplay_name='Bad'",
+            "[tracks.'Bad ID']\nprompt='benchmarks/fe/prompt.md'\nrubric='benchmarks/fe/eval.md'\ncontract='benchmarks/fe/contract.json'",
             "[pricing.'UPPER']\ninput=1\noutput=2",
             "[[evaluators]]\nid='Bad'\nharness='codex'\nmodel='m'\neffort='h'\nprovider_family='p'\nenabled=true",
         )
         for index, body in enumerate(cases):
-            with self.subTest(body=body), self.assertRaises(ValueError):
+            with (
+                self.subTest(body=body),
+                self.assertRaisesRegex(ValueError, "safe lowercase identifier"),
+            ):
                 load_config(self.config(body, f"i{index}.toml"), root=self.root)
 
     def test_unknown_adapter(self) -> None:

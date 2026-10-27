@@ -352,7 +352,7 @@ class BuildAndWriteManifestTests(TempDirTestCase):
         manifest = build_manifest(**_minimal_manifest_kwargs(pricing=pricing))
         self.assertEqual(manifest["pricing"]["cache_path"], ".pricing-cache.json")
 
-    def test_atomic_deterministic_write(self) -> None:
+    def test_deterministic_serialization_across_overwrites(self) -> None:
         manifest = build_manifest(**_minimal_manifest_kwargs())
         path = self.root / "run-manifest.json"
         write_manifest(path, manifest)
@@ -918,17 +918,6 @@ class PublicationBoundaryArchitectureTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_public_facades_delegate_to_publication_module(self) -> None:
-        import basecamp_bench.manifest as provenance
-        import basecamp_bench.manifest_export as publication
-
-        self.assertEqual(provenance.verify_run.__module__, "basecamp_bench.manifest")
-        self.assertEqual(publication.verify_run.__module__, "basecamp_bench.manifest_export")
-        self.assertEqual(provenance.export_run.__module__, "basecamp_bench.manifest")
-        self.assertEqual(publication.export_run.__module__, "basecamp_bench.manifest_export")
-        self.assertEqual(provenance.scan_secrets.__module__, "basecamp_bench.manifest")
-        self.assertEqual(publication.scan_secrets.__module__, "basecamp_bench.manifest_export")
 
 
 class BuildManifestGitIntegrationTests(TempDirTestCase):

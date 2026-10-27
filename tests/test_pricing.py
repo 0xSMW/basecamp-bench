@@ -7,7 +7,7 @@ import json
 import os
 import tempfile
 import unittest
-from dataclasses import dataclass, is_dataclass
+from dataclasses import FrozenInstanceError, dataclass, is_dataclass
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -69,12 +69,6 @@ class NormalizeModelIdTests(unittest.TestCase):
         self.assertEqual(normalize_model_id("Claude-Sonnet-4"), "claude-sonnet-4")
         self.assertEqual(normalize_model_id("x"), "x")
 
-    def test_deterministic(self) -> None:
-        self.assertEqual(
-            normalize_model_id("Ab C"),
-            normalize_model_id("ab c"),
-        )
-
     def test_rejects_non_string_and_empty(self) -> None:
         for value in (True, False, 1, None, b"gpt", ["gpt"]):
             with self.subTest(value=value):
@@ -92,9 +86,9 @@ class DataclassContractTests(unittest.TestCase):
         self.assertTrue(is_dataclass(PricingLookup))
         rates = _rates()
         lookup = PricingLookup(rates=rates, error=None, stale=False)
-        with self.assertRaises(Exception):
+        with self.assertRaises(FrozenInstanceError):
             rates.input_usd_per_m = 9.0  # type: ignore[misc]
-        with self.assertRaises(Exception):
+        with self.assertRaises(FrozenInstanceError):
             lookup.stale = True  # type: ignore[misc]
 
 

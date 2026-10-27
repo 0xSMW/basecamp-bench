@@ -177,9 +177,7 @@ def _entry(
     *,
     score: float = 5.0,
     cost_per_attempt: float = 1.0,
-    success_rate: float = 1.0,
-    eligible: bool = True,
-    ineligible_reasons: list[str] | None = None,
+    evaluation_success: bool = True,
     display_name: str | None = None,
     harness: str = "h1",
     evaluation_cost_per_attempt: float = 0.1,
@@ -191,7 +189,7 @@ def _entry(
 ) -> dict:
     sha = contract_sha256 or _DEFAULT_SHA
     if raw_attempts is None:
-        if success_rate == 0.0:
+        if not evaluation_success:
             raw_attempts = [
                 _failed_raw_attempt(
                     run_id=f"{model_id}-run-1",
@@ -223,41 +221,10 @@ def _entry(
                     evaluation_cost_usd=evaluation_cost_per_attempt,
                 )
             ]
+    # Legacy summaries are intentionally absent: raw attempts own report math.
     base: dict = {
         "model_id": model_id,
-        "display_name": display_name or model_id,
         "harness": harness,
-        "score": score,
-        "score_mean": score,
-        "score_stdev": 0.1,
-        "score_min": max(0.0, score - 0.1),
-        "score_max": min(10.0, score + 0.1),
-        "score_range": min(10.0, score + 0.1) - max(0.0, score - 0.1),
-        "judge_spread": 0.05,
-        "cost_per_attempt": cost_per_attempt,
-        "cost_mean": cost_per_attempt,
-        "cost_stdev": 0.02,
-        "cost_min": max(0.0, cost_per_attempt - 0.02),
-        "cost_max": cost_per_attempt + 0.02,
-        "cost_range": cost_per_attempt + 0.02 - max(0.0, cost_per_attempt - 0.02),
-        "success_rate": success_rate,
-        "repetitions": 3,
-        "dimensions": {"quality": score, "craft": max(0.0, score - 0.5)},
-        "tokens": 100,
-        "tokens_mean": 100.0,
-        "tokens_min": 100,
-        "tokens_max": 100,
-        "tokens_range": 0,
-        "duration_s": 12.5,
-        "duration_mean_s": 12.5,
-        "duration_min_s": 12.5,
-        "duration_max_s": 12.5,
-        "duration_range_s": 0.0,
-        "eligible": eligible,
-        "ineligible_reasons": ineligible_reasons if ineligible_reasons is not None else [],
-        "run_ids": [f"{model_id}-run-1"],
-        "implementation_cost_per_attempt": cost_per_attempt,
-        "evaluation_cost_per_attempt": evaluation_cost_per_attempt,
         "raw_attempts": raw_attempts,
     }
     base.update(overrides)

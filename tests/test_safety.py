@@ -213,10 +213,6 @@ class VerifyManifestTests(TempDirTestCase):
         (self.root / "b.txt").unlink()
         (self.root / "d.txt").write_text("d", encoding="utf-8")
 
-        expected = dict(base)
-        expected.pop("c.txt")  # leave c as unexpected in tree vs expected without it
-        # expected has a(old), b, c — actual has a(new), c, d
-        # Simpler: use base as expected after mutations above.
         errors = verify_tree_manifest(self.root, base)
         self.assertEqual(errors, sorted(errors))
         self.assertIn("hash mismatch: a.txt", errors)

@@ -66,9 +66,6 @@ def _implement(args: argparse.Namespace) -> int:
     if args.model == "fake-partial":
         _emit("implement")
         return 9
-    if args.model == "fake-nonzero":
-        _emit("implement")
-        return 7
     if args.model == "fake-timeout":
         child = subprocess.Popen(
             [

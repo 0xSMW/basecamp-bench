@@ -27,14 +27,13 @@ class LoadLeaderboardsTests(TempDirTestCase):
     def test_loads_valid_file(self) -> None:
         path = self.write_json(
             "lb.json",
-            _leaderboard([_entry("m1", score=6.0, cost_per_attempt=2.0, success_rate=0.5)]),
+            _leaderboard([_entry("m1", score=6.0, cost_per_attempt=2.0)]),
         )
         points = load_leaderboards([path])
         self.assertEqual(len(points), 1)
         self.assertEqual(points[0].model_id, "m1")
         self.assertEqual(points[0].track, "fe")
         self.assertEqual(expected_cost(points[0]), 2.0)
-        self.assertIsInstance(points[0].dimensions, type(points[0].dimensions))
         self.assertIsInstance(points[0].run_ids, tuple)
 
     def test_zero_success_forces_ineligible_reason(self) -> None:
@@ -44,7 +43,7 @@ class LoadLeaderboardsTests(TempDirTestCase):
                 [
                     _entry(
                         "m0",
-                        success_rate=0.0,
+                        evaluation_success=False,
                         eligible=True,
                         ineligible_reasons=[],
                     )
@@ -83,6 +82,8 @@ class LoadLeaderboardsTests(TempDirTestCase):
         entry = _entry("m1", score=6.0, cost_per_attempt=2.0)
         entry["score"] = 0.0
         entry["score_mean"] = True
+        entry["score_stdev"] = 0.1
+        entry["repetitions"] = 3
         entry["success_rate"] = 0.0
         entry["eligible"] = True
         entry["cost_per_attempt"] = -1.0
@@ -92,6 +93,8 @@ class LoadLeaderboardsTests(TempDirTestCase):
         self.assertEqual(len(points), 1)
         # Recomputed from the raw attempt (score 6.0), not the stale summary.
         self.assertEqual(points[0].score, 6.0)
+        self.assertEqual(points[0].score_stdev, 0.0)
+        self.assertEqual(points[0].repetitions, 1)
         self.assertEqual(points[0].success_rate, 1.0)
         self.assertEqual(points[0].implementation_cost_per_attempt, 2.0)
 
@@ -344,7 +347,7 @@ class LedgerShapeValidationTests(TempDirTestCase):
         legacy = self.write_json(
             "legacy.json",
             _leaderboard(
-                [_entry("m1", score=4.0, cost_per_attempt=1.0, raw_attempts=[first_raw])],
+                [_entry("m1", raw_attempts=[first_raw])],
                 generated_at="2026-01-01T00:00:00Z",
             ),
         )
@@ -394,7 +397,7 @@ class LedgerShapeValidationTests(TempDirTestCase):
         legacy = self.write_json(
             "legacy-order.json",
             _leaderboard(
-                [_entry("m1", score=4.0, raw_attempts=[legacy_raw])],
+                [_entry("m1", raw_attempts=[legacy_raw])],
                 generated_at="2026-01-01T00:00:00Z",
             ),
         )
@@ -434,14 +437,9 @@ class LedgerShapeValidationTests(TempDirTestCase):
                 )
             ],
         )
-        # Keep a mutable reference to the JSON-shaped structure.
-        mutable_raw = entry["raw_attempts"][0]
         path = self.write_json("imm.json", _leaderboard([entry]))
         points = load_leaderboards([path])
         loaded = points[0].raw_attempts[0]
-        mutable_raw["run_id"] = "mutated-after-load"
-        mutable_raw["dimensions"]["quality"] = 99.0
-        mutable_raw["evaluator_ids"].append("evil")
         self.assertEqual(loaded["run_id"], "run-1")
         self.assertEqual(loaded["dimensions"]["quality"], 5.0)
         self.assertEqual(list(loaded["evaluator_ids"]), ["j1", "j2"])
@@ -452,9 +450,8 @@ class LedgerShapeValidationTests(TempDirTestCase):
 
 
 class RawAttemptValidationTests(TempDirTestCase):
-    def _load_with_raw(self, raw: dict, **entry_kw: object) -> list[ReportPoint]:
-        entry = _entry("m1", **entry_kw)  # type: ignore[arg-type]
-        entry["raw_attempts"] = [raw]
+    def _load_with_raw(self, raw: dict) -> list[ReportPoint]:
+        entry = _entry("m1", raw_attempts=[raw])
         path = self.write_json("raw.json", _leaderboard([entry], sync_identity=False))
         return load_leaderboards([path])
 
@@ -634,10 +631,6 @@ class EnrichedReportBehaviorTests(TempDirTestCase):
         )
         entry = _entry(
             "m1",
-            score=6.0,
-            cost_per_attempt=2.0,
-            evaluation_cost_per_attempt=0.25,
-            success_rate=0.5,
             raw_attempts=[failed, ok],
         )
         path = self.write_json("lb.json", _leaderboard([entry]))
@@ -694,14 +687,14 @@ class CompatibilityAggregationTests(TempDirTestCase):
         p1 = self.write_json(
             "one.json",
             _leaderboard(
-                [_entry("m1", score=4.0, cost_per_attempt=1.0, raw_attempts=[first_raw])],
+                [_entry("m1", raw_attempts=[first_raw])],
                 generated_at="2026-01-01T00:00:00Z",
             ),
         )
         p2 = self.write_json(
             "two.json",
             _leaderboard(
-                [_entry("m1", score=8.0, cost_per_attempt=3.0, raw_attempts=[second_raw])],
+                [_entry("m1", raw_attempts=[second_raw])],
                 generated_at="2026-02-01T00:00:00Z",
             ),
         )
@@ -907,9 +900,6 @@ class CompatibilityAggregationTests(TempDirTestCase):
         )
         entry = _entry(
             "m1",
-            success_rate=0.0,
-            eligible=False,
-            score=0.0,
             raw_attempts=[failed],
         )
         path = self.write_json("fail.json", _leaderboard([entry]))

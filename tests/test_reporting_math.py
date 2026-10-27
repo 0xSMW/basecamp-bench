@@ -23,12 +23,25 @@ class ReportPointTests(unittest.TestCase):
             contract_sha256="a" * 64,
             dimensions={"z": 1.0, "a": 2.0},
         )
+        dimensions = {"z": 1.0, "a": 2.0}
+        reasons = ["x"]
+        run_ids = ["r1", "r2"]
         point = _point(
-            dimensions={"z": 1.0, "a": 2.0},
-            ineligible_reasons=["x"],  # type: ignore[arg-type]
-            run_ids=["r1", "r2"],  # type: ignore[arg-type]
+            dimensions=dimensions,
+            ineligible_reasons=reasons,  # type: ignore[arg-type]
+            run_ids=run_ids,  # type: ignore[arg-type]
             raw_attempts=(raw,),  # type: ignore[arg-type]
         )
+        dimensions["z"] = 99.0
+        reasons.append("changed")
+        run_ids.append("changed")
+        raw["run_id"] = "changed"
+        raw["dimensions"]["z"] = 99.0
+        raw["evaluator_ids"].append("changed")
+        self.assertEqual(point.dimensions["z"], 1.0)
+        self.assertEqual(point.raw_attempts[0]["run_id"], "run-1")
+        self.assertEqual(point.raw_attempts[0]["dimensions"]["z"], 1.0)
+        self.assertEqual(point.raw_attempts[0]["evaluator_ids"], ("j1",))
         self.assertIsInstance(point.ineligible_reasons, tuple)
         self.assertIsInstance(point.run_ids, tuple)
         self.assertEqual(point.ineligible_reasons, ("x",))

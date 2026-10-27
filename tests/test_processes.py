@@ -104,10 +104,21 @@ class RunManagedTests(unittest.TestCase):
             "both_streams.py",
             """\
             import sys
-            sys.stdout.write("OUT-LINE\\n")
-            sys.stdout.flush()
-            sys.stderr.write("ERR-LINE\\n")
-            sys.stderr.flush()
+            import threading
+
+            ready = threading.Barrier(2)
+            def write(stream, data):
+                ready.wait()
+                stream.write(data)
+                stream.flush()
+            threads = [
+                threading.Thread(target=write, args=(sys.stdout.buffer, b"O" * 2_000_000)),
+                threading.Thread(target=write, args=(sys.stderr.buffer, b"E" * 2_000_000)),
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
             """,
         )
         result = self._run([sys.executable, str(script)])
@@ -117,8 +128,8 @@ class RunManagedTests(unittest.TestCase):
         self.assertIsNone(result.error)
         self.assertTrue(self.stdout_path.exists())
         self.assertTrue(self.stderr_path.exists())
-        self.assertIn(b"OUT-LINE", self.stdout_path.read_bytes())
-        self.assertIn(b"ERR-LINE", self.stderr_path.read_bytes())
+        self.assertEqual(self.stdout_path.read_bytes(), b"O" * 2_000_000)
+        self.assertEqual(self.stderr_path.read_bytes(), b"E" * 2_000_000)
         self.assertGreater(result.stdout_bytes, 0)
         self.assertGreater(result.stderr_bytes, 0)
         self.assertFalse(result.stdout_truncated)
@@ -131,17 +142,16 @@ class RunManagedTests(unittest.TestCase):
             "truncate_streams.py",
             """\
             import sys
-            # 200 bytes stdout, 120 bytes stderr
-            sys.stdout.buffer.write(b"A" * 200)
+            # Each stream exceeds a pipe buffer even after its retained log reaches the cap.
+            sys.stdout.buffer.write(b"A" * 2_000_000)
             sys.stdout.buffer.flush()
-            sys.stderr.buffer.write(b"B" * 120)
+            sys.stderr.buffer.write(b"B" * 2_000_000)
             sys.stderr.buffer.flush()
             """,
         )
         out_limit = 50
-        # Use separate limits by running once with max that caps both, asserting
-        # each file is independently truncated to the shared max and the child
-        # still exits 0 (pipes continue to drain after the file cap).
+        # Each file is independently capped; the child must still complete after
+        # writing far more than a pipe buffer to both streams.
         result = self._run(
             [sys.executable, str(script)],
             max_stream_bytes=out_limit,

@@ -48,7 +48,7 @@ class NamingTests(unittest.TestCase):
         second = run_path_name("invalid-2-001", tracks=("fe",), contestants=(("xai", "grok-4.5"),))
         self.assertNotEqual(first, second)
 
-    def test_submission_and_judge_names_remove_harness_model_overlap(self) -> None:
+    def test_submission_and_judge_names_preserve_harness_provider_model_identity(self) -> None:
         cases = (
             (
                 dict(

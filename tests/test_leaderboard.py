@@ -1006,8 +1006,6 @@ class WriteTabularViewsTests(TempDirTestCase):
         self.assertNotIn("\r", csv_text)
 
     def test_csv_and_markdown_escaping(self) -> None:
-        from basecamp_bench.leaderboard import _md_escape_cell, _render_csv, _render_markdown
-
         tricky = _attempt(
             display_name='Name, "quoted" pipe|slash\\end',
             model_id="model-x",
@@ -1022,60 +1020,23 @@ class WriteTabularViewsTests(TempDirTestCase):
         data_lines = [line for line in md.splitlines() if line.startswith("| model-x")]
         self.assertEqual(len(data_lines), 1)
         self.assertNotIn("\r", md)
-        # CR/LF inside cells collapse for Markdown (unit-level: display_name forbids controls)
-        self.assertEqual(_md_escape_cell("a\\b|c\r\nd\ne\rf"), "a\\\\b\\|c d e f")
-        sample_entries: list[dict[str, object]] = [
-            {
-                "model_id": "m",
-                "display_name": 'x, "y"',
-                "harness": "h",
-                "score": 1.0,
-                "score_mean": 1.0,
-                "score_stdev": 0.0,
-                "score_min": 1.0,
-                "score_max": 1.0,
-                "score_range": 0.0,
-                "judge_spread": 0.0,
-                "cost_per_attempt": 0.0,
-                "cost_mean": 0.0,
-                "cost_stdev": 0.0,
-                "cost_min": 0.0,
-                "cost_max": 0.0,
-                "cost_range": 0.0,
-                "success_rate": 1.0,
-                "repetitions": 1,
-                "dimensions": {"z": 1.0, "a": 2.0},
-                "tokens": 1,
-                "tokens_mean": 1.0,
-                "tokens_min": 1,
-                "tokens_max": 1,
-                "tokens_range": 0,
-                "duration_s": 1.0,
-                "duration_mean_s": 1.0,
-                "duration_min_s": 1.0,
-                "duration_max_s": 1.0,
-                "duration_range_s": 0.0,
-                "eligible": False,
-                "ineligible_reasons": ["local_mode"],
-                "run_ids": ["run-1"],
-                "implementation_cost_per_attempt": 0.0,
-                "evaluation_cost_per_attempt": 0.0,
-            }
-        ]
-        rendered_csv = _render_csv(sample_entries)
-        self.assertIn('"{""a"": 2.0, ""z"": 1.0}"', rendered_csv)
-        self.assertIn('"x, ""y"""', rendered_csv)
-        root = {
-            "track": "fe",
-            "contract_version": "1.0",
-            "contract_sha256": _SHA_A,
-            "generated_at": "t",
-            "schema_version": "1.0",
-        }
-        rendered_md = _render_markdown(root, sample_entries)
-        self.assertIn('{"a": 2.0, "z": 1.0}', rendered_md)
-        self.assertTrue(rendered_csv.endswith("\n"))
-        self.assertNotIn("\r", rendered_csv)
+        # The public legacy writer also accepts caller-supplied aggregate cells.
+        legacy = aggregate_attempts([tricky], mode="local", generated_at="2026-01-01T00:00:00Z")[0]
+        legacy["entries"][0].update(
+            display_name="a\\b|c\r\nd\ne\rf", dimensions={"z": 1.0, "a": 2.0}
+        )
+        paths = write_leaderboards(self.root / "legacy-esc", [legacy])
+        legacy_csv = next(path for path in paths if path.suffix == ".csv").read_text(
+            encoding="utf-8"
+        )
+        legacy_md = next(path for path in paths if path.suffix == ".md").read_text(encoding="utf-8")
+        self.assertIn('"{""a"": 2.0, ""z"": 1.0}"', legacy_csv)
+        self.assertIn('{"a": 2.0, "z": 1.0}', legacy_md)
+        self.assertIn("a\\\\b\\|c d e f", legacy_md)
+        self.assertEqual(
+            len([line for line in legacy_md.splitlines() if line.startswith("| model-x")]), 1
+        )
+        self.assertNotIn("\r", legacy_md)
 
     def test_collision_refuses_before_any_write(self) -> None:
         json_path = self._schema2_path([_attempt()])

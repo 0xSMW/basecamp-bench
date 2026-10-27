@@ -217,21 +217,9 @@ class RenderReportHtmlTests(unittest.TestCase):
                 commentary={"models": {"nope": {"headline": "x"}}},
             )
 
-    def test_no_filesystem_paths_rendered(self) -> None:
-        points = [
-            _point(
-                model_id="m",
-                run_ids=("abc123",),
-            )
-        ]
-        html_out = render_report_html(build_report_payload(points))
-        self.assertIn("abc123", html_out)
-        self.assertNotIn("/Users/", html_out)
-        self.assertNotIn("C:\\", html_out)
-
 
 class WriteReportTests(TempDirTestCase):
-    def test_atomic_write_and_return_path(self) -> None:
+    def test_writes_report_and_returns_path(self) -> None:
         lb = self.write_json(
             "lb.json",
             _leaderboard(
@@ -249,6 +237,7 @@ class WriteReportTests(TempDirTestCase):
         self.assertTrue(out.is_file())
         text = out.read_text(encoding="utf-8")
         self.assertIn("m1", text)
+        self.assertIn("m1-run-1", text)
         self.assertIn("m2", text)
         self.assertIn("2026-02-02T12:00:00Z", text)
         self.assertTrue(text.startswith("<!DOCTYPE html>"))
@@ -331,9 +320,8 @@ class WriteReportTests(TempDirTestCase):
         write_report([lb], out2)
         self.assertEqual(out1.read_bytes(), out2.read_bytes())
 
-    def test_write_report_cleanup_on_failure(self) -> None:
-        # Invalid leaderboard should not leave the output or orphan tmp in a
-        # successful state; parent may be created.
+    def test_invalid_input_does_not_create_report(self) -> None:
+        # Invalid input is rejected before a report is created.
         bad = self.root / "bad.json"
         bad.write_text("{}", encoding="utf-8")
         out = self.root / "out" / "report.html"

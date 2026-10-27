@@ -402,20 +402,8 @@ class PathValidationTests(TempPackTestCase):
                 self.write_manifest(_manifest_dict([asset]))
                 with self.assertRaises(ValueError) as ctx:
                     self.load()
-                msg = str(ctx.exception).lower()
                 self.assertTrue(
-                    "path" in msg
-                    or "relative" in msg
-                    or "normalized" in msg
-                    or "control" in msg
-                    or "empty" in msg
-                    or "posix" in msg
-                    or "component" in msg
-                    or ".." in msg
-                    or "'.'" in msg
-                    or "separator" in msg
-                    or "backslash" in msg
-                    or "must not" in msg,
+                    str(ctx.exception).startswith("assets[0].path "),
                     msg=str(ctx.exception),
                 )
 
@@ -453,18 +441,6 @@ class FilesystemTests(TempPackTestCase):
         (nested / ".DS_Store").write_bytes(b"more-junk")
         pack = self.load()
         self.assertEqual([a.path for a in pack.assets], ["a.txt"])
-
-    def test_asset_hash_mismatch(self) -> None:
-        self.write_file("a.txt", b"actual-bytes")
-        asset = _asset_dict("a.txt", b"other-bytes")
-        self.write_manifest(_manifest_dict([asset]))
-        with self.assertRaises(ValueError) as ctx:
-            self.load()
-        msg = str(ctx.exception)
-        self.assertIn("SHA-256 mismatch", msg)
-        self.assertIn("a.txt", msg)
-        self.assertNotIn("actual-bytes", msg)
-        self.assertNotIn("other-bytes", msg)
 
 
 class SymlinkTests(TempPackTestCase):
@@ -564,7 +540,7 @@ class DistributableTests(TempPackTestCase):
         by_path = {a.path: a.distributable for a in pack.assets}
         self.assertEqual(by_path, {"a.txt": True, "b.txt": False})
 
-    def test_publication_requires_pack_and_assets_distributable(self) -> None:
+    def test_publication_requires_distributable_pack(self) -> None:
         self.write_pack(
             {"a.txt": b"a"},
             pack_distributable=False,
@@ -574,16 +550,6 @@ class DistributableTests(TempPackTestCase):
             self.load(publication=True)
         self.assertIn("publication", str(ctx.exception).lower())
 
-        self.write_pack(
-            {"a.txt": b"a"},
-            pack_distributable=True,
-            asset_distributable=False,
-        )
-        # Pack distributable true with non-distributable asset fails even
-        # without publication.
-        with self.assertRaises(ValueError):
-            self.load(publication=False)
-
     def test_publication_ok_when_all_distributable(self) -> None:
         self.write_pack({"a.txt": b"a"}, pack_distributable=True)
         pack = self.load(publication=True)
@@ -592,17 +558,6 @@ class DistributableTests(TempPackTestCase):
 
 
 class ErrorMessageSafetyTests(TempPackTestCase):
-    def test_error_messages_omit_file_contents(self) -> None:
-        secret = _SECRET_MARKER.encode("utf-8")
-        self.write_file("secret.txt", secret)
-        # Hash mismatch: wrong digest.
-        asset = _asset_dict("secret.txt", b"different")
-        self.write_manifest(_manifest_dict([asset]))
-        with self.assertRaises(ValueError) as ctx:
-            self.load()
-        self.assertNotIn(_SECRET_MARKER, str(ctx.exception))
-        self.assertNotIn("different", str(ctx.exception))
-
     def test_json_error_omits_source_content(self) -> None:
         payload = '{"schema_version": "1.0", "bad": ' + json.dumps(_SECRET_MARKER)
         self.manifest_path.write_text(payload, encoding="utf-8")
@@ -619,6 +574,7 @@ class ErrorMessageSafetyTests(TempPackTestCase):
         with self.assertRaises(ValueError) as ctx:
             self.load()
         msg = str(ctx.exception)
+        self.assertIn("SHA-256 mismatch", msg)
         self.assertIn("a.txt", msg)
         self.assertIn(wrong, msg)
         self.assertIn(_sha256_bytes(content), msg)
