@@ -907,10 +907,8 @@ def _score_legend() -> str:
     return f'<div class="score-legend">{badges}</div>'
 
 
-def _computed_headline(row: Mapping[str, Any], rows: Sequence[Mapping[str, Any]]) -> str:
-    """A data-derived descriptor when no commentary headline exists."""
-    scores = [_finite(c.get("score")) for c in row["cells"].values()]
-    known = [s for s in scores if s is not None]
+def _headline_extrema(rows: Sequence[Mapping[str, Any]]) -> tuple[float, float | None]:
+    """Global comparisons for all model headlines in one rendering pass."""
     best_avg = max(
         (
             sum(v for v in (map(lambda c: _finite_or(c.get("score"), 0.0), r["cells"].values())))
@@ -919,12 +917,19 @@ def _computed_headline(row: Mapping[str, Any], rows: Sequence[Mapping[str, Any]]
         ),
         default=0.0,
     )
-    avg = sum(known) / len(known) if known else 0.0
-    total = _row_total_cost(row)
     cheapest = min(
         (t for t in (_row_total_cost(r) for r in rows) if t is not None),
         default=None,
     )
+    return best_avg, cheapest
+
+
+def _computed_headline(row: Mapping[str, Any], best_avg: float, cheapest: float | None) -> str:
+    """A data-derived descriptor when no commentary headline exists."""
+    scores = [_finite(c.get("score")) for c in row["cells"].values()]
+    known = [s for s in scores if s is not None]
+    avg = sum(known) / len(known) if known else 0.0
+    total = _row_total_cost(row)
     if known and avg == best_avg:
         return "highest scores overall"
     if total is not None and cheapest is not None and total == cheapest:
@@ -948,10 +953,12 @@ def _commentary_list(items: Any) -> str:
 
 def _model_card(
     row: Mapping[str, Any],
-    rows: Sequence[Mapping[str, Any]],
     sections: Sequence[Mapping[str, Any]],
     labels: Sequence[str],
     commentary: Mapping[str, Any] | None,
+    *,
+    best_avg: float,
+    cheapest: float | None,
 ) -> str:
     model_id = row["model_id"]
     pid = row["point_id"]
@@ -959,7 +966,7 @@ def _model_card(
     name = _escape(row["display_name"])
     entry = _commentary_models(commentary).get(model_id)
     entry = entry if isinstance(entry, Mapping) else {}
-    headline = str(entry.get("headline") or _computed_headline(row, rows))
+    headline = str(entry.get("headline") or _computed_headline(row, best_avg, cheapest))
 
     stats: list[str] = []
     for index, label in enumerate(labels):
@@ -1145,6 +1152,7 @@ def render_report_html(
         track_counts[track] = track_counts.get(track, 0) + 1
     labels = [_section_label(s, track_counts[str(s.get("track", ""))] > 1) for s in sections]
     rows = _pivot_rows(sections)
+    best_avg, cheapest = _headline_extrema(rows)
     known_model_ids = {row["model_id"] for row in rows}
     if commentary:
         validate_commentary(commentary, known_model_ids)
@@ -1239,7 +1247,9 @@ def render_report_html(
     body.append('<section id="models"><h2>Model deep dives</h2>')
     body.append(_score_legend())
     for row in rows:
-        body.append(_model_card(row, rows, sections, labels, commentary))
+        body.append(
+            _model_card(row, sections, labels, commentary, best_avg=best_avg, cheapest=cheapest)
+        )
     body.append("</section>")
 
     body.append(_raw_attempts_table(sections))

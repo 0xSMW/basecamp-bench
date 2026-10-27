@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 import os
+from bisect import bisect_left
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -181,16 +182,6 @@ def _frontier_eligible(point: ReportPoint) -> bool:
     return cost is not None and cost >= 0.0 and math.isfinite(cost)
 
 
-def _dominates(a: ReportPoint, b: ReportPoint, cost_a: float, cost_b: float) -> bool:
-    """Return True when *a* dominates *b* (including exact-tie lex rule)."""
-    sa, sb = float(a.score), float(b.score)
-    if sa >= sb and cost_a <= cost_b and (sa > sb or cost_a < cost_b):
-        return True
-    if sa == sb and cost_a == cost_b and _point_identity(a) < _point_identity(b):
-        return True
-    return False
-
-
 def _point_identity(point: ReportPoint) -> tuple[str, str]:
     return (point.harness, point.model_id)
 
@@ -206,11 +197,12 @@ def _dominator_sort_key(point: ReportPoint, cost: float) -> tuple[float, float, 
 def pareto_frontier(
     points: Sequence[ReportPoint],
 ) -> tuple[set[tuple[str, str]], dict[tuple[str, str], tuple[str, str] | None]]:
-    """Compute Pareto frontier and deterministic dominator map by model_id.
+    """Compute Pareto frontier and dominators by ``(harness, model_id)`` identity.
 
-    Returns ``(frontier_ids, dominator_by_model_id)``. Ineligible or invalid
-    points map to None and are never on the frontier. Exact score/cost ties
-    keep the lexicographically smaller model_id on the frontier.
+    Returns ``(frontier_identities, dominator_by_identity)`` using complete
+    identity pairs as keys and dominator values. Ineligible or invalid points
+    map to None and are never on the frontier. Exact score/cost ties keep the
+    lexicographically smaller complete identity pair on the frontier.
     """
     by_id: dict[tuple[str, str], ReportPoint] = {}
     for point in points:
@@ -228,20 +220,24 @@ def pareto_frontier(
         assert cost is not None
         candidates.append((point, cost))
 
+    candidates.sort(key=lambda item: _dominator_sort_key(item[0], item[1]))
+    prefix_scores: list[float] = []
+    best_score = -math.inf
+    for point, _ in candidates:
+        best_score = max(best_score, float(point.score))
+        prefix_scores.append(best_score)
+
     frontier: set[tuple[str, str]] = set()
-    for point, cost in candidates:
-        doms: list[tuple[ReportPoint, float]] = []
-        for other, other_cost in candidates:
-            if _point_identity(other) == _point_identity(point):
-                continue
-            if _dominates(other, point, other_cost, cost):
-                doms.append((other, other_cost))
-        if not doms:
-            frontier.add(_point_identity(point))
-            dominator[_point_identity(point)] = None
+    for index, (point, _) in enumerate(candidates):
+        # The first prefix reaching this score identifies the minimum-key
+        # dominator: earlier candidates have lower cost, higher equal-cost
+        # score, or the lexicographically smaller identity for an exact tie.
+        first = bisect_left(prefix_scores, float(point.score))
+        identity = _point_identity(point)
+        if first == index:
+            frontier.add(identity)
         else:
-            best, _ = min(doms, key=lambda item: _dominator_sort_key(item[0], item[1]))
-            dominator[_point_identity(point)] = _point_identity(best)
+            dominator[identity] = _point_identity(candidates[first][0])
 
     return frontier, dominator
 

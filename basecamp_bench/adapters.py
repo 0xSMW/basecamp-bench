@@ -93,10 +93,11 @@ class Usage:
 
 @dataclass(frozen=True)
 class ParsedOutput:
-    """Trustworthy fields recovered from a harness CLI's stdout/log text.
+    """Normalized accounting and identifiers recovered from harness output.
 
-    Never contains secret values or global log paths — only usage, cost,
-    final message text, and session identifiers when confidently parsed.
+    ``last_message`` is untrusted, unredacted vendor/model text and may contain
+    private content or host paths. Keep it private or explicitly redact and
+    scan it before publication; parsing does not establish shareability.
     """
 
     usage: Usage | None = None
@@ -107,7 +108,12 @@ class ParsedOutput:
 
 @dataclass(frozen=True)
 class AgentJob:
-    """One isolated implement or evaluate invocation for a harness adapter."""
+    """One isolated implement or evaluate invocation for a harness adapter.
+
+    ``harness`` selects the adapter. When ``config_harness_id`` is supplied,
+    execution uses that exact configured harness's binary, including ``None``
+    for the adapter default. Omit it for legacy configuration inference.
+    """
 
     kind: Literal["implement", "evaluate"]
     harness: str
@@ -118,6 +124,7 @@ class AgentJob:
     last_message_path: Path
     evidence_dirs: tuple[Path, ...] = ()
     sandbox_mode: str = "workspace-write"
+    config_harness_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in ("implement", "evaluate"):
@@ -261,6 +268,27 @@ def _float_of(value: Any) -> float | None:
 # =============================================================================
 
 
+@contextmanager
+def _owned_private_root(
+    root: Path, reserved_error: str, changed_type_error: str | None = None
+) -> Iterator[None]:
+    """Reserve a disposable root exclusively and clean only after owning it."""
+    root = root.absolute()
+    try:
+        root.mkdir(parents=True)
+    except FileExistsError as exc:
+        raise ValueError(reserved_error) from exc
+    try:
+        yield
+    finally:
+        if root.is_symlink():
+            root.unlink()
+        elif root.is_dir() or (changed_type_error is None and root.exists()):
+            shutil.rmtree(root)
+        elif os.path.lexists(root):
+            raise ValueError(changed_type_error)
+
+
 class Harness(ABC):
     """Adapter for one agent CLI.
 
@@ -348,8 +376,10 @@ class Harness(ABC):
         """Recover usage / cost / message / session from stdout or command log text.
 
         Best-effort and non-raising for ordinary parse failures: return whatever
-        trustworthy fields were recovered. Never returns secret values or global
-        log paths.
+        trustworthy fields were recovered. Final-message text remains untrusted and
+        unredacted, as described by :class:`ParsedOutput`; callers must keep it
+        private or explicitly redact and scan it before publication. Adapters
+        may also consult matching native-session evidence for accounting.
         """
         return ParsedOutput()
 
@@ -971,9 +1001,6 @@ class OpenCodeHarness(Harness):
         private_root = self._private_root(job)
         config_path = private_root / "opencode.json"
         config_dir = private_root / "config"
-        if os.path.lexists(private_root):
-            raise ValueError("run private directory contains a reserved OpenCode adapter path")
-
         permission: str | dict[str, object]
         if job.sandbox_mode == "danger-full-access":
             permission = "allow"
@@ -986,31 +1013,30 @@ class OpenCodeHarness(Harness):
                 "external_directory": "deny",
             }
 
-        try:
-            config_dir.mkdir(parents=True)
-            config_path.write_text(
-                json.dumps(
-                    {
-                        "$schema": "https://opencode.ai/config.json",
-                        "permission": permission,
-                    },
-                    sort_keys=True,
+        with _owned_private_root(
+            private_root,
+            "run private directory contains a reserved OpenCode adapter path",
+            "OpenCode reserved private root changed type",
+        ):
+            try:
+                config_dir.mkdir()
+                config_path.write_text(
+                    json.dumps(
+                        {
+                            "$schema": "https://opencode.ai/config.json",
+                            "permission": permission,
+                        },
+                        sort_keys=True,
+                    )
+                    + "\n",
+                    encoding="utf-8",
                 )
-                + "\n",
-                encoding="utf-8",
-            )
-            self._active_config = config_path
-            self._active_config_dir = config_dir
-            yield
-        finally:
-            self._active_config = None
-            self._active_config_dir = None
-            if private_root.is_symlink():
-                private_root.unlink()
-            elif private_root.is_dir():
-                shutil.rmtree(private_root)
-            elif os.path.lexists(private_root):
-                raise ValueError("OpenCode reserved private root changed type")
+                self._active_config = config_path
+                self._active_config_dir = config_dir
+                yield
+            finally:
+                self._active_config = None
+                self._active_config_dir = None
 
     def prepare_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
         env = super().prepare_env(base)
@@ -1409,7 +1435,7 @@ class GrokHarness(Harness):
         cost: float | None = None
         usage: Usage | None = None
 
-        for obj in _iter_json_objects(stdout_text):
+        for obj in objects:
             if isinstance(obj.get("text"), str):
                 last = obj["text"]
             if isinstance(obj.get("sessionId"), str):
@@ -1521,16 +1547,8 @@ class GrokHarness(Harness):
             return None
         # Support both Grok-native and OpenAI-ish field names.
         if "prompt_tokens" in data or "cached_prompt_tokens" in data or "completion_tokens" in data:
-            prompt = _int_of(data.get("prompt_tokens"))
-            cached = _int_of(data.get("cached_prompt_tokens"))
-            cache_write = _int_of(
-                data.get("cache_write_tokens") or data.get("cache_creation_tokens")
-            )
-            return Usage(
-                input_tokens=max(prompt - cached, 0),
-                cached_input_tokens=cached,
-                cache_write_tokens=cache_write,
-                output_tokens=_int_of(data.get("completion_tokens") or data.get("output_tokens")),
+            return GrokHarness._legacy_prompt_usage(
+                data, data.get("completion_tokens") or data.get("output_tokens")
             )
         if "input_tokens" in data or "output_tokens" in data:
             raw_input = _int_of(data.get("input_tokens"))
@@ -1546,6 +1564,19 @@ class GrokHarness(Harness):
                 output_tokens=_int_of(data.get("output_tokens")),
             )
         return None
+
+    @staticmethod
+    def _legacy_prompt_usage(data: Mapping[str, Any], output: Any) -> Usage:
+        prompt = _int_of(data.get("prompt_tokens"))
+        cached = _int_of(data.get("cached_prompt_tokens"))
+        return Usage(
+            input_tokens=max(prompt - cached, 0),
+            cached_input_tokens=cached,
+            cache_write_tokens=_int_of(
+                data.get("cache_write_tokens") or data.get("cache_creation_tokens")
+            ),
+            output_tokens=_int_of(output),
+        )
 
     @staticmethod
     def _usage_from_global_log(session_id: str) -> Usage | None:
@@ -1576,18 +1607,8 @@ class GrokHarness(Harness):
                     ctx = obj.get("ctx") or {}
                     if not isinstance(ctx, dict):
                         continue
-                    prompt = _int_of(ctx.get("prompt_tokens"))
-                    cached = _int_of(ctx.get("cached_prompt_tokens"))
-                    cache_write = _int_of(
-                        ctx.get("cache_write_tokens") or ctx.get("cache_creation_tokens")
-                    )
                     total = total.add(
-                        Usage(
-                            input_tokens=max(prompt - cached, 0),
-                            cached_input_tokens=cached,
-                            cache_write_tokens=cache_write,
-                            output_tokens=_int_of(ctx.get("completion_tokens")),
-                        )
+                        GrokHarness._legacy_prompt_usage(ctx, ctx.get("completion_tokens"))
                     )
                     found = True
         except OSError:
@@ -1695,74 +1716,73 @@ class PiHarness(Harness):
             )
 
         native_model = self._native_model(job.model.model)
-        config_dir.mkdir(parents=True)
-        self._active_config_dir = config_dir
-        try:
-            models_path.write_text(
-                json.dumps(
-                    {
-                        "providers": {
-                            "openrouter": {
-                                "baseUrl": "https://openrouter.ai/api/v1",
-                                "api": "openai-completions",
-                                "apiKey": "$OPENROUTER_API_KEY",
-                                "models": [
-                                    {
-                                        "id": native_model,
-                                        "name": "GLM 5.2",
-                                        "reasoning": True,
-                                        "input": ["text"],
-                                        "contextWindow": 1_048_576,
-                                        "maxTokens": 131_072,
-                                        # OpenRouter's default (price-ordered) routing
-                                        # re-rolls the provider on every turn, and some
-                                        # hosts (Z.AI, Venice, partially Novita) buffer
-                                        # whole responses instead of streaming. A long
-                                        # write turn on a buffering host emits no bytes
-                                        # for its entire generation, which reads as a
-                                        # hang and previously tripped Pi's idle timeout.
-                                        # Pin to hosts verified to stream tool-call
-                                        # deltas, serve fp8, and allow >=128k completion
-                                        # tokens.
-                                        "compat": {
-                                            "openRouterRouting": {
-                                                "order": [
-                                                    "baidu",
-                                                    "atlas-cloud",
-                                                    "akashml",
-                                                    "siliconflow",
-                                                    "streamlake",
-                                                ],
-                                                "allow_fallbacks": False,
-                                            }
-                                        },
-                                    }
-                                ],
+        with _owned_private_root(
+            private_root,
+            "run private directory contains a reserved Pi adapter path",
+            "Pi reserved private root changed type",
+        ):
+            config_dir.mkdir()
+            self._active_config_dir = config_dir
+            try:
+                models_path.write_text(
+                    json.dumps(
+                        {
+                            "providers": {
+                                "openrouter": {
+                                    "baseUrl": "https://openrouter.ai/api/v1",
+                                    "api": "openai-completions",
+                                    "apiKey": "$OPENROUTER_API_KEY",
+                                    "models": [
+                                        {
+                                            "id": native_model,
+                                            "name": "GLM 5.2",
+                                            "reasoning": True,
+                                            "input": ["text"],
+                                            "contextWindow": 1_048_576,
+                                            "maxTokens": 131_072,
+                                            # OpenRouter's default (price-ordered) routing
+                                            # re-rolls the provider on every turn, and some
+                                            # hosts (Z.AI, Venice, partially Novita) buffer
+                                            # whole responses instead of streaming. A long
+                                            # write turn on a buffering host emits no bytes
+                                            # for its entire generation, which reads as a
+                                            # hang and previously tripped Pi's idle timeout.
+                                            # Pin to hosts verified to stream tool-call
+                                            # deltas, serve fp8, and allow >=128k completion
+                                            # tokens.
+                                            "compat": {
+                                                "openRouterRouting": {
+                                                    "order": [
+                                                        "baidu",
+                                                        "atlas-cloud",
+                                                        "akashml",
+                                                        "siliconflow",
+                                                        "streamlake",
+                                                    ],
+                                                    "allow_fallbacks": False,
+                                                }
+                                            },
+                                        }
+                                    ],
+                                }
                             }
-                        }
-                    },
-                    sort_keys=True,
+                        },
+                        sort_keys=True,
+                    )
+                    + "\n",
+                    encoding="utf-8",
                 )
-                + "\n",
-                encoding="utf-8",
-            )
-            # The pinned providers above stream continuously (observed
-            # inter-chunk gaps of a few seconds), so a genuine multi-minute
-            # silence means the stream is dead. Fail the turn at ten minutes
-            # instead of hanging until the benchmark's outer timeout.
-            settings_path.write_text(
-                json.dumps({"httpIdleTimeoutMs": 600_000}, sort_keys=True) + "\n",
-                encoding="utf-8",
-            )
-            yield
-        finally:
-            self._active_config_dir = None
-            if private_root.is_symlink():
-                private_root.unlink()
-            elif private_root.is_dir():
-                shutil.rmtree(private_root)
-            elif os.path.lexists(private_root):
-                raise ValueError("Pi reserved private root changed type")
+                # The pinned providers above stream continuously (observed
+                # inter-chunk gaps of a few seconds), so a genuine multi-minute
+                # silence means the stream is dead. Fail the turn at ten minutes
+                # instead of hanging until the benchmark's outer timeout.
+                settings_path.write_text(
+                    json.dumps({"httpIdleTimeoutMs": 600_000}, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+                yield
+            finally:
+                self._active_config_dir = None
 
     def prepare_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
         env = super().prepare_env(base)
@@ -1953,10 +1973,7 @@ class AgyHarness(Harness):
     def execution_context(self, job: AgentJob) -> Iterator[None]:
         """Stage private control files and disposable evidence outside the submission tree."""
         state_dir = self._private_root(job)
-        if state_dir.is_symlink() or state_dir.exists():
-            raise ValueError("workspace contains a reserved AGY adapter path")
-        state_dir.mkdir(parents=True)
-        try:
+        with _owned_private_root(state_dir, "workspace contains a reserved AGY adapter path"):
             (state_dir / self._LAUNCHER_FILE).write_text(
                 "import os\n"
                 "import sys\n"
@@ -1979,11 +1996,6 @@ class AgyHarness(Harness):
                 encoding="utf-8",
             )
             yield
-        finally:
-            if state_dir.is_symlink():
-                state_dir.unlink()
-            elif state_dir.exists():
-                shutil.rmtree(state_dir)
 
     def build_command(self, job: AgentJob) -> list[str]:
         native_model = self._native_model(job.model.model, job.model.effort)

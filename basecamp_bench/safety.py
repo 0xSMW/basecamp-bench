@@ -117,6 +117,30 @@ def _is_ignored(rel_posix: str, patterns: Iterable[str]) -> bool:
     return False
 
 
+def filter_tree_manifest(
+    manifest: Mapping[str, str], ignore: Iterable[str] = (), *, root: os.PathLike[str] | str
+) -> dict[str, str]:
+    """Apply tree ignore rules to a trusted copy's file-hash map.
+
+    A metadata-only walk proves that physical names match the map's POSIX
+    separators. Literal backslashes can create ambiguous normalized keys, so
+    those uncommon trees retain the original live hashing behavior. Reuse
+    does not replace a later live filesystem integrity check.
+    """
+    patterns = tuple(ignore)
+    for _directory, directories, files in os.walk(root, followlinks=False):
+        if any("\\" in name for names in (directories, files) for name in names):
+            return tree_manifest(root, ignore=patterns)
+    kept: dict[str, str] = {}
+    for relative, digest in sorted(manifest.items()):
+        parts = relative.split("/")
+        if not any(
+            _is_ignored("/".join(parts[:depth]), patterns) for depth in range(1, len(parts) + 1)
+        ):
+            kept[relative] = digest
+    return kept
+
+
 def _reject_if_outside(path: Path, root: Path) -> None:
     try:
         path.resolve(strict=False).relative_to(root)
@@ -251,6 +275,41 @@ def _fsync_directory(directory: Path) -> None:
         os.close(fd)
 
 
+def atomic_write_text(path: os.PathLike[str] | str, text: str) -> None:
+    """Durably replace *path* with UTF-8 text using a same-directory tempfile.
+
+    The parent must exist. File data is synced before replacement, then the
+    directory is synced on a best-effort basis. Failure cleanup removes only
+    the temporary file created by this call.
+    """
+    target = Path(path)
+    parent = target.parent
+    if not parent.is_dir():
+        raise ValueError(f"parent directory does not exist: {parent}")
+
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+        dir=os.fspath(parent),
+    )
+    tmp_path: Path | None = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, os.fspath(target))
+        tmp_path = None
+        _fsync_directory(parent)
+    except Exception:
+        if tmp_path is not None and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise
+
+
 def atomic_write_json(path: os.PathLike[str] | str, data: Any) -> None:
     """Write *data* as deterministic JSON via a same-directory atomic replace.
 
@@ -259,32 +318,10 @@ def atomic_write_json(path: os.PathLike[str] | str, data: Any) -> None:
     removed.
     """
     target = Path(path)
-    parent = target.parent
-    if not parent.is_dir():
-        raise ValueError(f"parent directory does not exist: {parent}")
-
+    if not target.parent.is_dir():
+        raise ValueError(f"parent directory does not exist: {target.parent}")
     payload = json.dumps(data, sort_keys=True, ensure_ascii=False) + "\n"
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{target.name}.",
-        suffix=".tmp",
-        dir=os.fspath(parent),
-    )
-    tmp_path = Path(tmp_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp_name, os.fspath(target))
-        tmp_path = Path()  # replaced; do not unlink
-        _fsync_directory(parent)
-    except Exception:
-        if tmp_path != Path() and tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except OSError:
-                pass
-        raise
+    atomic_write_text(target, payload)
 
 
 def _copy_tree_safe(

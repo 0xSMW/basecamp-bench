@@ -140,12 +140,33 @@ class ParetoFrontierTests(unittest.TestCase):
         self.assertIsNone(dom[("harness-x", "pricey")])
 
     def test_exact_score_cost_tie_lex_smaller_wins(self) -> None:
-        left = _point(model_id="alpha", score=7.0, cost_per_attempt=3.0)
-        right = _point(model_id="beta", score=7.0, cost_per_attempt=3.0)
-        frontier, dom = pareto_frontier([right, left])
-        self.assertEqual(frontier, {("harness-x", "alpha")})
-        self.assertIsNone(dom[("harness-x", "alpha")])
-        self.assertEqual(dom[("harness-x", "beta")], ("harness-x", "alpha"))
+        for score_left, score_right in ((7.0, 7.0), (2**53, 2**53 + 1), (0.0, -0.0)):
+            for identity_left, identity_right in (
+                (("harness-x", "alpha"), ("harness-x", "beta")),
+                (("a-harness", "z-model"), ("b-harness", "a-model")),
+                (("a", "z"), ("a:", "b")),
+            ):
+                with self.subTest(scores=(score_left, score_right), identities=identity_left):
+                    left = _point(
+                        harness=identity_left[0],
+                        model_id=identity_left[1],
+                        score=score_left,
+                        cost_per_attempt=3.0,
+                    )
+                    right = _point(
+                        harness=identity_right[0],
+                        model_id=identity_right[1],
+                        score=score_right,
+                        cost_per_attempt=3.0,
+                    )
+                    frontier, dom = pareto_frontier([right, left])
+                    self.assertEqual(frontier, {identity_left})
+                    self.assertEqual(dom, {identity_left: None, identity_right: identity_left})
+
+    def test_duplicate_identity_rejected_even_when_ineligible(self) -> None:
+        point = _point(eligible=False, mode="local")
+        with self.assertRaisesRegex(ValueError, "duplicate report point identity"):
+            pareto_frontier([point, point])
 
     def test_multiple_dominators_prefer_lowest_cost_then_score_then_lex(self) -> None:
         # cand is dominated by both frontier points (tradeoff pair).

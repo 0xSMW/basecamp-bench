@@ -227,6 +227,22 @@ class FindExactRatesTests(unittest.TestCase):
                 self.assertIsNone(result.rates)
                 self.assertIsNotNone(result.error)
 
+    def test_unrepresentable_integer_rates_return_lookup_errors(self) -> None:
+        for field in ("input", "output", "cache_read", "cache_write"):
+            cost = {"input": 1, "output": 2, field: 10**400}
+            lookups = (
+                ("external", _models_dev(("openai", "m", cost)), {}),
+                ("override", None, {"m": cost}),
+                ("nested override", None, {"m": {"cost": cost}}),
+            )
+            for source, data, overrides in lookups:
+                with self.subTest(field=field, source=source):
+                    result = find_exact_rates("m", data, overrides)
+                    self.assertIsNone(result.rates)
+                    self.assertIn(
+                        f"{field} rate must be a finite nonnegative number", result.error or ""
+                    )
+
     def test_invalid_override_rates(self) -> None:
         result = find_exact_rates(
             "m",

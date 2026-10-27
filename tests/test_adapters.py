@@ -6,6 +6,8 @@ import json
 import os
 import sys
 import unittest
+from contextlib import chdir
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -760,6 +762,149 @@ class AgyCommandTests(TempDirTestCase):
                 pass
 
 
+class PrivateRootLifecycleTests(TempDirTestCase):
+    def _cases(self):
+        return (
+            (OpenCodeHarness, "opencode", "0x-alpha", "max"),
+            (PiHarness, "pi", "glm-5.2", "high"),
+            (AgyHarness, "agy", "gemini-3.8-flash", "high"),
+        )
+
+    def test_relative_log_path_setup_environment_and_cleanup(self) -> None:
+        for harness_type, name, model, effort in self._cases():
+            with (
+                self.subTest(harness=name),
+                chdir(self.root),
+                mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}),
+            ):
+                harness = harness_type(binary=str(self.fake_bin))
+                job = replace(
+                    self._job(harness=name, model=model, effort=effort), log_path=Path("job.log")
+                )
+                root = harness._private_root(job)
+                with harness.execution_context(job):
+                    self.assertTrue(root.is_dir())
+                    env = harness.prepare_env({})
+                    if name == "opencode":
+                        self.assertTrue(Path(env["OPENCODE_CONFIG"]).is_file())
+                        self.assertTrue(Path(env["OPENCODE_CONFIG_DIR"]).is_dir())
+                    elif name == "pi":
+                        self.assertTrue(
+                            (Path(env["PI_CODING_AGENT_DIR"]) / "models.json").is_file()
+                        )
+                    else:
+                        self.assertTrue((root / "launch.py").is_file())
+                        self.assertTrue((root / "prompt.md").is_file())
+                self.assertFalse(os.path.lexists(root))
+                env = harness.prepare_env({})
+                self.assertNotIn("OPENCODE_CONFIG", env)
+                self.assertNotIn("OPENCODE_CONFIG_DIR", env)
+                self.assertNotIn("PI_CODING_AGENT_DIR", env)
+
+    def test_existing_roots_are_rejected_without_cleanup(self) -> None:
+        for harness_type, name, model, effort in self._cases():
+            for relative in (False, True):
+                for kind in ("directory", "file", "symlink"):
+                    with (
+                        self.subTest(harness=name, kind=kind, relative=relative),
+                        chdir(self.root),
+                        mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}),
+                    ):
+                        harness = harness_type(binary=str(self.fake_bin))
+                        job = replace(
+                            self._job(harness=name, model=model, effort=effort),
+                            log_path=(
+                                Path(f"relative-{name}-{kind}.log")
+                                if relative
+                                else self.root / f"{name}-{kind}.log"
+                            ),
+                        )
+                        root = harness._private_root(job)
+                        if kind == "directory":
+                            root.mkdir()
+                            (root / "retain").write_text("untouched")
+                        elif kind == "file":
+                            root.write_text("untouched")
+                        else:
+                            root.symlink_to(self.root / "missing-target")
+                        with self.assertRaises(ValueError):
+                            with harness.execution_context(job):
+                                self.fail("pre-existing roots must be rejected")
+                        self.assertTrue(os.path.lexists(root))
+                        if kind == "directory":
+                            self.assertEqual((root / "retain").read_text(), "untouched")
+                        elif kind == "file":
+                            self.assertEqual(root.read_text(), "untouched")
+                        else:
+                            self.assertTrue(root.is_symlink())
+
+    def test_failed_exclusive_reservation_leaves_competing_root_untouched(self) -> None:
+        mkdir = Path.mkdir
+        for harness_type, name, model, effort in self._cases():
+            with (
+                self.subTest(harness=name),
+                mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}),
+            ):
+                harness = harness_type(binary=str(self.fake_bin))
+                job = self._job(harness=name, model=model, effort=effort)
+                root = harness._private_root(job)
+                marker = root / "competing-owner"
+
+                def competing_mkdir(path, *args, **kwargs):
+                    if path == root:
+                        mkdir(path, *args, **kwargs)
+                        marker.write_text("retain")
+                        raise FileExistsError("another owner reserved the root")
+                    return mkdir(path, *args, **kwargs)
+
+                with mock.patch.object(Path, "mkdir", competing_mkdir):
+                    with self.assertRaisesRegex(ValueError, "reserved"):
+                        with harness.execution_context(job):
+                            self.fail("reservation must fail before yielding")
+                self.assertEqual(marker.read_text(), "retain")
+
+    def test_cleanup_unlinks_replacement_symlink_without_following_target(self) -> None:
+        for harness_type, name, model, effort in self._cases():
+            with (
+                self.subTest(harness=name),
+                mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}),
+            ):
+                harness = harness_type(binary=str(self.fake_bin))
+                job = self._job(harness=name, model=model, effort=effort)
+                root = harness._private_root(job)
+                target = self.root / f"{name}-unowned"
+                target.mkdir()
+                marker = target / "retain"
+                marker.write_text("untouched")
+                with harness.execution_context(job):
+                    root.rename(self.root / f"{name}-owned-backup")
+                    root.symlink_to(target, target_is_directory=True)
+                self.assertFalse(os.path.lexists(root))
+                self.assertEqual(marker.read_text(), "untouched")
+                env = harness.prepare_env({})
+                self.assertNotIn("OPENCODE_CONFIG", env)
+                self.assertNotIn("OPENCODE_CONFIG_DIR", env)
+                self.assertNotIn("PI_CODING_AGENT_DIR", env)
+
+    def test_setup_write_failures_clean_root_and_reset_environment(self) -> None:
+        for harness_type, name, model, effort in self._cases():
+            with (
+                self.subTest(harness=name),
+                mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}),
+            ):
+                harness = harness_type(binary=str(self.fake_bin))
+                job = self._job(harness=name, model=model, effort=effort)
+                with mock.patch.object(Path, "write_text", side_effect=OSError("disk full")):
+                    with self.assertRaisesRegex(OSError, "disk full"):
+                        with harness.execution_context(job):
+                            self.fail("setup must fail before yielding")
+                self.assertFalse(harness._private_root(job).exists())
+                env = harness.prepare_env({})
+                self.assertNotIn("OPENCODE_CONFIG", env)
+                self.assertNotIn("OPENCODE_CONFIG_DIR", env)
+                self.assertNotIn("PI_CODING_AGENT_DIR", env)
+
+
 class EnvironmentTests(TempDirTestCase):
     def test_allowlist_keeps_required_drops_arbitrary(self) -> None:
         h = CodexHarness(binary=str(self.fake_bin))
@@ -1251,6 +1396,50 @@ class ParseOutputTests(TempDirTestCase):
         self.assertEqual(parsed.session_id, "match-me")
         # ParsedOutput must not embed the log path.
         self.assertNotIn(str(log_path), repr(parsed))
+
+    def test_grok_legacy_log_keeps_completion_only_and_zero_event_semantics(self) -> None:
+        harness = GrokHarness(binary=str(self.fake_bin))
+        job = self._job(harness="grok")
+        grok_home = self.root / "legacy-log"
+        log_dir = grok_home / "logs"
+        log_dir.mkdir(parents=True)
+        log_path = log_dir / "unified.jsonl"
+        contexts = (
+            ({"output_tokens": 99}, Usage()),
+            ({}, Usage()),
+            (
+                {
+                    "prompt_tokens": 100,
+                    "cached_prompt_tokens": 30,
+                    "cache_write_tokens": 0,
+                    "cache_creation_tokens": 5,
+                    "completion_tokens": 0,
+                    "output_tokens": 99,
+                },
+                Usage(70, 30, 5, 0),
+            ),
+        )
+        for context, expected in contexts:
+            with self.subTest(context=context):
+                log_path.write_text(
+                    json.dumps(
+                        {"sid": "legacy", "type": "shell.turn.inference_done", "ctx": context}
+                    )
+                    + "\n"
+                )
+                with mock.patch.dict(os.environ, {"GROK_HOME": str(grok_home)}):
+                    parsed = harness.parse_output(job, json.dumps({"sessionId": "legacy"}))
+                self.assertEqual(parsed.usage, expected)
+        inline = harness.parse_output(job, json.dumps({"usage": contexts[-1][0]}))
+        self.assertEqual(inline.usage, Usage(70, 30, 5, 99))
+        with mock.patch.dict(os.environ, {"GROK_HOME": str(grok_home)}):
+            authoritative = harness.parse_output(
+                job,
+                json.dumps(
+                    {"sessionId": "legacy", "usage": {"prompt_tokens": 1, "completion_tokens": 2}}
+                ),
+            )
+        self.assertEqual(authoritative.usage, Usage(1, 0, 0, 2))
 
     def test_grok_no_global_log_without_session(self) -> None:
         h = GrokHarness(binary=str(self.fake_bin))

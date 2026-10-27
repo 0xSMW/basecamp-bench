@@ -8,7 +8,6 @@ this module; stable facades on :mod:`basecamp_bench.manifest` lazy-load it.
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import os
 import re
@@ -739,30 +738,30 @@ def export_run(
 
 def _write_deterministic_zip(path: Path, members: Sequence[tuple[str, bytes]]) -> None:
     """Write a byte-stable ZIP archive to *path*."""
-    # Build in memory then write once so file metadata is fully controlled.
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(
-        buffer,
-        mode="w",
-        compression=_ZIP_COMPRESS_TYPE,
-        compresslevel=_ZIP_COMPRESSLEVEL,
-        allowZip64=False,
-    ) as zf:
-        for name, payload in members:
-            info = zipfile.ZipInfo(filename=name, date_time=_ZIP_DATE_TIME)
-            info.compress_type = _ZIP_COMPRESS_TYPE
-            info.create_system = _ZIP_CREATE_SYSTEM
-            info.external_attr = _ZIP_EXTERNAL_ATTR
-            info.internal_attr = 0
-            info.comment = b""
-            info.extra = b""
-            # Flag bit 11 (UTF-8 names) is fine for ASCII/UTF-8 paths; leave default.
-            zf.writestr(
-                info, payload, compress_type=_ZIP_COMPRESS_TYPE, compresslevel=_ZIP_COMPRESSLEVEL
-            )
-
-    data = buffer.getvalue()
+    # Keep the captured, scanned member bytes; only the ZIP itself streams to
+    # the private temporary file, which the caller publishes after success.
     with path.open("wb") as handle:
-        handle.write(data)
+        with zipfile.ZipFile(
+            handle,
+            mode="w",
+            compression=_ZIP_COMPRESS_TYPE,
+            compresslevel=_ZIP_COMPRESSLEVEL,
+            allowZip64=False,
+        ) as zf:
+            for name, payload in members:
+                info = zipfile.ZipInfo(filename=name, date_time=_ZIP_DATE_TIME)
+                info.compress_type = _ZIP_COMPRESS_TYPE
+                info.create_system = _ZIP_CREATE_SYSTEM
+                info.external_attr = _ZIP_EXTERNAL_ATTR
+                info.internal_attr = 0
+                info.comment = b""
+                info.extra = b""
+                # Flag bit 11 (UTF-8 names) is fine for ASCII/UTF-8 paths; leave default.
+                zf.writestr(
+                    info,
+                    payload,
+                    compress_type=_ZIP_COMPRESS_TYPE,
+                    compresslevel=_ZIP_COMPRESSLEVEL,
+                )
         handle.flush()
         os.fsync(handle.fileno())

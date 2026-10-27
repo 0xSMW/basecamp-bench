@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -368,6 +369,29 @@ class BuildAndWriteManifestTests(TempDirTestCase):
         # Pretty indentation present.
         self.assertIn('\n  "', text1)
 
+    def test_write_preserves_exact_json_policy_before_replacement(self) -> None:
+        path = self.root / "data.json"
+        write_manifest(path, {"z": "café", "a": 1})
+        self.assertEqual(path.read_bytes(), '{\n  "a": 1,\n  "z": "café"\n}\n'.encode())
+        before = path.read_bytes()
+        with self.assertRaises(ValueError):
+            write_manifest(path, {"bad": float("nan")})
+        self.assertEqual(path.read_bytes(), before)
+        self.assertEqual(list(self.root.iterdir()), [path])
+
+    def test_write_refuses_symlink_parent_and_nonfile_destination(self) -> None:
+        directory = self.root / "directory"
+        directory.mkdir()
+        with self.assertRaisesRegex(ValueError, "not a regular file"):
+            write_manifest(directory, {})
+        if not _can_symlink():
+            self.skipTest("symlinks not supported")
+        link = self.root / "link"
+        link.symlink_to(directory, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "parent must not be a symlink"):
+            write_manifest(link / "data.json", {})
+        self.assertFalse((directory / "data.json").exists())
+
     def test_write_refuses_symlink_destination(self) -> None:
         if not _can_symlink():
             self.skipTest("symlinks not supported")
@@ -614,6 +638,51 @@ class ExportRunTests(TempDirTestCase):
         with zipfile.ZipFile(out1, "r") as zf:
             names = sorted(zf.namelist())
         self.assertEqual(names, ["results/out.txt", "run-manifest.json"])
+
+    def test_zip_metadata_and_captured_bytes_survive_source_changes(self) -> None:
+        from basecamp_bench import manifest_export
+
+        run_dir = self._ready_run()
+        payloads = {
+            "results/empty.txt": b"",
+            "results/caf\u00e9.txt": b"clean evidence\n" * 100,
+            "submissions/image.png": bytes(range(256)) * 4,
+        }
+        self._replace_artifacts(run_dir, payloads)
+        write_zip = manifest_export._write_deterministic_zip
+
+        def mutate_then_write(path: Path, members: list[tuple[str, bytes]]) -> None:
+            (run_dir / "results/caf\u00e9.txt").write_bytes(b"changed after capture")
+            write_zip(path, members)
+
+        out = self.root / "captured.zip"
+        with mock.patch.object(manifest_export, "_write_deterministic_zip", mutate_then_write):
+            export_run(run_dir, out)
+        with zipfile.ZipFile(out) as archive:
+            self.assertEqual(archive.namelist(), sorted([*payloads, "run-manifest.json"]))
+            for name, expected in payloads.items():
+                self.assertEqual(archive.read(name), expected)
+            for info in archive.infolist():
+                self.assertEqual(info.date_time, (1980, 1, 1, 0, 0, 0))
+                self.assertEqual(info.compress_type, zipfile.ZIP_DEFLATED)
+                self.assertEqual(info.create_system, 3)
+                self.assertEqual(info.external_attr, 0o644 << 16)
+                self.assertEqual(info.comment, b"")
+                self.assertEqual(info.extra, b"")
+
+    def test_zip_write_or_file_fsync_failure_never_publishes(self) -> None:
+        run_dir = self._ready_run()
+        for operation in ("zipfile.ZipFile.writestr", "os.fsync"):
+            with self.subTest(operation=operation):
+                out = self.root / "failed.zip"
+                with mock.patch(
+                    "basecamp_bench.manifest_export." + operation,
+                    side_effect=OSError("synthetic ZIP failure"),
+                ):
+                    with self.assertRaisesRegex(OSError, "synthetic ZIP failure"):
+                        export_run(run_dir, out)
+                self.assertFalse(out.exists())
+                self.assertEqual(list(self.root.glob(".failed.zip.*.tmp.zip")), [])
 
     def test_existing_output_collision(self) -> None:
         run_dir = self._ready_run()

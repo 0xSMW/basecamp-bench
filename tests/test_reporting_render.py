@@ -182,6 +182,63 @@ class RenderReportHtmlTests(unittest.TestCase):
         self.assertNotIn("±", html_out)
         self.assertIn("results-table", html_out)
 
+    def test_default_headlines_preserve_partial_scores_and_cost_ties(self) -> None:
+        # Missing scores count as zero in the global comparison denominator,
+        # but each card's own average uses only its known scores.
+        payload = build_report_payload(
+            [
+                _point(model_id=model, display_name=model.title(), track=track, score=score)
+                for model, score in (
+                    ("leader", 8.0),
+                    ("leader-tie", 8.0),
+                    ("partial", 10.0),
+                    ("cheap-a", 2.0),
+                    ("cheap-b", 2.0),
+                    ("missing", 1.0),
+                )
+                for track in ("fe", "be")
+            ]
+        )
+        for section in payload["sections"]:
+            for model in section["models"]:
+                model_id = model["model_id"]
+                if model_id == "partial" and section["track"] == "be":
+                    model["score"] = None
+                if model_id.startswith("cheap"):
+                    model["total_cost_per_attempt"] = 0.0 if section["track"] == "fe" else None
+                if model_id == "missing":
+                    model["score"] = False if section["track"] == "fe" else None
+                    model["total_cost_per_attempt"] = None
+                if model["score"] is None or isinstance(model["score"], bool):
+                    model["expected_cost"] = None
+                    model["classification"] = "ineligible"
+
+        html_out = render_report_html(payload)
+        for headline in (
+            "Leader — highest scores overall",
+            "Leader-Tie — highest scores overall",
+            "Partial — 10 average across tracks",
+            "Cheap-A — lowest total cost",
+            "Cheap-B — lowest total cost",
+            "Missing — no scored results",
+        ):
+            self.assertIn(f"{headline}</h3>", html_out)
+        self.assertEqual(html_out, render_report_html(payload))
+
+        # A later render must use its own extrema and honor editorial escaping.
+        editorial = render_report_html(
+            payload,
+            commentary={"models": {"leader": {"headline": "<custom> & headline"}}},
+        )
+        self.assertIn("Leader — &lt;custom&gt; &amp; headline</h3>", editorial)
+        self.assertNotIn("Leader — highest scores overall</h3>", editorial)
+        for section in payload["sections"]:
+            for model in section["models"]:
+                if model["model_id"] == "partial":
+                    model["score"] = 10.0
+        self.assertIn("Partial — highest scores overall</h3>", render_report_html(payload))
+        self.assertIn("No scored results.", render_report_html({"sections": []}))
+
     def test_commentary_renders_and_validates(self) -> None:
         commentary = {
             "briefing": ["What this benchmark measures."],

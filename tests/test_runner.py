@@ -545,7 +545,13 @@ class MaterializeTests(Fixture):
         self.assertFalse((dest / "reference" / ".DS_Store").exists())
         self.assertFalse((dest / "reference" / "nested" / ".DS_Store").exists())
         self.assertEqual((dest / "reference" / "note.txt").read_bytes(), b"reference-asset-v1\n")
-        self.assertIn("reference/note.txt", man)
+        self.assertEqual(
+            man,
+            {
+                "AGENTS.md": _sha(b"seed\n"),
+                "reference/note.txt": _sha(b"reference-asset-v1\n"),
+            },
+        )
 
 
 class ExecuteTests(Fixture):
@@ -672,6 +678,62 @@ class ExecuteTests(Fixture):
 
 
 class PipelineTests(Fixture):
+    def test_report_failure_keeps_written_ledger_artifacts_in_failed_manifest(self) -> None:
+        with (
+            mock.patch(
+                "basecamp_bench.runner.write_report", side_effect=RuntimeError("report failed")
+            ),
+            self.assertRaisesRegex(RuntimeError, "report failed"),
+        ):
+            self.run_bench(id_factory=_Ids("report-failure"))
+        run_dir = self.run_root / "report-failure001"
+        manifest = self.read_run_manifest(run_dir)
+        self.assertEqual(manifest["status"], "failed")
+        written_ledgers = list((run_dir / "leaderboards").glob("*.json"))
+        self.assertTrue(written_ledgers)
+        for ledger in written_ledgers:
+            self.assertEqual(
+                manifest["artifacts"][ledger.relative_to(run_dir).as_posix()],
+                _sha(ledger.read_bytes()),
+            )
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_execution_uses_selected_implementation_and_evaluator_harness_binaries(self) -> None:
+        config = self.config(
+            harnesses={
+                "decoy": replace(self.harness("decoy"), binary="/wrong/fake", enabled=False),
+                "agent-x": self.harness(),
+                "judge-h": replace(
+                    self.harness("judge-h", model="unused-model"), binary=None, enabled=False
+                ),
+            },
+            evaluators=(self.evaluator("eval-a", "judge-model-a", harness="judge-h"),),
+        )
+        with mock.patch(
+            "basecamp_bench.execution.get_harness", wraps=adapters_mod.get_harness
+        ) as get_execution_harness:
+            run_dir = self.run_bench(config=config, id_factory=_Ids("binary-selection"))
+        self.assertCountEqual(
+            get_execution_harness.call_args_list,
+            [mock.call("fake", binary=str(self.bin)), mock.call("fake", binary=None)],
+        )
+        self.assertTrue(self.attempt_json(run_dir)["evaluation_success"])
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_report_incompatible_contract_version_rejects_before_agent_execution(self) -> None:
+        from basecamp_bench.contracts import load_contract
+
+        contract = json.loads(self.contract.read_text(encoding="utf-8"))
+        contract["contract_version"] = "release 1"
+        self.contract.write_text(json.dumps(contract), encoding="utf-8")
+        self.assertEqual(load_contract(self.contract).contract_version, "release 1")
+        with (
+            mock.patch("basecamp_bench.runner.execute_agent", wraps=execute_agent) as execute,
+            self.assertRaisesRegex(ValueError, r"contract_version.*valid identifier"),
+        ):
+            self.run_bench()
+        execute.assert_not_called()
+
     def test_overlapping_process_is_rejected_before_run_creation(self) -> None:
         with acquire_lane_locks(self.root, [("agent-x", "fe")]):
             with (
@@ -1292,6 +1354,108 @@ class ConcurrencyTests(Fixture):
         self.assertEqual(peak, 1)
         manifest = self.read_run_manifest(run_dir)
         self.assertEqual(len({job["id"] for job in manifest["jobs"]}), 6)
+        self.assertEqual(
+            [job["id"] for job in manifest["jobs"]],
+            [
+                "implement-checkpoint002",
+                "evaluate-checkpoint003",
+                "evaluate-checkpoint004",
+                "implement-checkpoint005",
+                "evaluate-checkpoint006",
+                "evaluate-checkpoint007",
+            ],
+        )
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_workers_checkpoint_each_job_and_artifact_delta_once(self) -> None:
+        from basecamp_bench import runner as runner_module
+
+        original = runner_module._CheckpointState.record
+        lock = threading.Lock()
+        job_ids: list[str] = []
+        artifact_paths: list[str] = []
+
+        def recording(state, new_jobs=(), new_artifacts=None, **kwargs):  # type: ignore[no-untyped-def]
+            result = original(state, new_jobs, new_artifacts, **kwargs)
+            with lock:
+                job_ids.extend(job["id"] for job in new_jobs)
+                artifact_paths.extend(new_artifacts or ())
+            return result
+
+        with mock.patch.object(runner_module._CheckpointState, "record", new=recording):
+            run_dir = self.run_bench(config=self.config(repetitions=2), id_factory=_Ids("deltas"))
+        self.assertEqual(len(job_ids), 6)
+        self.assertEqual(len(job_ids), len(set(job_ids)))
+        self.assertTrue(any(path.startswith("snapshots/") for path in artifact_paths))
+        self.assertTrue(any(path.startswith("evaluations/") for path in artifact_paths))
+        self.assertEqual(sum(path.startswith("attempts/") for path in artifact_paths), 2)
+        self.assertEqual(len(artifact_paths), len(set(artifact_paths)))
+        self.assertEqual(
+            set(job_ids), {job["id"] for job in self.read_run_manifest(run_dir)["jobs"]}
+        )
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_checkpoint_owns_nested_job_data_after_producer_mutation(self) -> None:
+        from basecamp_bench import runner as runner_module
+
+        original = runner_module._job_record
+        implementation_records: list[dict[str, Any]] = []
+
+        def capture_record(**kwargs):  # type: ignore[no-untyped-def]
+            record = original(**kwargs)
+            if record["kind"] == "implement":
+                implementation_records.append(record)
+            return record
+
+        def mutate_after_checkpoint(event: str, _fields: Mapping[str, object]) -> None:
+            if event == "build.finished":
+                implementation_records[0]["usage"]["input_tokens"] = 999_999
+                implementation_records[0]["cost_usd"] = 999.0
+
+        with mock.patch.object(runner_module, "_job_record", side_effect=capture_record):
+            run_dir = self.run_bench(
+                options=self.options(progress=mutate_after_checkpoint),
+                id_factory=_Ids("owned"),
+            )
+        self.assertEqual(implementation_records[0]["usage"]["input_tokens"], 999_999)
+        implementation = next(
+            job for job in self.read_run_manifest(run_dir)["jobs"] if job["kind"] == "implement"
+        )
+        self.assertEqual(implementation["usage"]["input_tokens"], 10)
+        self.assertEqual(implementation["cost_usd"], 0.01)
+        self.assertEqual(self.attempt_json(run_dir)["tokens"], 25)
+        self.assertEqual(verify_run(run_dir), [])
+
+    def test_checkpoint_first_record_and_detached_snapshot_are_stable(self) -> None:
+        from basecamp_bench import runner as runner_module
+
+        original = runner_module._CheckpointState.record
+        checked = False
+
+        def replay_and_mutate_snapshot(state, new_jobs=(), new_artifacts=None, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal checked
+            result = original(state, new_jobs, new_artifacts, **kwargs)
+            if new_jobs and new_jobs[0]["kind"] == "implement":
+                conflicting = dict(new_jobs[0], cost_usd=999.0)
+                original(state, (conflicting,))
+                jobs, artifacts = state.snapshot()
+                jobs[0]["usage"]["input_tokens"] = 999_999
+                artifacts["injected"] = "0" * 64
+                retained_jobs, retained_artifacts = state.snapshot()
+                self.assertEqual(retained_jobs[0]["cost_usd"], 0.01)
+                self.assertEqual(retained_jobs[0]["usage"]["input_tokens"], 10)
+                self.assertNotIn("injected", retained_artifacts)
+                checked = True
+            return result
+
+        with mock.patch.object(
+            runner_module._CheckpointState, "record", new=replay_and_mutate_snapshot
+        ):
+            run_dir = self.run_bench(id_factory=_Ids("first-record"))
+        self.assertTrue(checked)
+        manifest = self.read_run_manifest(run_dir)
+        self.assertEqual(len(manifest["jobs"]), 3)
+        self.assertEqual(manifest["costs"]["known_implementation_usd"], 0.01)
         self.assertEqual(verify_run(run_dir), [])
 
 
@@ -1882,6 +2046,35 @@ class ReevaluateTests(Fixture):
         )
         self.assertFalse((new_dir / "snapshots" / readable_by_id[submission_ids[0]]).exists())
         self.assertTrue((new_dir / "snapshots" / readable_by_id[submission_ids[1]]).is_dir())
+
+    def test_reevaluation_allocates_evaluator_ids_in_requested_submission_order(self) -> None:
+        config = self.config(repetitions=2)
+        prior = self.run_bench(config=config, id_factory=_Ids("ordered-prior"))
+        submission_ids = sorted(
+            json.loads(path.read_text(encoding="utf-8"))["submission_id"]
+            for path in (prior / "attempts").glob("*.json")
+        )
+        selected = tuple(reversed(submission_ids))
+        run_dir = self.reeval(
+            prior,
+            config=config,
+            id_factory=_Ids("ordered-new"),
+            submission_ids=selected,
+        )
+        evaluators_by_submission: dict[str, dict[str, str]] = {}
+        for job in self.read_run_manifest(run_dir)["jobs"]:
+            if job["kind"] == "evaluate":
+                evaluators_by_submission.setdefault(job["submission_id"], {})[
+                    job["evaluator_id"]
+                ] = job["eval_attempt_id"]
+        self.assertEqual(
+            evaluators_by_submission,
+            {
+                selected[0]: {"eval-a": "ordered-new002", "eval-b": "ordered-new003"},
+                selected[1]: {"eval-a": "ordered-new004", "eval-b": "ordered-new005"},
+            },
+        )
+        self.assertEqual(verify_run(run_dir), [])
 
     def test_reevaluation_reserves_selected_source_lane_before_new_run(self) -> None:
         prior = self.run_bench(id_factory=_Ids("locked-source"))

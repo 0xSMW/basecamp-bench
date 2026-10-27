@@ -19,13 +19,13 @@ import platform
 import re
 import stat
 import subprocess
-import tempfile
 import time
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeGuard
 
+from basecamp_bench.safety import _fsync_directory, atomic_write_text
 from basecamp_bench.validation import is_finite_number, is_sha256_hex
 
 __all__ = [
@@ -1178,40 +1178,12 @@ def write_manifest(path: Path, data: Any) -> None:
         + "\n"
     )
 
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{target.name}.",
-        suffix=".tmp",
-        dir=os.fspath(parent),
-    )
-    tmp_path = Path(tmp_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp_name, os.fspath(target))
-        tmp_path = Path()  # replaced
-        _fsync_dir(parent)
-    except Exception:
-        if tmp_path != Path() and tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except OSError:
-                pass
-        raise
+    atomic_write_text(target, payload)
 
 
 def _fsync_dir(directory: Path) -> None:
-    try:
-        fd = os.open(os.fspath(directory), os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
-    except OSError:
-        pass
-    finally:
-        os.close(fd)
+    # Retain the import used by manifest_export without duplicating syncing.
+    _fsync_directory(directory)
 
 
 # ---------------------------------------------------------------------------

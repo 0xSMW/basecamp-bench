@@ -12,6 +12,7 @@ from types import MappingProxyType
 from basecamp_bench.leaderboard import (
     Attempt,
     aggregate_attempts,
+    atomic_write_text,
     attempt_from_raw,
     attempt_to_raw,
     build_attempt_ledgers,
@@ -662,6 +663,18 @@ class DeterminismAndRawTests(unittest.TestCase):
         self.assertIsInstance(raw["implementation_success"], bool)
         self.assertIsInstance(raw["score"], float)
         json.dumps(raw)
+
+
+class AtomicWriteTextFacadeTests(TempDirTestCase):
+    def test_facade_replaces_utf8_text_and_keeps_existing_parent_policy(self) -> None:
+        path = self.root / "report.txt"
+        path.write_text("old", encoding="utf-8")
+        atomic_write_text(path, "café\nnext\n")
+        self.assertEqual(path.read_bytes(), "café\nnext\n".encode())
+        self.assertEqual(list(self.root.iterdir()), [path])
+        with self.assertRaisesRegex(ValueError, "parent directory does not exist"):
+            atomic_write_text(self.root / "missing" / "report.txt", "text")
+        self.assertFalse((self.root / "missing").exists())
 
 
 class WriteAttemptLedgersTests(TempDirTestCase):

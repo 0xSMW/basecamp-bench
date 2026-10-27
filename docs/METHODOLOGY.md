@@ -1,6 +1,6 @@
 # Methodology
 
-Basecamp Bench compares unattended coding-agent configurations against one versioned frontend or backend contract. A report section combines results only when mode, runner-source hash, seed-tree hash, reference-manifest and reference-tree hashes, track prompt/rubric/contract hashes, schema-bundle hash, and canonical dimension labels/weights all match exactly.
+Basecamp Bench compares unattended coding-agent configurations against one versioned frontend or backend contract. A report section combines results only when mode, seed-tree hash, reference-manifest and reference-tree hashes, track prompt/rubric/contract hashes, schema-bundle hash, and canonical dimension labels/weights all match exactly. Publication sections also require identical runner-source hashes. Local exploratory sections may combine runner revisions when all other comparison inputs match. Every source hash remains listed; when revisions are combined, a deterministic composite hash identifies the combined report provenance rather than a single executable source tree.
 
 ## Evidence model
 

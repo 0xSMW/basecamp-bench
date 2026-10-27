@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import re
 import tomllib
 from collections.abc import Mapping, Sequence
@@ -12,6 +11,8 @@ from types import MappingProxyType
 from typing import Any, Literal
 
 from .adapters import registered_harnesses
+from .safety import validate_identifier
+from .validation import is_finite_number
 
 Mode = Literal["local", "publication"]
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
@@ -188,12 +189,9 @@ def _positive_int(value: Any, field: str) -> int:
 
 
 def _number(value: Any, field: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if not is_finite_number(value) or float(value) < 0:
         raise ValueError(f"{field} must be a finite nonnegative number")
-    result = float(value)
-    if not math.isfinite(result) or result < 0:
-        raise ValueError(f"{field} must be a finite nonnegative number")
-    return result
+    return float(value)
 
 
 def _safe_id(value: Any, field: str) -> str:
@@ -201,6 +199,12 @@ def _safe_id(value: Any, field: str) -> str:
     if not _ID_RE.fullmatch(result):
         raise ValueError(f"{field} is not a safe lowercase identifier: {result!r}")
     return result
+
+
+def _benchmark_id(value: Any, field: str) -> str:
+    # These IDs also become lane/path and attempt identities. Price lookup keys
+    # retain their separate lexical format through _safe_id.
+    return validate_identifier(_safe_id(value, field), field=field)
 
 
 def _validate_root(value: Path) -> Path:
@@ -304,8 +308,8 @@ def _evaluator(body: Any, index: int) -> EvaluatorSpec:
     if missing:
         raise ValueError(f"{field}: missing key(s): {', '.join(missing)}")
     return EvaluatorSpec(
-        _safe_id(table["id"], f"{field}.id"),
-        _safe_id(table["harness"], f"{field}.harness"),
+        _benchmark_id(table["id"], f"{field}.id"),
+        _benchmark_id(table["harness"], f"{field}.harness"),
         _string(table["model"], f"{field}.model"),
         _string(table["effort"], f"{field}.effort"),
         _string(table["provider_family"], f"{field}.provider_family"),
@@ -374,7 +378,7 @@ def _read_toml(path: Path) -> Mapping[str, Any]:
 def _selection(values: Sequence[str], known: Mapping[str, Any], field: str) -> tuple[str, ...]:
     if isinstance(values, (str, bytes)) or not isinstance(values, Sequence) or not values:
         raise ValueError(f"{field} must be a nonempty sequence")
-    result = tuple(_safe_id(value, field) for value in values)
+    result = tuple(_benchmark_id(value, field) for value in values)
     if len(set(result)) != len(result):
         raise ValueError(f"{field} contains duplicate IDs")
     unknown = sorted(set(result) - set(known))
@@ -475,7 +479,7 @@ def load_config(
     if "harnesses" in body:
         tables = _mapping(body["harnesses"], "harnesses")
         for raw_id, table in tables.items():
-            hid = _safe_id(raw_id, "harness id")
+            hid = _benchmark_id(raw_id, "harness id")
             data["harnesses"][hid] = _harness(hid, table, data["harnesses"].get(hid))
     if "evaluators" in body:
         raw = body["evaluators"]
@@ -485,7 +489,7 @@ def load_config(
     if "tracks" in body:
         tables = _mapping(body["tracks"], "tracks")
         for raw_id, table in tables.items():
-            tid = _safe_id(raw_id, "track id")
+            tid = _benchmark_id(raw_id, "track id")
             data["tracks"][tid] = _track(root, tid, table, data["tracks"].get(tid))
     if "pricing" in body:
         data["pricing"] = _pricing(body["pricing"])

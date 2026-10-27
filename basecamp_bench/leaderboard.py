@@ -18,9 +18,7 @@ import json
 import os
 import re
 import statistics
-import tempfile
 from collections.abc import Callable, Mapping, Sequence
-from contextlib import suppress
 from dataclasses import dataclass, fields
 from functools import partial
 from pathlib import Path
@@ -28,6 +26,7 @@ from types import MappingProxyType
 from typing import Any, Literal, cast
 
 from basecamp_bench.reporting_model import RAW_ATTEMPT_KEY_ORDER, raw_attempt_sort_key
+from basecamp_bench.safety import atomic_write_text as _atomic_write_text
 from basecamp_bench.safety import resolve_within, validate_identifier
 from basecamp_bench.validation import is_finite_number, is_sha256_hex
 
@@ -290,7 +289,22 @@ def _exact_keys(obj: Mapping[str, Any], expected: frozenset[str], path: str) -> 
 
 @dataclass(frozen=True, slots=True)
 class Attempt:
-    """One validated implementation/evaluation attempt."""
+    """One validated implementation/evaluation record.
+
+    Runner-produced records sum captured implementation and evaluator tokens,
+    including invalid evaluator calls; missing usage contributes zero, so this
+    total may be partial. Consult per-job nullable usage in the manifest for
+    missing captures. ``duration_s`` is implementation process duration
+    plus the maximum individual evaluator process duration, excluding queueing,
+    preparation, and other overhead; it is not end-to-end elapsed time.
+
+    Costs are USD. ``None`` means unavailable or incomplete, not free;
+    evaluation cost is ``None`` if any evaluator cost is unknown or evaluation
+    was skipped. Reevaluation retains historical implementation metrics here,
+    while the manifest's incurred ``costs`` summary counts only new calls.
+    These meanings describe runner attribution, not provenance enforced by
+    this record's constructor.
+    """
 
     run_id: str
     submission_id: str
@@ -1003,41 +1017,9 @@ def _leaderboard_basename(
     return f"leaderboard_{track_s}_{version_s}_{sha_s}"
 
 
-def _fsync_directory(directory: Path) -> None:
-    try:
-        fd = os.open(os.fspath(directory), os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        with suppress(OSError):
-            os.fsync(fd)
-    finally:
-        os.close(fd)
-
-
 def atomic_write_text(path: Path, text: str) -> None:
-    parent = path.parent
-    if not parent.is_dir():
-        raise ValueError(f"parent directory does not exist: {parent}")
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=os.fspath(parent),
-    )
-    tmp_path = Path(tmp_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp_name, os.fspath(path))
-        tmp_path = Path()
-        _fsync_directory(parent)
-    except Exception:
-        if tmp_path != Path() and tmp_path.exists():
-            with suppress(OSError):
-                tmp_path.unlink()
-        raise
+    """Write UTF-8 text through the shared durable replacement transaction."""
+    _atomic_write_text(path, text)
 
 
 def _write_plans(plans: Sequence[tuple[Path, Callable[[], str]]]) -> list[Path]:

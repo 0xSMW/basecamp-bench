@@ -8,14 +8,19 @@ import os
 import shutil
 import tempfile
 import unittest
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from basecamp_bench.safety import (
     IDENTIFIER_RE,
     atomic_snapshot,
     atomic_write_json,
+    atomic_write_text,
     create_unique_directory,
+    filter_tree_manifest,
     portable_path,
     redact_text,
     resolve_within,
@@ -132,6 +137,48 @@ class ManifestTests(TempDirTestCase):
         (self.root / "x.tmp").write_text("t", encoding="utf-8")
         manifest = tree_manifest(self.root, ignore=("skip", "*.tmp"))
         self.assertEqual(list(manifest.keys()), ["keep.txt"])
+
+    def test_filter_snapshot_manifest_preserves_ancestor_ignore_pruning(self) -> None:
+        for name in (
+            "keep.txt",
+            "skip/nested/file.txt",
+            "nested/node_modules/package/index.js",
+            "nested/.pytest_cache/state",
+            "other/file.tmp",
+        ):
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(name, encoding="utf-8")
+        captured = tree_manifest(self.root)
+        patterns = ("skip", "**/node_modules", "**/.pytest_cache", "*.tmp")
+        expected = {"keep.txt": hashlib.sha256(b"keep.txt").hexdigest()}
+        self.assertEqual(filter_tree_manifest(captured, patterns, root=self.root), expected)
+        self.assertEqual(tree_manifest(self.root, ignore=patterns), expected)
+        self.assertEqual(filter_tree_manifest(captured, root=self.root), captured)
+
+    def test_filter_snapshot_manifest_preserves_literal_backslash_names_and_collisions(
+        self,
+    ) -> None:
+        layouts = (
+            {"node_modules\\file.txt": "literal"},
+            {"node_modules\\folder/file.txt": "literal"},
+            {"node_modules\\file.txt": "literal", "node_modules/file.txt": "ignored"},
+        )
+        for index, layout in enumerate(layouts):
+            with self.subTest(layout=layout):
+                root = self.root / str(index)
+                root.mkdir()
+                for name, content in layout.items():
+                    path = root / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(content, encoding="utf-8")
+                captured = tree_manifest(root)
+                filtered = filter_tree_manifest(captured, ("node_modules",), root=root)
+                expected_path = (
+                    "node_modules/folder/file.txt" if index == 1 else "node_modules/file.txt"
+                )
+                self.assertEqual(filtered, {expected_path: hashlib.sha256(b"literal").hexdigest()})
+                self.assertEqual(verify_tree_manifest(root, filtered, ignore=("node_modules",)), [])
 
     @unittest.skipUnless(_can_symlink(), "platform cannot create symlinks")
     def test_symlink_file_rejected_in_manifest(self) -> None:
@@ -320,6 +367,53 @@ class AtomicSnapshotTests(TempDirTestCase):
         # Only src should remain from our work (plus any unrelated).
         self.assertIn(src, after)
         self.assertNotIn(dest, after)
+
+
+class AtomicWriteTextTests(TempDirTestCase):
+    def test_failures_preserve_target_and_remove_only_owned_temporary_file(self) -> None:
+        target = self.root / "data.txt"
+        unrelated = self.root / ".data.txt.unrelated.tmp"
+        unrelated.write_text("keep", encoding="utf-8")
+        real_fdopen = os.fdopen
+
+        @contextmanager
+        def failing_writer(*args: Any, **kwargs: Any) -> Iterator[Any]:
+            with real_fdopen(*args, **kwargs) as handle:
+                writer = mock.Mock(wraps=handle)
+                writer.write.side_effect = OSError("injected write failure")
+                yield writer
+
+        for operation in ("write", "fsync", "replace"):
+            target.write_bytes(b"old bytes")
+            patch = (
+                mock.patch("basecamp_bench.safety.os.fdopen", side_effect=failing_writer)
+                if operation == "write"
+                else mock.patch(
+                    f"basecamp_bench.safety.os.{operation}",
+                    side_effect=OSError(f"injected {operation} failure"),
+                )
+            )
+            with self.subTest(operation=operation), patch, self.assertRaises(OSError):
+                atomic_write_text(target, "new bytes")
+            self.assertEqual(target.read_bytes(), b"old bytes")
+            self.assertEqual(unrelated.read_text(encoding="utf-8"), "keep")
+            self.assertEqual(set(self.root.iterdir()), {target, unrelated})
+
+    def test_directory_sync_is_best_effort_after_file_sync_and_replace(self) -> None:
+        target = self.root / "data.txt"
+        with mock.patch(
+            "basecamp_bench.safety.os.fsync", side_effect=[None, OSError("directory sync failed")]
+        ) as sync:
+            atomic_write_text(target, "café\n")
+        self.assertEqual(sync.call_count, 2)
+        self.assertEqual(target.read_bytes(), "café\n".encode())
+        self.assertEqual(list(self.root.iterdir()), [target])
+
+    def test_missing_parent_is_not_created(self) -> None:
+        parent = self.root / "missing"
+        with self.assertRaisesRegex(ValueError, "parent directory does not exist"):
+            atomic_write_text(parent / "data.txt", "text")
+        self.assertFalse(parent.exists())
 
 
 class AtomicWriteJsonTests(TempDirTestCase):

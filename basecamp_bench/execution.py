@@ -161,7 +161,21 @@ def _execute_agent_prepared(
 
 
 def binary_for_job(config: BenchConfig, job: AgentJob) -> str | None:
-    """Resolve the configured binary for an implementation or evaluator job."""
+    """Use an explicit configured harness, or infer one for legacy jobs.
+
+    An explicitly selected ``None`` binary means the adapter default. It must
+    never fall through to another configured harness, even for the same model.
+    Evaluators may override the selected harness's implementation model.
+    """
+    if job.config_harness_id is not None:
+        selected = config.harnesses.get(job.config_harness_id)
+        if selected is None:
+            raise ValueError(f"unknown configured harness: {job.config_harness_id}")
+        if selected.adapter != job.harness:
+            raise ValueError(
+                f"configured harness adapter does not match job: {job.config_harness_id}"
+            )
+        return selected.binary
     for spec in config.harnesses.values():
         if spec.adapter == job.harness or spec.id == job.harness:
             return spec.binary

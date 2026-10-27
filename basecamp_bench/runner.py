@@ -13,6 +13,7 @@ import threading
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from contextlib import nullcontext
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,7 +26,13 @@ from basecamp_bench.browser_runtime import (
     FrontendServer,
     validate_browser_evidence,
 )
-from basecamp_bench.config import BenchConfig, config_to_public_dict
+from basecamp_bench.config import (
+    BenchConfig,
+    EvaluatorSpec,
+    HarnessSpec,
+    TrackSpec,
+    config_to_public_dict,
+)
 from basecamp_bench.contracts import (
     EvaluationContract,
     ValidatedJudgeScores,
@@ -79,6 +86,7 @@ from basecamp_bench.safety import (
     atomic_snapshot,
     atomic_write_json,
     create_unique_directory,
+    filter_tree_manifest,
     portable_path,
     redact_text,
     sha256_file,
@@ -157,8 +165,12 @@ class RunOptions:
 
     ``max_parallel_agents`` is a global cap shared by implementation and
     evaluator work. When supplied, ``progress`` receives an event name and a
-    read-only field mapping; callback failures are deliberately ignored so UI
-    or logging code cannot fail a paid benchmark job.
+    field mapping that callers should treat as read-only. Callbacks run
+    synchronously on the emitting runner or worker thread, may overlap, and
+    must synchronize shared state or dispatch to their owning thread. Event
+    ordering across independent jobs is unspecified; correlate events by job
+    identifiers. Ordinary callback exceptions are suppressed, but callback
+    latency still delays the emitter.
     """
 
     allow_unsafe_host_execution: bool = False
@@ -178,12 +190,24 @@ class RunOptions:
 
 
 @dataclass(frozen=True)
-class _RunTask:
-    harness: Any
-    track: Any
+class _VerifiedSource:
+    """Previously verified snapshot and accounting provenance for reuse."""
+
+    run_id: str
+    submission: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class _PlannedSubmission:
+    """One planned identity, with a verified source only for reevaluation."""
+
+    harness: HarnessSpec
+    track: TrackSpec
+    model: str
     repetition: int
     submission_id: str
-    evaluator_attempts: tuple[tuple[Any, str], ...]
+    evaluator_attempts: tuple[tuple[EvaluatorSpec, str], ...]
+    reused: _VerifiedSource | None = None
 
 
 @dataclass(slots=True)
@@ -224,8 +248,6 @@ class _PreparedSubmission:
     repetition: int
     snapshot_path: Path | None
     implementation_success: bool
-    jobs: tuple[dict[str, Any], ...]
-    artifacts: Mapping[str, str]
     implementation_cost_usd: float | None
     implementation_tokens: int
     implementation_duration_s: float
@@ -239,7 +261,7 @@ class _ExecutionContext:
     config: BenchConfig
     options: RunOptions
     run: _RunContext
-    checkpoint: Callable[..., None]
+    checkpoint: _CheckpointState
     cancel_event: threading.Event
     agent_slots: threading.BoundedSemaphore
     evaluator_executor: ThreadPoolExecutor
@@ -295,26 +317,27 @@ def new_run_id(now: datetime | None = None, nonce: str | None = None) -> str:
     return validate_identifier(f"{stamp}-{token}", field="run_id")
 
 
-def materialize_seed(config: BenchConfig, destination: Path) -> dict:
+def materialize_seed(config: BenchConfig, destination: Path) -> dict[str, str]:
     """Copy seed (excluding reference/secrets/.git) and overlay reference_root."""
     dest = Path(destination)
     if os.path.lexists(dest):
         raise ValueError(f"materialize destination already exists: {dest}")
     if not dest.parent.is_dir():
         raise ValueError(f"materialize parent does not exist: {dest.parent}")
-    atomic_snapshot(config.seed_root, dest, ignore_patterns=_SEED_IGNORE)
+    manifest = atomic_snapshot(config.seed_root, dest, ignore_patterns=_SEED_IGNORE)
     ref_dest = dest / "reference"
     if os.path.lexists(ref_dest):
         raise ValueError(f"seed materialization left a reference path: {ref_dest}")
     # Reference-pack validation intentionally tolerates undeclared Finder
     # metadata; materialization must exclude the same ambient files so they do
     # not affect submissions or portable baseline artifacts.
-    atomic_snapshot(
+    reference_manifest = atomic_snapshot(
         config.reference_root,
         ref_dest,
         ignore_patterns=_AMBIENT_IGNORE,
     )
-    return tree_manifest(dest)
+    manifest.update((f"reference/{path}", digest) for path, digest in reference_manifest.items())
+    return dict(sorted(manifest.items()))
 
 
 def run_benchmark(
@@ -354,44 +377,47 @@ def _execute_plan(
     ctx: _RunContext,
     now: datetime | None,
     *,
-    prepare: Callable[[], Sequence[Any]],
-    evaluator_attempts: Callable[[Any], Sequence[tuple[Any, str]]],
-    submission_row: Callable[[Any], tuple[str, str, str, str, str, int]],
+    prepare: Callable[[], Sequence[_PlannedSubmission]],
     progress_event: str,
     progress_count: str,
     work_pool_prefix: str,
-    worker: Callable[
-        [_ExecutionContext, Any], tuple[Attempt, list[dict[str, Any]], dict[str, str]]
-    ],
 ) -> Path:
     """Execute either submission source through one checkpointed lifecycle."""
-    jobs: list[dict[str, Any]] = []
-    attempts: list[Attempt] = []
-    artifacts: dict[str, str] = {}
-    checkpoint = _checkpoint_writer(config, ctx, jobs, artifacts)
+    checkpoint = _CheckpointState(config, ctx)
+    finalization_artifacts: dict[str, str] | None = None
     cancel_event = threading.Event()
     agent_slots = threading.BoundedSemaphore(options.max_parallel_agents)
     restore_signal = _install_termination_cancellation(cancel_event)
     try:
         items = list(prepare())
-        checkpoint(status="running")
+        checkpoint.record(status="running")
         validate_planned_layout(
             run_root=config.run_root,
             run_id=ctx.run_id,
-            submissions=[submission_row(item) for item in items],
+            submissions=[
+                (
+                    item.submission_id,
+                    item.track.id,
+                    item.harness.id,
+                    item.harness.provider_family,
+                    item.model,
+                    item.repetition,
+                )
+                for item in items
+            ],
             judges=[
                 (
-                    submission_row(item)[0],
+                    item.submission_id,
                     attempt_id,
                     evaluator.harness,
                     evaluator.provider_family,
                     evaluator.model,
                 )
                 for item in items
-                for evaluator, attempt_id in evaluator_attempts(item)
+                for evaluator, attempt_id in item.evaluator_attempts
             ],
         )
-        evaluator_count = sum(len(evaluator_attempts(item)) for item in items)
+        evaluator_count = sum(len(item.evaluator_attempts) for item in items)
         _emit_progress(
             options,
             progress_event,
@@ -410,20 +436,20 @@ def _execute_plan(
             execution = _ExecutionContext(
                 config, options, ctx, checkpoint, cancel_event, agent_slots, evaluator_executor
             )
-            results = collect_indexed(
+            attempts = collect_indexed(
                 items,
                 executor=work_executor,
                 cancel_event=cancel_event,
-                submit=lambda executor, item: executor.submit(worker, execution, item),
+                submit=lambda executor, item: executor.submit(_run_submission, execution, item),
             )
-        for attempt, new_jobs, new_artifacts in results:
-            attempts.append(attempt)
-            checkpoint(new_jobs, new_artifacts)
-        checkpoint()
-        return _finalize_run(config, ctx, jobs, attempts, artifacts, now, options)
+        checkpoint.record()
+        jobs, finalization_artifacts = checkpoint.snapshot()
+        return _finalize_run(config, ctx, jobs, attempts, finalization_artifacts, now, options)
     except (Exception, KeyboardInterrupt) as exc:
         _emit_progress(options, "run.failed", error=type(exc).__name__)
-        _fail_run_without_masking(config, ctx.run_dir, checkpoint, exc)
+        _fail_run_without_masking(
+            config, ctx.run_dir, checkpoint, exc, finalization_artifacts=finalization_artifacts
+        )
         raise
     finally:
         restore_signal()
@@ -447,13 +473,13 @@ def _run_benchmark_once(
     """
     ctx = _open_run(config, options, id_factory, pricing_data, now)
 
-    def prepare() -> list[_RunTask]:
+    def prepare() -> list[_PlannedSubmission]:
         harnesses = [
             config.harnesses[h] for h in sorted(config.harnesses) if config.harnesses[h].enabled
         ]
         evaluators = [e for e in config.evaluators if e.enabled]
         tracks = [config.tracks[t] for t in sorted(config.tracks)]
-        tasks: list[_RunTask] = []
+        tasks: list[_PlannedSubmission] = []
         allocated_ids = {ctx.run_id}
         for harness in harnesses:
             for track in tracks:
@@ -469,9 +495,10 @@ def _run_benchmark_once(
                         for evaluator in evaluators
                     )
                     tasks.append(
-                        _RunTask(
+                        _PlannedSubmission(
                             harness=harness,
                             track=track,
+                            model=harness.model,
                             repetition=rep,
                             submission_id=submission_id,
                             evaluator_attempts=evaluator_attempts,
@@ -485,19 +512,9 @@ def _run_benchmark_once(
         ctx,
         now,
         prepare=prepare,
-        evaluator_attempts=lambda task: task.evaluator_attempts,
-        submission_row=lambda task: (
-            task.submission_id,
-            task.track.id,
-            task.harness.id,
-            task.harness.provider_family,
-            task.harness.model,
-            task.repetition,
-        ),
         progress_event="run.planned",
         progress_count="implementations",
         work_pool_prefix="basecamp-bench-implement",
-        worker=_run_repetition,
     )
 
 
@@ -570,7 +587,7 @@ def _reevaluate_reserved(
     """Evaluate prevalidated snapshots while their paid-work lanes are reserved."""
     ctx = _open_run(config, options, id_factory, pricing_data, now)
 
-    def prepare() -> list[tuple[dict[str, Any], tuple[tuple[Any, str], ...]]]:
+    def prepare() -> list[_PlannedSubmission]:
         _require_reevaluation_inputs_match(
             prior_man,
             ctx.input_hashes,
@@ -587,26 +604,30 @@ def _reevaluate_reserved(
         )
         evaluators = [e for e in config.evaluators if e.enabled]
         allocated_ids = {ctx.run_id, *(str(item["submission_id"]) for item in reusable)}
-        planned = [
-            (
-                item,
-                tuple(
-                    (
-                        evaluator,
-                        _allocate_planned_id(ctx.make_id, "eval_attempt_id", allocated_ids),
-                    )
-                    for evaluator in evaluators
+        planned: list[_PlannedSubmission] = []
+        for item in reusable:
+            attempt = item["attempt"]
+            track_id = str(attempt["track"])
+            if track_id not in config.tracks or track_id not in ctx.contracts:
+                raise ValueError(f"prior track is missing from current config: {track_id}")
+            planned.append(
+                _PlannedSubmission(
+                    submission_id=str(item["submission_id"]),
+                    harness=config.harnesses[str(attempt["harness"])],
+                    track=config.tracks[track_id],
+                    model=str(attempt["model_id"]),
+                    repetition=int(attempt["repetition"]),
+                    evaluator_attempts=tuple(
+                        (
+                            evaluator,
+                            _allocate_planned_id(ctx.make_id, "eval_attempt_id", allocated_ids),
+                        )
+                        for evaluator in evaluators
+                    ),
+                    reused=_VerifiedSource(str(prior_man["run_id"]), item),
                 ),
             )
-            for item in reusable
-        ]
         return planned
-
-    def run_verified(
-        execution: _ExecutionContext,
-        planned: tuple[dict[str, Any], tuple[tuple[Any, str], ...]],
-    ) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
-        return _run_verified_submission(execution, str(prior_man["run_id"]), *planned)
 
     return _execute_plan(
         config,
@@ -614,19 +635,9 @@ def _reevaluate_reserved(
         ctx,
         now,
         prepare=prepare,
-        evaluator_attempts=lambda planned: planned[1],
-        submission_row=lambda planned: (
-            str(planned[0]["submission_id"]),
-            str(planned[0]["attempt"]["track"]),
-            str(planned[0]["attempt"]["harness"]),
-            config.harnesses[str(planned[0]["attempt"]["harness"])].provider_family,
-            str(planned[0]["attempt"]["model_id"]),
-            int(planned[0]["attempt"]["repetition"]),
-        ),
         progress_event="reevaluate.planned",
         progress_count="submissions",
         work_pool_prefix="basecamp-bench-reevaluate",
-        worker=run_verified,
     )
 
 
@@ -714,6 +725,9 @@ def _open_run(
     contract_hashes: dict[str, str] = {}
     for tid, track in config.tracks.items():
         contracts[tid] = load_contract(track.contract_file)
+        # Standalone contracts permit freeform versions; persisted benchmark
+        # identities and filenames require the stricter portable identifier.
+        validate_identifier(contracts[tid].contract_version, field=f"tracks.{tid}.contract_version")
         contract_hashes[tid] = contract_sha256(track.contract_file)
     input_hashes = _input_hashes(config, pack)
     if pricing_payload is not None:
@@ -1153,15 +1167,13 @@ def _eval_pass(
     execution: _ExecutionContext,
     sid: str,
     snapshot: Path,
-    track: Any,
+    track: TrackSpec,
     contract: EvaluationContract,
     contract_hash: str,
-    evaluator_attempts: Sequence[tuple[Any, str]],
+    evaluator_attempts: Sequence[tuple[EvaluatorSpec, str]],
     repetition: int,
 ) -> tuple[
-    list[dict[str, Any]],
     list[ValidatedJudgeScores],
-    dict[str, str],
     list[str],
     float,
     bool,
@@ -1171,21 +1183,21 @@ def _eval_pass(
     """Run all evaluators for one snapshot and normalize their outcomes.
 
     Results are collected concurrently and returned in configured evaluator
-    order. The tuple contains job records, valid judge results, artifact
-    hashes, valid evaluator model IDs, known cost total, whether every cost was
-    known, token total, and wall-clock evaluator duration. Any raised worker
-    error is checkpointed, triggers shared cancellation, and is re-raised after
-    already-completed sibling outcomes have been recorded.
+    order. The tuple contains valid judge results, valid evaluator model IDs,
+    known cost total, whether every cost was known, captured token total, and
+    maximum individual evaluator process duration. That duration excludes
+    queueing and preparation, so it is not
+    total elapsed evaluation time. Any raised worker error is checkpointed,
+    triggers shared cancellation, and is re-raised after already-completed
+    sibling outcomes have been recorded.
     """
 
-    jobs: list[dict[str, Any]] = []
-    artifacts: dict[str, str] = {}
     valid_results: list[ValidatedJudgeScores] = []
     valid_eval_ids: list[str] = []
     eval_cost_total, eval_cost_known, eval_tokens, eval_duration = 0.0, True, 0, 0.0
 
     results: list[dict[str, Any] | None] = [None] * len(evaluator_attempts)
-    futures: dict[Future[Any], tuple[int, Any, str]] = {}
+    futures: dict[Future[dict[str, Any]], tuple[int, EvaluatorSpec, str]] = {}
     first_error: BaseException | None = None
     for index, (evaluator, eval_attempt_id) in enumerate(evaluator_attempts):
         futures[
@@ -1225,33 +1237,28 @@ def _eval_pass(
                     "invalid_reasons": ["evaluator_exception"],
                 },
             )
-            jobs.append(failure)
-            execution.checkpoint((failure,), artifacts)
+            execution.checkpoint.record((failure,))
             if first_error is None:
                 first_error = exc
             continue
         results[index] = ev
-        execution.checkpoint((ev["job_record"],), ev["artifacts"])
+        execution.checkpoint.record((ev["job_record"],), ev["artifacts"])
     if first_error is not None:
         raise first_error
-    for (evaluator, _), ev in zip(evaluator_attempts, results, strict=True):
-        if ev is None:
+    for (evaluator, _), outcome in zip(evaluator_attempts, results, strict=True):
+        if outcome is None:
             raise RuntimeError("evaluator scheduler returned an incomplete result set")
-        jobs.append(ev["job_record"])
-        artifacts.update(ev["artifacts"])
-        eval_tokens += ev["tokens"]
-        eval_duration = max(eval_duration, ev["duration_s"])
-        if ev["cost_usd"] is None:
+        eval_tokens += outcome["tokens"]
+        eval_duration = max(eval_duration, outcome["duration_s"])
+        if outcome["cost_usd"] is None:
             eval_cost_known = False
         else:
-            eval_cost_total += float(ev["cost_usd"])
-        if ev["valid_result"] is not None:
-            valid_results.append(ev["valid_result"])
+            eval_cost_total += float(outcome["cost_usd"])
+        if outcome["valid_result"] is not None:
+            valid_results.append(outcome["valid_result"])
             valid_eval_ids.append(_model_identifier(evaluator.model))
     return (
-        jobs,
         valid_results,
-        artifacts,
         valid_eval_ids,
         eval_cost_total,
         eval_cost_known,
@@ -1263,16 +1270,14 @@ def _eval_pass(
 def _evaluate_and_persist_attempt(
     execution: _ExecutionContext,
     prepared: _PreparedSubmission,
-    evaluator_attempts: Sequence[tuple[Any, str]],
-) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
+    evaluator_attempts: Sequence[tuple[EvaluatorSpec, str]],
+) -> Attempt:
     """Evaluate one prepared submission, write its Attempt, and checkpoint.
 
     Shared by build and verified-snapshot sources so scoring, eligibility,
     attempt codec, and evaluator policy remain single.
     """
 
-    jobs = list(prepared.jobs)
-    artifacts = dict(prepared.artifacts)
     track_id = prepared.track_id
     track = execution.config.tracks[track_id]
     contract = execution.run.contracts[track_id]
@@ -1284,9 +1289,7 @@ def _evaluate_and_persist_attempt(
         if prepared.snapshot_path is None:
             raise RuntimeError("successful implementation missing snapshot path")
         (
-            ej,
             valid_results,
-            ea,
             valid_eval_ids,
             eval_cost_total,
             eval_cost_known,
@@ -1302,8 +1305,6 @@ def _evaluate_and_persist_attempt(
             evaluator_attempts,
             prepared.repetition,
         )
-        jobs.extend(ej)
-        artifacts.update(ea)
     min_evals = _MIN_PUB_EVALS if execution.config.mode == "publication" else _MIN_LOCAL_EVALS
     evaluation_success = prepared.implementation_success and len(valid_results) >= min_evals
     reasons = [*execution.run.ineligible, *prepared.extra_ineligible_reasons]
@@ -1344,23 +1345,23 @@ def _evaluate_and_persist_attempt(
     )
     attempt_path = execution.run.run_dir / "attempts" / f"{prepared.submission_id}.json"
     atomic_write_json(attempt_path, attempt_to_raw(attempt))
-    artifacts[f"attempts/{prepared.submission_id}.json"] = sha256_file(attempt_path)
-    execution.checkpoint(jobs, artifacts)
-    return attempt, jobs, artifacts
+    execution.checkpoint.record(
+        new_artifacts={f"attempts/{prepared.submission_id}.json": sha256_file(attempt_path)}
+    )
+    return attempt
 
 
-def _run_verified_submission(
+def _prepare_verified_submission(
     execution: _ExecutionContext,
-    prior_run_id: str,
-    item: Mapping[str, Any],
-    evaluator_attempts: Sequence[tuple[Any, str]],
-) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
-    """Copy one prior snapshot (preparation only), then share evaluation/persistence."""
+    task: _PlannedSubmission,
+    source: _VerifiedSource,
+) -> _PreparedSubmission:
+    """Copy a verified prior snapshot and preserve its implementation provenance."""
 
+    item = source.submission
+    prior_run_id = source.run_id
     sid, prior_att, impl_job = item["submission_id"], item["attempt"], item["impl_job"]
-    track_id = prior_att["track"]
-    if track_id not in execution.config.tracks or track_id not in execution.run.contracts:
-        raise ValueError(f"prior track is missing from current config: {track_id}")
+    track_id = task.track.id
     contract = execution.run.contracts[track_id]
     contract_hash = execution.run.contract_hashes[track_id]
     impl_tokens = _usage_token_total(impl_job.get("usage"))
@@ -1396,8 +1397,8 @@ def _run_verified_submission(
             "usage": impl_job.get("usage"),
         },
     )
-    execution.checkpoint(jobs, artifacts)
-    prepared = _PreparedSubmission(
+    execution.checkpoint.record(jobs, artifacts)
+    return _PreparedSubmission(
         submission_id=sid,
         track_id=track_id,
         harness_id=prior_att["harness"],
@@ -1406,17 +1407,10 @@ def _run_verified_submission(
         repetition=int(prior_att["repetition"]),
         snapshot_path=new_snap,
         implementation_success=True,
-        jobs=jobs,
-        artifacts=artifacts,
         implementation_cost_usd=impl_cost,
         implementation_tokens=impl_tokens,
         implementation_duration_s=impl_duration,
         extra_ineligible_reasons=(),
-    )
-    return _evaluate_and_persist_attempt(
-        execution,
-        prepared,
-        evaluator_attempts,
     )
 
 
@@ -1750,50 +1744,54 @@ def _checkpoint_run(
     )
 
 
-def _checkpoint_writer(
-    config: BenchConfig,
-    ctx: _RunContext,
-    jobs: list[dict[str, Any]],
-    artifacts: dict[str, str],
-) -> Callable[..., None]:
-    """Return the serialized, idempotent manifest checkpoint writer.
+class _CheckpointState:
+    """Own accumulated job/artifact records and serialize durable checkpoints.
 
-    Calls may arrive from concurrent workers. New jobs are deduplicated by ID,
-    all jobs are deterministically sorted, artifacts are merged, and a complete
-    manifest snapshot is atomically rewritten while the lock is held.
+    Workers supply deltas immediately after producing durable outcomes. Job
+    IDs retain their first record; artifacts accept the latest declared hash.
+    Snapshots are detached so finalization cannot mutate live checkpoint state.
     """
 
-    seen = {job["id"] for job in jobs}
-    lock = threading.RLock()
+    def __init__(self, config: BenchConfig, ctx: _RunContext) -> None:
+        self._config = config
+        self._ctx = ctx
+        self._jobs: dict[str, dict[str, Any]] = {}
+        self._artifacts: dict[str, str] = {}
+        self._lock = threading.RLock()
 
-    def checkpoint(
+    def record(
+        self,
         new_jobs: Sequence[Mapping[str, Any]] = (),
         new_artifacts: Mapping[str, str] | None = None,
         *,
         status: str = "running",
         finished: str | None = None,
     ) -> None:
-        with lock:
+        with self._lock:
             for record in new_jobs:
                 job_id = record.get("id")
                 if not isinstance(job_id, str):
                     raise ValueError("checkpoint job is missing an id")
-                if job_id not in seen:
-                    jobs.append(dict(record))
-                    seen.add(job_id)
-            jobs.sort(
+                if job_id not in self._jobs:
+                    self._jobs[job_id] = deepcopy(dict(record))
+            if new_artifacts:
+                self._artifacts.update(new_artifacts)
+            jobs, artifacts = self.snapshot()
+            _checkpoint_run(self._config, self._ctx, status, jobs, artifacts, finished=finished)
+
+    def snapshot(self) -> tuple[list[dict[str, Any]], dict[str, str]]:
+        """Return detached records in deterministic manifest order."""
+        with self._lock:
+            jobs = sorted(
+                self._jobs.values(),
                 key=lambda record: (
                     str(record.get("submission_id") or ""),
                     0 if record.get("kind") == "implement" else 1,
                     str(record.get("evaluator_id") or ""),
                     str(record["id"]),
-                )
+                ),
             )
-            if new_artifacts:
-                artifacts.update(new_artifacts)
-            _checkpoint_run(config, ctx, status, jobs, artifacts, finished=finished)
-
-    return checkpoint
+            return deepcopy(jobs), dict(self._artifacts)
 
 
 def _record_private_failure(config: BenchConfig, run_dir: Path, exc: BaseException) -> None:
@@ -1812,15 +1810,22 @@ def _record_private_failure(config: BenchConfig, run_dir: Path, exc: BaseExcepti
 def _fail_run_without_masking(
     config: BenchConfig,
     run_dir: Path,
-    checkpoint: Callable[..., None],
+    checkpoint: _CheckpointState,
     original: BaseException,
+    *,
+    finalization_artifacts: Mapping[str, str] | None = None,
 ) -> None:
     try:
         _record_private_failure(config, run_dir, original)
     except Exception:  # the original execution failure remains authoritative
         pass
     try:
-        checkpoint(status="failed", finished=_utc_now())
+        # Finalization owns a detached map so layout rewriting cannot mutate
+        # live state. Preserve any ledger/report hashes it added before failing
+        # in this same terminal write, without adding a durability boundary.
+        checkpoint.record(
+            new_artifacts=finalization_artifacts, status="failed", finished=_utc_now()
+        )
     except Exception:  # never replace the agent/interruption exception
         pass
 
@@ -1977,22 +1982,30 @@ def _tokens(usage: Usage | None) -> int:
     return 0 if usage is None else usage.total()
 
 
-def _run_repetition(
+def _run_submission(execution: _ExecutionContext, task: _PlannedSubmission) -> Attempt:
+    """Prepare either submission source, then share evaluation and persistence."""
+    prepared = (
+        _prepare_fresh_submission(execution, task)
+        if task.reused is None
+        else _prepare_verified_submission(execution, task, task.reused)
+    )
+    return _evaluate_and_persist_attempt(execution, prepared, task.evaluator_attempts)
+
+
+def _prepare_fresh_submission(
     execution: _ExecutionContext,
-    task: _RunTask,
-) -> tuple[Attempt, list[dict[str, Any]], dict[str, str]]:
-    """Implement and snapshot one repetition, then share evaluation/persistence.
+    task: _PlannedSubmission,
+) -> _PreparedSubmission:
+    """Implement and snapshot one repetition for shared evaluation.
 
     A successful implementation is snapshotted before evaluators receive it.
     Implementation process failures become an ineligible attempt; unexpected
-    Python exceptions are checkpointed and propagated. The return value is the
-    attempt plus all job records and public artifact hashes produced here.
+    Python exceptions are checkpointed and propagated. Job and snapshot deltas
+    are recorded before returning the implementation provenance.
     """
 
     harness, track = task.harness, task.track
     repetition, submission_id = task.repetition, task.submission_id
-    jobs: list[dict[str, Any]] = []
-    artifacts: dict[str, str] = {}
     progress_fields = {
         "harness": harness.id,
         "model": harness.model,
@@ -2013,6 +2026,7 @@ def _run_repetition(
                 AgentJob(
                     kind="implement",
                     harness=harness.adapter,
+                    config_harness_id=harness.id,
                     model=ModelSpec(model=harness.model, effort=harness.effort),
                     workdir=workdir,
                     prompt_path=prompt_path,
@@ -2029,44 +2043,50 @@ def _run_repetition(
                 cancel_event=execution.cancel_event,
             )
     except (Exception, KeyboardInterrupt) as exc:
-        jobs.append(
-            _raised_job_record(
-                config=execution.config,
-                run_dir=execution.run.run_dir,
+        execution.checkpoint.record(
+            (
+                _raised_job_record(
+                    config=execution.config,
+                    run_dir=execution.run.run_dir,
+                    job_id=f"implement-{submission_id}",
+                    kind="implement",
+                    harness_id=harness.id,
+                    track=track.id,
+                    repetition=repetition,
+                    submission_id=submission_id,
+                    exc=exc,
+                ),
+            )
+        )
+        raise
+    execution.checkpoint.record(
+        (
+            _job_record(
                 job_id=f"implement-{submission_id}",
                 kind="implement",
                 harness_id=harness.id,
                 track=track.id,
                 repetition=repetition,
                 submission_id=submission_id,
-                exc=exc,
-            )
-        )
-        execution.checkpoint(jobs, artifacts)
-        raise
-    jobs.append(
-        _job_record(
-            job_id=f"implement-{submission_id}",
-            kind="implement",
-            harness_id=harness.id,
-            track=track.id,
-            repetition=repetition,
-            submission_id=submission_id,
-            execution=impl,
+                execution=impl,
+            ),
         )
     )
-    execution.checkpoint(jobs, artifacts)
     impl_ok = _process_ok(impl.process) and impl.error is None
     snapshot_path: Path | None = None
     if impl_ok:
         snapshot_path = execution.run.run_dir / "snapshots" / submission_id
-        for rel, digest in atomic_snapshot(
+        snapshot_hashes = atomic_snapshot(
             workdir,
             snapshot_path,
             ignore_patterns=_AMBIENT_IGNORE,
-        ).items():
-            artifacts[f"snapshots/{submission_id}/{rel}"] = digest
-        execution.checkpoint(jobs, artifacts)
+        )
+        execution.checkpoint.record(
+            new_artifacts={
+                f"snapshots/{submission_id}/{rel}": digest
+                for rel, digest in snapshot_hashes.items()
+            }
+        )
     _emit_progress(
         execution.options,
         "build.finished",
@@ -2079,7 +2099,7 @@ def _run_repetition(
         extra.append("implementation_failed")
         if impl.process.timed_out:
             extra.append("implementation_timeout")
-    prepared = _PreparedSubmission(
+    return _PreparedSubmission(
         submission_id=submission_id,
         track_id=track.id,
         harness_id=harness.id,
@@ -2088,17 +2108,10 @@ def _run_repetition(
         repetition=repetition,
         snapshot_path=snapshot_path,
         implementation_success=impl_ok,
-        jobs=tuple(jobs),
-        artifacts=artifacts,
         implementation_cost_usd=impl.cost_usd,
         implementation_tokens=_tokens(impl.usage),
         implementation_duration_s=float(impl.process.duration_s),
         extra_ineligible_reasons=tuple(extra),
-    )
-    return _evaluate_and_persist_attempt(
-        execution,
-        prepared,
-        task.evaluator_attempts,
     )
 
 
@@ -2110,10 +2123,10 @@ def _run_evaluator(
     execution_context: _ExecutionContext,
     submission_id: str,
     snapshot_path: Path,
-    track: Any,
+    track: TrackSpec,
     contract: EvaluationContract,
     contract_hash: str,
-    evaluator: Any,
+    evaluator: EvaluatorSpec,
     eval_attempt_id: str,
     repetition: int,
 ) -> dict[str, Any]:
@@ -2146,10 +2159,12 @@ def _run_evaluator(
         eval_root / "output",
     )
     output_dir.mkdir()
-    materialize_seed(execution_context.config, seed_dir)
-    atomic_snapshot(snapshot_path, submission_dir)
-    pre_seed = tree_manifest(seed_dir, ignore=_AMBIENT_IGNORE)
-    pre_sub = tree_manifest(submission_dir, ignore=_AMBIENT_IGNORE)
+    pre_seed = filter_tree_manifest(
+        materialize_seed(execution_context.config, seed_dir), ignore=_AMBIENT_IGNORE, root=seed_dir
+    )
+    pre_sub = filter_tree_manifest(
+        atomic_snapshot(snapshot_path, submission_dir), ignore=_AMBIENT_IGNORE, root=submission_dir
+    )
     report_path, result_path = output_dir / "report.md", output_dir / "result.json"
     browser_evidence_path = output_dir / "browser-evidence.json"
     runtime_path = eval_root / "browser-runtime.json"
@@ -2183,6 +2198,7 @@ def _run_evaluator(
                     job = AgentJob(
                         kind="evaluate",
                         harness=href.adapter,
+                        config_harness_id=href.id,
                         model=ModelSpec(model=evaluator.model, effort=evaluator.effort),
                         workdir=output_dir,
                         prompt_path=prompt_path,
@@ -2232,7 +2248,7 @@ def _run_evaluator(
                         proof[f"{rel}/output/browser-evidence.json"] = sha256_file(
                             browser_evidence_path
                         )
-                    execution_context.checkpoint((), proof)
+                    execution_context.checkpoint.record(new_artifacts=proof)
     artifacts: dict[str, str] = {}
     invalid: list[str] = []
     valid_result: ValidatedJudgeScores | None = None

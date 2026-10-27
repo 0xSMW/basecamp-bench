@@ -227,6 +227,17 @@ class StrictSchemaTests(TempRoot):
             ):
                 load_config(self.config(body, f"i{index}.toml"), root=self.root)
 
+    def test_benchmark_ids_reject_double_dots_at_configuration_entry(self) -> None:
+        cases = (
+            "[harnesses.'a..b']\nadapter='codex'\nmodel='m'\neffort='high'\nprovider_family='p'\ndisplay_name='Bad'",
+            "[tracks.'a..b']\nprompt='benchmarks/fe/prompt.md'\nrubric='benchmarks/fe/eval.md'\ncontract='benchmarks/fe/contract.json'",
+            "[[evaluators]]\nid='a..b'\nharness='codex'\nmodel='m'\neffort='high'\nprovider_family='p'\nenabled=true",
+            "[[evaluators]]\nid='eval-1'\nharness='a..b'\nmodel='m'\neffort='high'\nprovider_family='p'\nenabled=true",
+        )
+        for body in cases:
+            with self.subTest(body=body), self.assertRaisesRegex(ValueError, "must not contain"):
+                load_config(self.config(body), root=self.root)
+
     def test_unknown_adapter(self) -> None:
         path = self.config("""
             [harnesses.bad]
@@ -344,6 +355,22 @@ class EvaluatorAndSelectionTests(TempRoot):
 
 
 class PricingTests(TempRoot):
+    def test_unrepresentable_integer_rates_report_config_error(self) -> None:
+        for field in ("input", "output", "cache_read", "cache_write"):
+            rates = {"input": 1, "output": 2, field: 10**400}
+            body = "[pricing.m]\n" + "\n".join(f"{key}={value}" for key, value in rates.items())
+            with (
+                self.subTest(field=field),
+                self.assertRaisesRegex(
+                    ValueError, f"pricing.m.{field} must be a finite nonnegative number"
+                ),
+            ):
+                load_config(self.config(body), root=self.root)
+
+    def test_pricing_model_ids_keep_lexical_format(self) -> None:
+        config = load_config(self.config('[pricing."a..b"]\ninput=1\noutput=2'), root=self.root)
+        self.assertIn("a..b", config.pricing_overrides)
+
     def test_rates_normalized_and_cache_defaults(self) -> None:
         path = self.config("""
             [pricing."gpt-5.6-sol"]

@@ -21,6 +21,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from .validation import is_finite_number
+
 __all__ = [
     "PricingRates",
     "PricingLookup",
@@ -395,11 +397,7 @@ def _provenance(
 
 
 def _is_nonneg_finite_number(value: Any) -> bool:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return False
-    if not math.isfinite(value):
-        return False
-    return float(value) >= 0.0
+    return is_finite_number(value) and float(value) >= 0.0
 
 
 def _require_nonneg_int(value: Any, field: str) -> int:
